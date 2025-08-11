@@ -5,6 +5,7 @@ import yaml
 import soundfile as sf
 import time
 import sys
+import torch.nn.functional as F
 
 sys.path.append('vc_systems/seed-vc')
 
@@ -23,6 +24,7 @@ dtype = torch.float16
 # Global variables to store model instances
 vc_wrapper_v2 = None
 old_compute_style = None
+old_mel_fn = None
 
 
 def load_v2_models(args):
@@ -50,39 +52,46 @@ def load_v2_models(args):
 
     return vc_wrapper
 
+def patched_mel_fn(wav_tensor, perturb=False):
+    result = old_mel_fn(wav_tensor)
+    # pad_amount = 2000 - result.size(2)
+    # new_result = F.pad(result, (0, pad_amount))
+    print('mean of mel spec:', result.mean())
+    print('shape of mel spec:', result.shape, perturb)
+    new_result = result[:, :,:1000]
+    print('shape of new mel spec:', new_result.shape)
+    if perturb:
+        return new_result
+    else:
+        return result
+
 def patched_compute_style(waves_16k: torch.Tensor, wave_lens_16k: torch.Tensor = None):
-    print('style encoder!!!!!!!!!!')
-    print(waves_16k)
-    print(wave_lens_16k)
     result = old_compute_style(waves_16k, wave_lens_16k)
-    print('result shape:', result.shape)
     return result
+    #return result*0
+    # AE = torch.load('embedding_vae.pt', map_location=torch.device('cpu')).to(device)
+    # AE.set_noise_mult(50.0)
+    # return AE(result)
 
 def convert_voice_v2(source_audio_path, target_audio_path, args):
     """Convert voice using V2 model"""
     global vc_wrapper_v2
     global old_compute_style
+    global old_mel_fn
     if vc_wrapper_v2 is None:
         vc_wrapper_v2 = load_v2_models(args)
         old_compute_style = vc_wrapper_v2.compute_style
         vc_wrapper_v2.compute_style = patched_compute_style
+        old_mel_fn = vc_wrapper_v2.mel_fn
+        vc_wrapper_v2.mel_fn = patched_mel_fn
 
     # Use the generator function but collect all outputs
     generator = vc_wrapper_v2.convert_voice_with_streaming(
         source_audio_path=source_audio_path,
         target_audio_path=target_audio_path,
-        diffusion_steps=args.diffusion_steps,
-        length_adjust=args.length_adjust,
-        intelligebility_cfg_rate=args.intelligibility_cfg_rate,
-        similarity_cfg_rate=args.similarity_cfg_rate,
-        top_p=args.top_p,
-        temperature=args.temperature,
-        repetition_penalty=args.repetition_penalty,
-        convert_style=args.convert_style,
-        anonymization_only=args.anonymization_only,
+        convert_style=True,
+        anonymization_only=False,
         device=device,
-        dtype=dtype,
-        stream_output=True
     )
 
     # Collect all outputs from the generator
@@ -95,27 +104,28 @@ def main(args):
     # Create output directory if it doesn't exist
     os.makedirs(args.output, exist_ok=True)
 
-    start_time = time.time()
-    converted_audio = convert_voice_v2(args.source, args.target, args)
-    end_time = time.time()
+    for i in range(5):
+        start_time = time.time()
+        converted_audio = convert_voice_v2(args.source, args.target, args)
+        end_time = time.time()
 
-    if converted_audio is None:
-        print("Error: Failed to convert voice")
-        return
+        if converted_audio is None:
+            print("Error: Failed to convert voice")
+            return
 
-    # Save the converted audio
-    source_name = os.path.basename(args.source).split(".")[0]
-    target_name = os.path.basename(args.target).split(".")[0]
+        # Save the converted audio
+        source_name = os.path.basename(args.source).split(".")[0]
+        target_name = os.path.basename(args.target).split(".")[0]
 
-    # Create a descriptive filename
-    filename = f"vc_v2_{source_name}_{target_name}_{args.length_adjust}_{args.diffusion_steps}_{args.similarity_cfg_rate}.wav"
+        # Create a descriptive filename
+        filename = f"vc_v2_{source_name}_{target_name}_{i}.wav"
 
-    output_path = os.path.join(args.output, filename)
-    save_sr, converted_audio = converted_audio
-    sf.write(output_path, converted_audio, save_sr)
+        output_path = os.path.join(args.output, filename)
+        save_sr, converted_audio = converted_audio
+        sf.write(output_path, converted_audio, save_sr)
 
-    print(f"Voice conversion completed in {end_time - start_time:.2f} seconds")
-    print(f"Output saved to: {output_path}")
+        print(f"Voice conversion {i} completed in {end_time - start_time:.2f} seconds")
+        print(f"Output saved to: {output_path}")
 
 
 if __name__ == "__main__":
