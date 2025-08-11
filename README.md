@@ -2,6 +2,16 @@
 
 This repository provides a library for defining differentially private speaker anonymization systems using existing voice control models. The approach works for any voice control system that separates utterance information into constant-length speaker information (e.g. a speaker embedding) and time-varying content information (e.g. semantic features).
 
+## Installation
+
+Install the library by cloning this repository and then running:
+
+```
+pip install .
+```
+
+The library currently does not specify any dependencies, so you'll need to manually ensure that dependencies (e.g. OpenVoice) are installed.
+
 ## Example: OpenVoice
 
 The library provides a wrapper around the OpenVoice voice control system. A minimal example of using it is as follows:
