@@ -63,16 +63,13 @@ class VariationalAutoencoder(nn.Module):
     def forward(self, x):
         z = self.encoder(x)
         if self.noise_mult:
-            print('******************* input max/min/norm:', x.max().item(), x.min().item(), x.norm(p=2).item())
-            print('******************* latent max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
+            #print('******************* input max/min/norm:', x.max().item(), x.min().item(), x.norm(p=2).item())
+            #print('******************* latent max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
             z = self.clip_by_l2norm(z, self.clip_threshold)
-            print('******************* clipped max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
+            #print('******************* clipped max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
             z = z + self.clip_threshold*self.noise_mult*torch.randn(z.shape).to(z.device)
-            print('******************* noisy max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
+            #print('******************* noisy max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
             z = torch.clamp(z, min=-self.clip_threshold, max=self.clip_threshold)
             #z = self.clip_by_l2norm(z, 10*self.clip_threshold)
-        # else:
-        #     scale_factor = torch.randn(1).to(z.device)
-        #     z = z * scale_factor
         return self.decoder(z)
 
