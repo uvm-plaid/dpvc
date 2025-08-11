@@ -1,2 +1,15 @@
-# dp-vc
-Differential privacy for voice control
+# Differentially Private Anonymization via Voice Control
+
+This repository provides a library for defining differentially private speaker anonymization systems using existing voice control models. The approach works for any voice control system that separates utterance information into constant-length speaker information (e.g. a speaker embedding) and time-varying content information (e.g. semantic features).
+
+## Example: OpenVoice
+
+The library provides a wrapper around the OpenVoice voice control system. A minimal example of using it is as follows:
+
+```
+import dpvc
+anonymizer = dpvc.OpenVoiceDPWrapper()
+anonymizer.anonymize(src_path, output_path, noise_level=1.0)
+```
+
+Here, `src_path` should be an input .wav file name, and `output_path` should be the output .wav file name. The `noise_level` parameter controls how much noise is added in the differential privacy step. The `OpenVoiceDPWrapper` object encapsulates the OpenVoice models, and the `anonymize` method performs the anonymization via differential privacy.
