@@ -13,14 +13,16 @@ class OpenVoiceDPWrapper:
         ckpt_converter = '../checkpoints/checkpoints_v2/converter'
         device="cuda:0" if torch.cuda.is_available() else "cpu"
 
-        ae_path = f'{local_path}/embedding_vae.pt'
-        AE = torch.load(ae_path, map_location=torch.device('cpu')).to(device)
+        ae_path = f'{local_path}/openvoice_embedding_vae.pt'
+        AE = VariationalAutoencoder(latent_dims=6).to(device)
+        AE.load_state_dict(torch.load(ae_path, weights_only=True))
+        AE.eval()
         # AE.set_noise_mult(1.0)
         AE.clip_threshold = 3.0
         self.AE = AE
 
-        emb_path = f'{local_path}/all_emb_labeled_cv_full.pt'
-        emb = torch.load(emb_path)['data'].to(device).squeeze()
+        emb_path = f'{local_path}/openvoice_random_embeddings_cv.pt'
+        emb = torch.load(emb_path).to(device).squeeze()
         self.emb = emb
 
         tone_color_converter = ToneColorConverter(f'{ckpt_converter}/config.json', device=device)
