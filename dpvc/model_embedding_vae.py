@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import random
+import numpy as np
+from . import utils
 
 INPUT_DIM = 256
 
@@ -60,13 +63,14 @@ class VariationalAutoencoder(nn.Module):
         scaling = torch.clamp(threshold / (norms + 1e-8), max=1.0)
         return x * scaling
 
-    def forward(self, x):
+    def forward(self, x, seed=None):
         z = self.encoder(x)
         if self.noise_mult:
             #print('******************* input max/min/norm:', x.max().item(), x.min().item(), x.norm(p=2).item())
             #print('******************* latent max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
             z = self.clip_by_l2norm(z, self.clip_threshold)
             #print('******************* clipped max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
+            utils.set_seed(seed)
             z = z + self.clip_threshold*self.noise_mult*torch.randn(z.shape).to(z.device)
             #print('******************* noisy max/min/norm:', z.max().item(), z.min().item(), z.norm(p=2).item())
             z = torch.clamp(z, min=-self.clip_threshold, max=self.clip_threshold)
