@@ -46,10 +46,10 @@ class OpenVoiceDPWrapper:
                                                        target_dir='processed', vad=True)
 
                     embeddings.append(embedding)
-                except Exception as e:
-                    print('Error extracting embedding:', e)
+            except Exception as e:
+                print('Error extracting embedding:', e)
 
-        return torch.vstack(all_emb)
+        return torch.vstack(embeddings).squeeze()
 
     def anonymize(self, source_file, output_file, noise_level, seed=None):
         self.AE.set_noise_mult(noise_level)
