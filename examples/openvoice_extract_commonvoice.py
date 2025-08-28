@@ -6,6 +6,8 @@ from openvoice.api import ToneColorConverter
 import pandas as pd
 from tqdm import tqdm
 
+# TODO: not yet updated to use the wrappers
+
 ckpt_base = 'checkpoints/checkpoints_v2/base_speakers/EN'
 ckpt_converter = 'checkpoints/checkpoints_v2/converter'
 device="cuda:0" if torch.cuda.is_available() else "cpu"
