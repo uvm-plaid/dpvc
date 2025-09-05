@@ -6,6 +6,8 @@ from tqdm import tqdm
 from pathlib import Path
 import requests
 import zipfile
+import contextlib
+from typing import List
 
 def set_seed(seed):
     if seed is not None:
@@ -14,6 +16,21 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
         random.seed(seed)
         np.random.seed(seed)
+
+def extract_embeddings(vc_wrapper, dataset: List[str]) -> torch.Tensor:
+    """Extract speaker embeddings from many source .wav files"""
+    embeddings = []
+    print('Extracting embeddings...')
+    for wav_file in tqdm(dataset):
+        try:
+            with contextlib.redirect_stdout(None):
+                embedding = vc_wrapper.extract_embedding(wav_file)
+                embeddings.append(embedding)
+        except Exception as e:
+            print('Error extracting embedding:', e)
+
+    return torch.vstack(embeddings).squeeze()
+
 
 def train_autoencoder(model, embeddings, epochs=1000):
     BATCH_SIZE = min(64, len(embeddings))

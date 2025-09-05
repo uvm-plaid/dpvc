@@ -14,11 +14,11 @@ files = ['output/openvoice_noisy_0.wav',
          'output/openvoice_noisy_9.wav',
          ]
 
-# Construct the DP-VC anonymizer
-anonymizer = dpvc.OpenVoiceDPWrapper()
+# Construct the VC system wrapper
+vc_wrapper = dpvc.OpenVoiceDPWrapper()
 
 # Extract embeddings
-embeddings = anonymizer.extract_embeddings(files).to(device)
+embeddings = dpvc.utils.extract_embeddings(vc_wrapper, files).to(device)
 print('Shape of extracted embeddings:', embeddings.shape)
 
 # Train the VAE
