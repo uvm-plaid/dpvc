@@ -1,0 +1,16 @@
+# Virtual environment
+venv/
+env/
+
+# Compiled Python bytecode
+__pycache__/
+*.pyc
+*.egg-info
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+.DS_Store
+
+# Log files
+*.log
