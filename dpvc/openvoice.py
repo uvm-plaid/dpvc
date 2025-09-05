@@ -5,9 +5,6 @@ import numpy as np
 from typing import List
 import contextlib
 from tqdm import tqdm
-import requests
-import zipfile
-from pathlib import Path
 
 from openvoice import se_extractor
 from openvoice.api import BaseSpeakerTTS, ToneColorConverter
@@ -17,42 +14,10 @@ from . import utils
 
 CHECKPOINT_URL = "https://myshell-public-repo-host.s3.amazonaws.com/openvoice/checkpoints_v2_0417.zip"
 
-def extract_zip(zip_path: Path, extract_dir: Path) -> Path:
-    """Extracts a zip file if not already extracted."""
-    extract_dir.mkdir(parents=True, exist_ok=True)
-
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        # You can check if already extracted by verifying members
-        existing = all((extract_dir / name).exists() for name in zf.namelist())
-        if not existing:
-            print(f"Extracting {zip_path} -> {extract_dir}")
-            zf.extractall(extract_dir)
-
-def download_file(url, dest):
-    r = requests.get(url, stream=True)
-    r.raise_for_status()
-    with open(dest, "wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            f.write(chunk)
-
-def ensure_checkpoint():
-    cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "openvoice_checkpoint"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = cache_dir / "checkpoints.zip"
-    ckpt_path = cache_dir / "checkpoints"
-    
-    if not zip_path.exists():
-        print(f"Downloading model checkpoints to {zip_path}...")
-        download_file(CHECKPOINT_URL, zip_path)
-        extract_zip(zip_path, ckpt_path)
-
-    return ckpt_path
-
-
 class OpenVoiceDPWrapper:
     def __init__(self):
         local_path = os.path.dirname(os.path.abspath(__file__))
-        ckpt_path = ensure_checkpoint()
+        ckpt_path = utils.ensure_checkpoint(CHECKPOINT_URL)
 
         ckpt_base = f'{ckpt_path}/checkpoints_v2/base_speakers/EN'
         ckpt_converter = f'{ckpt_path}/checkpoints_v2/converter'
