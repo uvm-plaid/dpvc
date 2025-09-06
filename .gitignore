@@ -1,3 +1,8 @@
+# Package specific directories
+site/
+examples/output/
+examples/processed/
+
 # Virtual environment
 venv/
 env/
