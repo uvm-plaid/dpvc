@@ -6,10 +6,11 @@ from openvoice import se_extractor
 from openvoice.api import BaseSpeakerTTS, ToneColorConverter
 
 from . import utils
+from . import VoiceControlWrapper
 
 CHECKPOINT_URL = "https://myshell-public-repo-host.s3.amazonaws.com/openvoice/checkpoints_v2_0417.zip"
 
-class OpenVoiceDPWrapper:
+class OpenVoiceWrapper(VoiceControlWrapper):
     def __init__(self):
         ckpt_path = utils.ensure_checkpoint(CHECKPOINT_URL)
 

@@ -1,3 +1,4 @@
+from .wrapper import *
 from .anonymizer import *
 from .openvoice import *
 from . import model_embedding_vae

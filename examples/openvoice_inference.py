@@ -4,7 +4,7 @@ src_path = 'trump_0.wav'
 # ae_path = 'example_openvoice_vae.pt'
 ae_path = None
 
-vc_wrapper = dpvc.OpenVoiceDPWrapper()
+vc_wrapper = dpvc.OpenVoiceWrapper()
 anonymizer = dpvc.Anonymizer(vc_wrapper, vae_checkpoint_path=ae_path)
 
 for i in range(10):

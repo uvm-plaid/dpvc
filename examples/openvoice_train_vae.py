@@ -15,7 +15,7 @@ files = ['output/openvoice_noisy_0.wav',
          ]
 
 # Construct the VC system wrapper
-vc_wrapper = dpvc.OpenVoiceDPWrapper()
+vc_wrapper = dpvc.OpenVoiceWrapper()
 
 # Extract embeddings
 embeddings = dpvc.utils.extract_embeddings(vc_wrapper, files).to(device)
