@@ -18,7 +18,7 @@ class Anonymizer:
             ae_path = vae_checkpoint_path
 
         AE = VariationalAutoencoder(latent_dims=6).to(device)
-        AE.load_state_dict(torch.load(ae_path, weights_only=True))
+        AE.load_state_dict(torch.load(ae_path, weights_only=True, map_location=device))
         AE.eval()
         AE.clip_threshold = 3.0
         self.AE = AE
