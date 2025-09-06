@@ -11,6 +11,11 @@ version = "0.1"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9,<=3.12"
+dependencies = [
+    "torch>=2.4.0",
+    "numpy>=1.22",
+    "MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git",
+]
 
 [project.urls]
 Repository = "https://github.com/uvm-plaid/dpvc"
