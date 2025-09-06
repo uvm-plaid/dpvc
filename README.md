@@ -10,8 +10,6 @@ Install the library by cloning this repository and then running:
 pip install .
 ```
 
-The library currently does not specify any dependencies, so you'll need to manually ensure that dependencies (e.g. OpenVoice) are installed.
-
 ## Example: OpenVoice
 
 The library provides a wrapper around the OpenVoice voice control system. A minimal example of using it is as follows:
@@ -30,3 +28,11 @@ See the following files for examples of use:
 - `examples/openvoice_inference.py` contains a more complete example of anonymization using the OpenVoice wrapper
 - `examples/openvoice_train_vae.py` contains an example of how to train a custom DP-VAE for use in the anonymizer
 
+## Building Documentation
+
+The documentation is built with [MkDocs](https://www.mkdocs.org/). To build the documentation:
+
+```
+pip install mkdocs "mkdocstrings[python]" mkdocs-material
+mkdocs build
+```
