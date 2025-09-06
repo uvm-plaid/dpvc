@@ -2,6 +2,8 @@
 
 This repository provides a library for defining differentially private speaker anonymization systems using existing voice control models. The approach works for any voice control system that separates utterance information into constant-length speaker information (e.g. a speaker embedding) and time-varying content information (e.g. semantic features).
 
+[Click here for full documentation](https://jnear.w3.uvm.edu/dpvc/)
+
 ## Installation
 
 Install the library by cloning this repository and then running:
