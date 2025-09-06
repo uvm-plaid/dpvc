@@ -1,10 +1,11 @@
 import dpvc
 
-src_path = 'vc_systems/seed-vc/examples/source/source_s1.wav'
-src_path = '/data/cv-corpus-21.0-2025-03-14/en/clips/common_voice_en_17870026.mp3'
+src_path = 'trump_0.wav'
+# ae_path = 'example_openvoice_vae.pt'
+ae_path = None
 
 vc_wrapper = dpvc.OpenVoiceDPWrapper()
-anonymizer = dpvc.Anonymizer(vc_wrapper)
+anonymizer = dpvc.Anonymizer(vc_wrapper, vae_checkpoint_path=ae_path)
 
 for i in range(10):
     save_path = f'output/openvoice_noisy_{i}.wav'

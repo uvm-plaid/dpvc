@@ -23,5 +23,5 @@ print('Shape of extracted embeddings:', embeddings.shape)
 
 # Train the VAE
 AE = dpvc.VariationalAutoencoder(latent_dims=6).to(device)
-dpvc.utils.train_autoencoder(AE, embeddings)
+dpvc.utils.train_autoencoder(AE, embeddings, epochs=10000)
 torch.save(AE.state_dict(), 'example_openvoice_vae.pt')
