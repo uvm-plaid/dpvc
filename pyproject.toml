@@ -6,8 +6,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dpvc"
 description = "Differentially private voice control"
-authors = [{name = "Joe Near", email = "jnear@uvm.edu"}]
-version = "0.1"
+authors = [{name = "Joe Near", email = "jnear@uvm.edu"},
+           {name = "Ivoline Ngong", email = "kngongiv@uvm.edu"},
+           {name = "Jack D'Iorio", email = "Jack.C.DIorio@uvm.edu"}]
+version = "0.2"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9,<=3.12"
@@ -22,4 +24,5 @@ Repository = "https://github.com/uvm-plaid/dpvc"
 
 [tool.setuptools]
 packages = ["dpvc"]
+package-data = { "dpvc" = ["openvoice_embedding_vae.pt", "openvoice_random_embeddings_cv.pt"] }
 zip-safe = false
