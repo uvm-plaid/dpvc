@@ -16,6 +16,9 @@ The VoiceControlWrapper class is an abstract class defining the methods required
 
 ::: dpvc.openvoice
 
+## ControlVC Wrapper
+::: dpvc.ControlVCWrapper
+
 ## Utilities
 
 ::: dpvc.utils
