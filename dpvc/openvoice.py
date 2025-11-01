@@ -12,6 +12,9 @@ CHECKPOINT_URL = "https://myshell-public-repo-host.s3.amazonaws.com/openvoice/ch
 
 class OpenVoiceWrapper(VoiceControlWrapper):
     def __init__(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        self.default_vae_path = f'{local_path}/openvoice_embedding_vae.pt'
+
         ckpt_path = utils.ensure_checkpoint(CHECKPOINT_URL)
 
         ckpt_base = f'{ckpt_path}/checkpoints_v2/base_speakers/EN'

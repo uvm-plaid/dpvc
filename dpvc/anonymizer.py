@@ -13,7 +13,7 @@ class Anonymizer:
 
         if vae_checkpoint_path is None:
             local_path = os.path.dirname(os.path.abspath(__file__))
-            ae_path = f'{local_path}/openvoice_embedding_vae.pt'
+            ae_path = vc_wrapper.default_vae_path
         else:
             ae_path = vae_checkpoint_path
 
