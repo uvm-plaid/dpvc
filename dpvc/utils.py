@@ -33,8 +33,8 @@ def extract_embeddings(vc_wrapper, dataset: List[str]) -> torch.Tensor:
 
 
 def train_autoencoder(model, embeddings, epochs=1000):
-    BATCH_SIZE = min(64, len(embeddings))
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)#, weight_decay=1e-7)
+    BATCH_SIZE = min(256, len(embeddings))
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     outputs = []
     losses = []
     beta = 1
@@ -51,11 +51,14 @@ def train_autoencoder(model, embeddings, epochs=1000):
 
             reconstructed = model(embeddings_b)
             recon_loss = ((embeddings_b - reconstructed)**2).sum()
-            kl_loss = beta*model.encoder.kl
+            kl_loss = beta*model.kl
             loss = recon_loss + kl_loss
 
             loss.backward()
             optimizer.step()
+
+        if epoch % 10 == 0:
+            print('loss:', loss.item(), recon_loss.item(), kl_loss.item())
 
     print('Ending loss:', loss.item())
 

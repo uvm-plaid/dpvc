@@ -17,16 +17,13 @@ class Anonymizer:
         else:
             ae_path = vae_checkpoint_path
 
-        AE = VariationalAutoencoder(latent_dims=6).to(device)
+        AE = VariationalAutoencoder(latent_dims=6,
+                                    clip_threshold=vc_wrapper.clip_threshold,
+                                    post_clip_threshold=vc_wrapper.post_clip_threshold
+                                    ).to(device)
         AE.load_state_dict(torch.load(ae_path, weights_only=True, map_location=device))
         AE.eval()
-        AE.clip_threshold = 3.0
         self.AE = AE
-
-        # Only needed if we also want to select a random speaker to start from
-        # emb_path = f'{local_path}/openvoice_random_embeddings_cv.pt'
-        # emb = torch.load(emb_path).to(device).squeeze()
-        # self.emb = emb
 
     def anonymize(self, source_file, output_file, noise_level, seed=None):
         """Anonymize the source file, using the specified noise level, writing
@@ -36,14 +33,6 @@ class Anonymizer:
         utils.set_seed(seed)
 
         source_embedding = self.vc_wrapper.extract_embedding(source_file)
-
-        # Only needed if we also want to select a random speaker to start from
-        # num_emb, dim_emb = self.emb.shape
-        # idx = random.randint(0, num_emb)
-        # random_embedding = self.emb[idx].unsqueeze(0)
-        # target_embedding = random_embedding.unsqueeze(-1) # (to just use a random embedding)
-        # target_embedding = self.AE(random_embedding, seed=seed).unsqueeze(-1)
-
         target_embedding = self.AE(source_embedding.squeeze(-1), seed=seed).unsqueeze(-1)
 
         self.vc_wrapper.inference(
