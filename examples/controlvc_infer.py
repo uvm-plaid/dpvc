@@ -10,7 +10,7 @@ def main():
     ap.add_argument("--checkpoints", default=None)
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--source", required=True)
-    ap.add_argument("--reference", required=True, help="temporary reference for target embedding (no DP yet)")
+    ap.add_argument("--reference", required=True, help="used only to get target embedding (DP noise can be injected later)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -19,8 +19,9 @@ def main():
         checkpoints_dir=Path(args.checkpoints) if args.checkpoints else None,
         device=args.device,
     )
-    tgt_emb = w.extract_embedding(Path(args.reference))
-    wav = w.infer(Path(args.source), target_embedding=tgt_emb)
+
+    tgt = w.extract_embedding(Path(args.reference))
+    wav = w.infer(Path(args.source), target_embedding=tgt, out_sr=16000)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     torchaudio.save(args.out, wav.cpu(), 16000)
 
@@ -29,11 +30,3 @@ if __name__ == "__main__":
     
     
 # Run shape
-
-# python examples/controlvc_infer.py \
-#   --repo-root /ABS/PATH/to/control-vc \
-#   --checkpoints /ABS/PATH/to/control-vc/checkpoints \
-#   --device cpu \
-#   --source /ABS/PATH/src.wav \
-#   --reference /ABS/PATH/ref.wav \
-#   --out /ABS/PATH/out.wav
