@@ -1,22 +1,32 @@
 # dpvc/controlvc.py
 from __future__ import annotations
 from pathlib import Path
-from typing import Optional, Any, Dict, Callable
-import sys, importlib.util, types, tempfile, shutil
+from typing import Optional, Any, Dict, Tuple
+import sys
+import json
+import warnings
 import numpy as np
 import torch
 import torchaudio
+import librosa
 
 class ControlVCWrapper:
     """
-    Control-VC wrapper with a two-stage API:
-      1) extract_embedding(wav_path) -> torch.Tensor
+    Control-VC wrapper with a two-stage API for differential privacy:
+      1) extract_embedding(wav_path) -> torch.Tensor (speaker embedding)
       2) infer(source_wav, target_embedding, **kwargs) -> torch.Tensor (waveform)
 
-    Notes:
-    - This version removes subprocess usage per Joe's request.
-    - It mirrors the OpenVoice wrapper's split (embedding vs inference).
-    - Checkpoints are expected to be present locally (manual download).
+    This wrapper directly loads ControlVC models and bypasses script-based execution
+    for better integration with the DP anonymization pipeline.
+
+    Expected checkpoints structure:
+      checkpoints/
+        ├── embed_f0stat2/          # Main VC model
+        │   ├── config.json
+        │   └── g_XXXXXXXX
+        ├── 3000000-BL.ckpt         # Speaker embedding model
+        ├── hubert_base_ls960.pt    # HuBERT model (optional for content extraction)
+        └── km.bin                  # K-means quantizer (optional)
     """
 
     def __init__(
@@ -25,11 +35,17 @@ class ControlVCWrapper:
         device: str = "cpu",
         checkpoints_dir: Optional[Path] = None,
         config: Optional[Dict[str, Any]] = None,
+        verbose: bool = False,
     ):
         self.repo_root = Path(repo_root).expanduser().resolve()
-        self.device = torch.device(
-            device if (device == "cpu" or torch.cuda.is_available()) else "cpu"
-        )
+        self.verbose = verbose
+
+        # Set device
+        if device == "cpu" or not torch.cuda.is_available():
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(device)
+
         self.checkpoints_dir = (Path(checkpoints_dir).resolve()
                                 if checkpoints_dir else (self.repo_root / "checkpoints"))
         self.config = config or {}
@@ -37,75 +53,224 @@ class ControlVCWrapper:
         if not self.repo_root.exists():
             raise FileNotFoundError(f"Control-VC repo root not found: {self.repo_root}")
 
-        # Candidate script names Joe mentioned
-        self._embed_candidates = [
-            "infer_speaker_embedding.py",
-            "infer_speakenbed.py",         # some forks typo this
-            "inferspeakenbed.py",          # …and this
-            "infer_speaker_embed.py",
-        ]
-        self._infer_candidates = [
-            "infer_main.py",
-            "inference.py",
-            "infer.py",
-        ]
+        self._print(f"Initializing ControlVC wrapper with device: {self.device}")
 
-        # Resolved modules (lazy)
-        self._embed_mod: Optional[types.ModuleType] = None
-        self._infer_mod: Optional[types.ModuleType] = None
+        # Add repo to path for imports
+        sys.path.insert(0, str(self.repo_root))
 
-        # Discovered callable hooks (lazy)
-        self._extract_fn: Optional[Callable[..., torch.Tensor]] = None
-        self._vc_infer_fn: Optional[Callable[..., torch.Tensor]] = None
+        # Load models
+        self._load_models()
 
-    # ---------- public API ----------
+    def _print(self, msg: str):
+        """Print if verbose mode enabled."""
+        if self.verbose:
+            print(f"[ControlVC] {msg}")
+
+    def _load_models(self):
+        """Load all required ControlVC models."""
+        try:
+            # Import ControlVC modules
+            from models import CodeGenerator, D_VECTOR
+            from dataset import get_yaapt_f0, mel_spectrogram, MAX_WAV_VALUE
+            from utils import AttrDict, load_checkpoint, scan_checkpoint
+
+            self._CodeGenerator = CodeGenerator
+            self._D_VECTOR = D_VECTOR
+            self._get_yaapt_f0 = get_yaapt_f0
+            self._mel_spectrogram = mel_spectrogram
+            self._MAX_WAV_VALUE = MAX_WAV_VALUE
+            self._AttrDict = AttrDict
+            self._load_checkpoint = load_checkpoint
+            self._scan_checkpoint = scan_checkpoint
+
+        except ImportError as e:
+            raise ImportError(
+                f"Failed to import ControlVC modules from {self.repo_root}. "
+                f"Make sure the repo contains models.py, dataset.py, and utils.py. Error: {e}"
+            )
+
+        # Load main VC generator
+        self._load_generator()
+
+        # Load speaker embedding model
+        self._load_speaker_model()
+
+        self._print("All models loaded successfully")
+
+    def _load_generator(self):
+        """Load the main voice conversion CodeGenerator model."""
+        # Find main VC checkpoint directory
+        main_ckpt_dir = self.checkpoints_dir / "embed_f0stat2"
+        if not main_ckpt_dir.exists():
+            # Try to find any directory with config.json
+            candidates = list(self.checkpoints_dir.glob("*/config.json"))
+            if candidates:
+                main_ckpt_dir = candidates[0].parent
+                self._print(f"Using checkpoint dir: {main_ckpt_dir.name}")
+            else:
+                raise FileNotFoundError(
+                    f"No ControlVC model checkpoint found in {self.checkpoints_dir}. "
+                    "Expected directory with config.json (e.g., embed_f0stat2/)"
+                )
+
+        # Load config
+        config_file = main_ckpt_dir / "config.json"
+        with open(config_file) as f:
+            json_config = json.loads(f.read())
+        self.h = self._AttrDict(json_config)
+
+        # Fix relative paths in config to be absolute based on checkpoints_dir
+        if self.h.get('f0_quantizer_path'):
+            f0_path = self.h.f0_quantizer_path
+            # Remove leading "checkpoints/" if it exists since we'll add it via checkpoints_dir
+            if f0_path.startswith('checkpoints/'):
+                f0_path = f0_path[len('checkpoints/'):]
+
+            f0_path = Path(f0_path)
+            if not f0_path.is_absolute():
+                # Convert relative path to absolute based on checkpoints_dir
+                absolute_path = self.checkpoints_dir / f0_path
+                if not absolute_path.exists():
+                    # If it doesn't exist, disable F0 quantizer
+                    warnings.warn(
+                        f"F0 quantizer checkpoint not found at {absolute_path}. "
+                        "Disabling F0 quantizer. This may affect voice quality."
+                    )
+                    self.h.f0_quantizer_path = None
+                else:
+                    self.h.f0_quantizer_path = str(absolute_path)
+
+        # Create generator
+        self.generator = self._CodeGenerator(self.h).to(self.device)
+
+        # Load checkpoint - try multiple patterns
+        cp_g = self._scan_checkpoint(str(main_ckpt_dir), 'g_')
+        if cp_g is None:
+            # Try with common extensions
+            import glob
+            patterns = [
+                str(main_ckpt_dir / 'g_*.pth'),
+                str(main_ckpt_dir / 'g_*.pt'),
+                str(main_ckpt_dir / 'g_*.zip'),
+            ]
+            for pattern in patterns:
+                matches = glob.glob(pattern)
+                if matches:
+                    cp_g = sorted(matches)[-1]
+                    break
+
+        if cp_g is None:
+            raise FileNotFoundError(
+                f"No generator checkpoint found in {main_ckpt_dir}. "
+                f"Looked for g_*.pth, g_*.pt, g_*.zip, or g_????????"
+            )
+
+        state_dict_g = self._load_checkpoint(cp_g, device=str(self.device))
+        self.generator.load_state_dict(state_dict_g['generator'])
+        self.generator.eval()
+        self.generator.remove_weight_norm()
+
+        self._print(f"Loaded generator: {Path(cp_g).name}")
+
+    def _load_speaker_model(self):
+        """Load the D_VECTOR speaker embedding model."""
+        # Find speaker model checkpoint
+        spk_ckpt = self.checkpoints_dir / "3000000-BL.ckpt"
+        if not spk_ckpt.exists():
+            # Try to find any .ckpt file
+            ckpts = list(self.checkpoints_dir.glob("*.ckpt"))
+            if ckpts:
+                spk_ckpt = ckpts[0]
+                self._print(f"Using speaker checkpoint: {spk_ckpt.name}")
+            else:
+                warnings.warn(
+                    f"Speaker embedding model not found in {self.checkpoints_dir}. "
+                    "extract_embedding() will not work."
+                )
+                self.speaker_model = None
+                return
+
+        # Create and load model
+        self.speaker_model = self._D_VECTOR(
+            num_layers=3,
+            dim_input=80,
+            dim_cell=768,
+            dim_emb=256
+        ).to(self.device)
+
+        checkpoint = torch.load(spk_ckpt, map_location=self.device)
+
+        # Handle different checkpoint formats
+        if 'model' in checkpoint:
+            state_dict = checkpoint['model']
+        elif 'model_b' in checkpoint:
+            # AutoVC format - strip 'module.' prefix from keys
+            from collections import OrderedDict
+            state_dict = OrderedDict()
+            for key, val in checkpoint['model_b'].items():
+                new_key = key[7:] if key.startswith('module.') else key
+                state_dict[new_key] = val
+        else:
+            raise KeyError(
+                f"Unknown checkpoint format. Expected 'model' or 'model_b' key, "
+                f"got: {list(checkpoint.keys())}"
+            )
+
+        self.speaker_model.load_state_dict(state_dict)
+        self.speaker_model.eval()
+
+        self._print(f"Loaded speaker model: {spk_ckpt.name}")
+
+    # ---------- Public API ----------
     @torch.inference_mode()
-    def extract_embedding(self, wav_path: Path) -> torch.Tensor:
+    def extract_embedding(self, wav_path: Path, num_utterances: int = 1) -> torch.Tensor:
         """
-        Returns a speaker embedding (Torch tensor on self.device).
-        Strategy:
-          - Try to import a function-style API (e.g., extract_spk_embed(wav, sr, …))
-          - Else, call module.main() programmatically into a temp dir and load .npy
+        Extract speaker embedding from audio file using D_VECTOR model.
+
+        Args:
+            wav_path: Path to audio file
+            num_utterances: Number of utterances to average (currently only supports 1)
+
+        Returns:
+            Speaker embedding tensor of shape (256,) or (256, 1) for ControlVC compatibility
         """
+        if self.speaker_model is None:
+            raise RuntimeError(
+                "Speaker embedding model not loaded. "
+                f"Ensure 3000000-BL.ckpt exists in {self.checkpoints_dir}"
+            )
+
         wav_path = Path(wav_path).expanduser().resolve()
         if not wav_path.exists():
             raise FileNotFoundError(f"Reference wav not found: {wav_path}")
 
-        self._ensure_embed_module()
+        self._print(f"Extracting embedding from {wav_path.name}")
 
-        # 1) If the module exposes a proper function, use it.
-        fn = self._extract_fn or self._find_extract_function(self._embed_mod)
-        if fn:
-            wav, sr = torchaudio.load(str(wav_path))
-            wav = wav.to(self.device)
-            out = fn(wav=wav, sr=sr, checkpoints=self.checkpoints_dir, device=str(self.device))
-            return self._ensure_tensor(out)
+        # Load and preprocess audio
+        audio, sr = librosa.load(str(wav_path), sr=self.h.sampling_rate, mono=True)
+        audio = librosa.util.normalize(audio) * 0.95
 
-        # 2) Fallback: call the script's main() with programmatic argv into temp dir.
-        if hasattr(self._embed_mod, "main"):
-            with tempfile.TemporaryDirectory(prefix="cv-embed-") as td:
-                outdir = Path(td)
-                # Common CLIs: --input / --wav / --wav_scp ; --out/--output
-                argv = [
-                    "infer_speaker_embedding.py",
-                    "--input", str(wav_path),
-                    "--output", str(outdir),
-                    "--checkpoints", str(self.checkpoints_dir),
-                ]
-                self._call_module_main(self._embed_mod, argv)
-                # Load first .npy produced
-                npys = list(outdir.glob("*.npy"))
-                if not npys:
-                    raise RuntimeError("No embedding .npy produced by infer_speaker_embedding main().")
-                emb = torch.from_numpy(np.load(npys[0])).to(self.device).float()
-                return emb
-
-        raise NotImplementedError(
-            "Could not locate a callable embedding extractor in Control-VC. "
-            "Looked for function names like: extract_spk_embed / get_spk_embed "
-            "or a script main() in one of: "
-            f"{self._embed_candidates}"
+        # Compute mel spectrogram
+        audio_tensor = torch.FloatTensor(audio).unsqueeze(0)
+        mel = self._mel_spectrogram(
+            audio_tensor,
+            self.h.n_fft,
+            self.h.num_mels,
+            self.h.sampling_rate,
+            self.h.hop_size,
+            self.h.win_size,
+            self.h.fmin,
+            self.h.fmax
         )
+
+        # Transpose to (batch, time, mel_bins) for D_VECTOR
+        mel = mel.squeeze(0).transpose(0, 1).unsqueeze(0).to(self.device)
+
+        # Extract embedding
+        embedding = self.speaker_model(mel)  # Shape: (1, 256)
+
+        # Return in format expected by ControlVC (can be (256,) or (256, 1))
+        return embedding.squeeze(0).unsqueeze(-1)  # Shape: (256, 1)
 
     @torch.inference_mode()
     def infer(
@@ -113,152 +278,166 @@ class ControlVCWrapper:
         source_wav: Path,
         target_embedding: torch.Tensor,
         out_sr: int = 16000,
+        pitch_shift: float = 1.0,
         **kwargs: Any,
     ) -> torch.Tensor:
         """
-        Runs VC using a precomputed (possibly DP-noised) speaker embedding.
-        Strategy:
-          - Try function-style API on infer module
-          - Else programmatically call module.main() into a temp dir
+        Perform voice conversion using precomputed (possibly DP-noised) speaker embedding.
+
+        Args:
+            source_wav: Path to source audio file
+            target_embedding: Target speaker embedding (256,) or (256, 1)
+            out_sr: Output sample rate (should match model training, typically 16000)
+            pitch_shift: Pitch shift multiplier (1.0 = no change)
+            **kwargs: Additional arguments (reserved for future use)
+
+        Returns:
+            Converted waveform tensor of shape (1, T)
         """
         source_wav = Path(source_wav).expanduser().resolve()
         if not source_wav.exists():
             raise FileNotFoundError(f"Source wav not found: {source_wav}")
 
-        self._ensure_infer_module()
+        self._print(f"Converting {source_wav.name}")
+
+        # Ensure target embedding is on correct device and shape
         target_embedding = self._ensure_tensor(target_embedding)
+        if target_embedding.dim() == 1:
+            target_embedding = target_embedding.unsqueeze(-1)  # (256,) -> (256, 1)
+        if target_embedding.dim() == 2 and target_embedding.shape[0] == 1:
+            target_embedding = target_embedding.squeeze(0)  # (1, 256) -> (256,) then (256, 1)
+            target_embedding = target_embedding.unsqueeze(-1) if target_embedding.dim() == 1 else target_embedding
 
-        # 1) If a clean function exists, use it.
-        fn = self._vc_infer_fn or self._find_infer_function(self._infer_mod)
-        if fn:
-            wav, sr = torchaudio.load(str(source_wav))
-            wav = wav.to(self.device)
-            out = fn(
-                src=wav, sr=sr, target_embedding=target_embedding,
-                checkpoints=self.checkpoints_dir, device=str(self.device),
-                out_sr=out_sr, **kwargs
+        # Load and preprocess source audio
+        audio, sr = librosa.load(str(source_wav), sr=self.h.sampling_rate, mono=True)
+        audio = librosa.util.normalize(audio) * 0.95
+
+        # Extract content codes (using pre-computed or on-the-fly HuBERT)
+        codes = self._extract_content_codes(audio, sr)
+
+        # Extract F0
+        f0 = self._extract_f0(audio, sr)
+
+        # Apply pitch shift if specified
+        if pitch_shift != 1.0:
+            f0[f0 != 0] *= pitch_shift
+
+        # Prepare inputs for generator
+        code_dict = {
+            'code': torch.from_numpy(codes).long().unsqueeze(0).to(self.device),
+            'f0': torch.from_numpy(f0).float().to(self.device),
+            'spk_embed': target_embedding.unsqueeze(0).to(self.device)  # (1, 256, 1)
+        }
+
+        # Add F0 stats if required by model config
+        if self.h.get('f0_feats', False):
+            # Calculate F0 mean and std from the current audio
+            f0_flat = f0.flatten()
+            f0_voiced = f0_flat[f0_flat != 0]
+            if len(f0_voiced) > 0:
+                f0_mean = float(f0_voiced.mean())
+                f0_std = float(f0_voiced.std())
+            else:
+                # Fallback values if no voiced segments
+                f0_mean = 0.0
+                f0_std = 1.0
+
+            code_dict['f0_stats'] = torch.FloatTensor([[f0_mean, f0_std]]).to(self.device)
+
+        # Generate audio
+        y_g_hat = self.generator(**code_dict)
+        if isinstance(y_g_hat, tuple):
+            y_g_hat = y_g_hat[0]
+
+        # Post-process: denormalize and convert to proper format
+        audio_out = y_g_hat.squeeze(0)  # Remove batch dimension
+        if audio_out.dim() == 2:
+            audio_out = audio_out.squeeze(0)  # Remove channel dimension if present
+
+        # Ensure output is (1, T) for torchaudio compatibility
+        if audio_out.dim() == 1:
+            audio_out = audio_out.unsqueeze(0)
+
+        # Resample if needed
+        if out_sr != self.h.sampling_rate:
+            audio_out = torchaudio.functional.resample(
+                audio_out, self.h.sampling_rate, out_sr
             )
-            return self._ensure_waveform(out, out_sr)
 
-        # 2) Fallback: script main() path (write emb to temp file, call, read wav)
-        if hasattr(self._infer_mod, "main"):
-            with tempfile.TemporaryDirectory(prefix="cv-infer-") as td:
-                tmp = Path(td)
-                emb_path = tmp / "tgt_emb.npy"
-                np.save(emb_path, target_embedding.detach().cpu().float().numpy())
+        return audio_out
 
-                out_wav = tmp / "out.wav"
-                argv = [
-                    "infer_main.py",
-                    "--source", str(source_wav),
-                    "--embedding", str(emb_path),
-                    "--output", str(out_wav),
-                    "--checkpoints", str(self.checkpoints_dir),
-                    "--sr", str(out_sr),
-                ]
-                self._call_module_main(self._infer_mod, argv)
-
-                if not out_wav.exists():
-                    # Some scripts dump to a folder; pick the first WAV we find.
-                    candidates = list(tmp.rglob("*.wav"))
-                    if not candidates:
-                        raise RuntimeError("No waveform produced by infer_main main().")
-                    out_wav = candidates[0]
-
-                wav, sr = torchaudio.load(str(out_wav))
-                if sr != out_sr:
-                    wav = torchaudio.functional.resample(wav, sr, out_sr)
-                return wav.to(self.device)
-
-        raise NotImplementedError(
-            "Could not locate a callable inference endpoint in Control-VC. "
-            "Looked for functions like vc_infer / infer / convert, or a script main(). "
-            f"Tried files: {self._infer_candidates}"
-        )
-
-    # ---------- helpers ----------
+    # ---------- Helper Methods ----------
     def _ensure_tensor(self, x: Any) -> torch.Tensor:
+        """Convert input to torch.Tensor on correct device."""
         if isinstance(x, torch.Tensor):
             return x.to(self.device)
         if isinstance(x, np.ndarray):
             return torch.from_numpy(x).to(self.device)
         raise TypeError(f"Expected Tensor or ndarray; got {type(x)}")
 
-    def _ensure_waveform(self, x: Any, sr: int) -> torch.Tensor:
-        t = self._ensure_tensor(x)
-        # Expect [C, T] or [T]; normalize to [1, T]
-        if t.ndim == 1:
-            t = t.unsqueeze(0)
-        return t
+    def _extract_content_codes(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """
+        Extract content codes from audio.
 
-    def _call_module_main(self, mod: types.ModuleType, argv: list[str]) -> None:
-        """Temporarily replace sys.argv and call module.main()"""
-        old = sys.argv[:]
-        try:
-            sys.argv = ["prog"] + argv[1:] if argv and argv[0].endswith(".py") else argv
-            mod.main()
-        finally:
-            sys.argv = old
+        For now, this creates dummy codes since HuBERT extraction requires additional
+        checkpoints. In production, this should use HuBERT + K-means quantization.
+        """
+        # Calculate expected sequence length based on code_hop_size
+        expected_len = len(audio) // self.h.code_hop_size
 
-    def _ensure_embed_module(self) -> None:
-        if self._embed_mod is None:
-            self._embed_mod = self._load_first_existing(self._embed_candidates)
-        # pre-discover callable for speed (optional)
-        self._extract_fn = self._find_extract_function(self._embed_mod)
+        # Option 1: Try to load HuBERT if available
+        hubert_ckpt = self.checkpoints_dir / "hubert_base_ls960.pt"
+        kmeans_ckpt = self.checkpoints_dir / "km.bin"
 
-    def _ensure_infer_module(self) -> None:
-        if self._infer_mod is None:
-            self._infer_mod = self._load_first_existing(self._infer_candidates)
-        self._vc_infer_fn = self._find_infer_function(self._infer_mod)
+        if hubert_ckpt.exists() and kmeans_ckpt.exists():
+            try:
+                from fairseq_feature_reader import HubertFeatureReader
+                import joblib
 
-    def _load_first_existing(self, filenames: list[str]) -> types.ModuleType:
-        for name in filenames:
-            fp = (self.repo_root / name)
-            if fp.exists():
-                return self._load_module_from_path(fp)
-        # also search a bit deeper (1 level) if scripts live in subfolders
-        for name in filenames:
-            found = list(self.repo_root.rglob(name))
-            if found:
-                return self._load_module_from_path(found[0])
-        raise FileNotFoundError(
-            f"None of these Control-VC files were found under {self.repo_root}:\n"
-            + "\n".join(f"  - {n}" for n in filenames)
+                if not hasattr(self, '_hubert_reader'):
+                    self._hubert_reader = HubertFeatureReader(
+                        checkpoint_path=str(hubert_ckpt),
+                        layer=6,
+                        max_chunk=1600000
+                    )
+                    # Suppress sklearn version warnings when loading k-means model
+                    import warnings as warn_module
+                    with warn_module.catch_warnings():
+                        warn_module.filterwarnings('ignore', category=UserWarning, module='sklearn')
+                        self._kmeans = joblib.load(str(kmeans_ckpt))
+                    self._print("Loaded HuBERT and K-means models")
+
+                # Save temp audio file for HuBERT
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
+                    temp_path = f.name
+                    import soundfile as sf
+                    sf.write(temp_path, audio, sr)
+
+                # Extract features and quantize
+                feats = self._hubert_reader.get_feats(temp_path)
+                codes = self._kmeans.predict(feats.cpu().numpy())
+
+                # Clean up
+                Path(temp_path).unlink()
+
+                return codes.astype(np.int64)
+
+            except Exception as e:
+                warnings.warn(f"HuBERT extraction failed: {e}. Using dummy codes.")
+
+        # Option 2: Fallback to dummy codes (zeros)
+        # This allows the wrapper to run without HuBERT but won't produce good results
+        warnings.warn(
+            "Using dummy content codes. For proper voice conversion, provide HuBERT "
+            f"checkpoint at {hubert_ckpt} and K-means model at {kmeans_ckpt}"
         )
+        return np.zeros(expected_len, dtype=np.int64)
 
-    def _load_module_from_path(self, path: Path) -> types.ModuleType:
-        spec = importlib.util.spec_from_file_location(path.stem, str(path))
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot import module from {path}")
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules[path.stem] = mod
-        # Ensure repo_root on path so relative imports inside the script work
-        sys.path.insert(0, str(self.repo_root))
-        try:
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-        finally:
-            # keep repo_root on sys.path for nested imports during lifetime
-            pass
-        return mod
-
-    # Heuristic discovery of callable names inside Control-VC scripts
-    def _find_extract_function(self, mod: types.ModuleType) -> Optional[Callable]:
-        candidates = [
-            "extract_spk_embed", "get_spk_embed", "extract_embedding",
-            "infer_speaker_embedding", "extract_speaker_embedding"
-        ]
-        for name in candidates:
-            fn = getattr(mod, name, None)
-            if callable(fn):
-                return fn
-        return None
-
-    def _find_infer_function(self, mod: types.ModuleType) -> Optional[Callable]:
-        candidates = [
-            "vc_infer", "infer", "convert", "run_inference", "inference",
-        ]
-        for name in candidates:
-            fn = getattr(mod, name, None)
-            if callable(fn):
-                return fn
-        return None
+    def _extract_f0(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """Extract F0 contour from audio using YAAPT."""
+        # get_yaapt_f0 expects a batch dimension, so add one if needed
+        if audio.ndim == 1:
+            audio = audio[np.newaxis, :]  # (T,) -> (1, T)
+        f0 = self._get_yaapt_f0(audio, rate=sr, interp=True)
+        return f0
