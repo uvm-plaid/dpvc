@@ -144,7 +144,7 @@ All tests passed! ✓
 ==================================================
 ```
 
-**Listen to `test_output.wav`** - it should be clear, intelligible speech (not garbled noise).
+**Listen to `test_output.wav`** - it should be clear, intelligible speech.
 
 ---
 
@@ -347,7 +347,7 @@ The most important test: **Can you understand the words in the output audio?**
 
 ---
 
-## Questions to Address During Meeting
+## Questions We'll Address During Meeting
 
 1. **Reproducibility**: Did the setup work smoothly on Joe's machine?
 2. **Audio quality**: Does the output sound good with real HuBERT codes?
@@ -397,4 +397,4 @@ dp-vc/
 
 ---
 
-**Contact**: If you encounter any issues before the meeting, ping Steve on Slack/email.
+**Contact**: If you encounter any issues before the meeting, ping Steve on Teams or email.
