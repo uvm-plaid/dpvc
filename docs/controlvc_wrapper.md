@@ -34,7 +34,7 @@ https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
 
 1. Clone the control-vc repository:
 ```bash
-git clone https://github.com/YourUsername/control-vc.git
+git clone https://github.com/MelissaChen15/control-vc
 cd control-vc
 ```
 
@@ -284,7 +284,7 @@ For issues, improvements, or questions about the ControlVC wrapper, please open 
 ## References
 
 - ControlVC Paper: https://arxiv.org/abs/2209.11866
-- ControlVC Repository: https://github.com/meiyingchen/ControlVC
+- ControlVC Repository: https://github.com/MelissaChen15/control-vc
 - HiFi-GAN: https://github.com/jik876/hifi-gan
 - HuBERT: https://github.com/facebookresearch/fairseq
 

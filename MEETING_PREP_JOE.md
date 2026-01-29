@@ -40,7 +40,7 @@ We've completed a full integration of ControlVC into the dp-vc repository:
 
 ```bash
 cd ~/repos  # or your preferred location
-git clone https://github.com/meiyingchen/ControlVC.git control-vc
+git clone https://github.com/MelissaChen15/control-vc.git control-vc
 cd control-vc
 ```
 

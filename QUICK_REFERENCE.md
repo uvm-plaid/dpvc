@@ -4,7 +4,7 @@
 
 ```bash
 # Clone control-vc
-git clone https://github.com/meiyingchen/ControlVC.git ~/repos/control-vc
+git clone https://github.com/MelissaChen15/control-vc.git ~/repos/control-vc
 
 # Download checkpoints to ~/repos/control-vc/checkpoints/
 # From: https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
