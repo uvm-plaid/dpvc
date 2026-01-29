@@ -6,7 +6,7 @@ from .model_embedding_vae import VariationalAutoencoder
 from . import utils
 
 class Anonymizer:
-    def __init__(self, vc_wrapper, vae_checkpoint_path=None):
+    def __init__(self, vc_wrapper, vae_checkpoint_path=None, vae_input_dim=256, vae_latent_dim=6):
         device="cuda:0" if torch.cuda.is_available() else "cpu"
 
         self.vc_wrapper = vc_wrapper
@@ -17,7 +17,8 @@ class Anonymizer:
         else:
             ae_path = vae_checkpoint_path
 
-        AE = VariationalAutoencoder(latent_dims=6,
+        AE = VariationalAutoencoder(latent_dims=vae_latent_dim,
+                                    input_dim=vae_input_dim,
                                     clip_threshold=vc_wrapper.clip_threshold,
                                     post_clip_threshold=vc_wrapper.post_clip_threshold
                                     ).to(device)
@@ -33,7 +34,7 @@ class Anonymizer:
         utils.set_seed(seed)
 
         source_embedding = self.vc_wrapper.extract_embedding(source_file)
-        target_embedding = self.AE(source_embedding.squeeze(-1), seed=seed).unsqueeze(-1)
+        target_embedding = self.AE(source_embedding.squeeze(-1), seed=seed)#.unsqueeze(-1)
 
         self.vc_wrapper.inference(
             source_file,
