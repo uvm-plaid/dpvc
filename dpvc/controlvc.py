@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torchaudio
 import librosa
+import soundfile as sf
 
 class ControlVCWrapper:
     """
@@ -32,7 +33,7 @@ class ControlVCWrapper:
     def __init__(
         self,
         repo_root: Path,
-        device: str = "cpu",
+        device: str = "cuda",
         checkpoints_dir: Optional[Path] = None,
         config: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
@@ -270,17 +271,10 @@ class ControlVCWrapper:
         embedding = self.speaker_model(mel)  # Shape: (1, 256)
 
         # Return in format expected by ControlVC (can be (256,) or (256, 1))
-        return embedding.squeeze(0).unsqueeze(-1)  # Shape: (256, 1)
+        return embedding.squeeze(0).unsqueeze(-1).T  # Shape: (256, 1)
 
     @torch.inference_mode()
-    def infer(
-        self,
-        source_wav: Path,
-        target_embedding: torch.Tensor,
-        out_sr: int = 16000,
-        pitch_shift: float = 1.0,
-        **kwargs: Any,
-    ) -> torch.Tensor:
+    def inference(self, source_file, output_file, source_embedding, target_embedding):
         """
         Perform voice conversion using precomputed (possibly DP-noised) speaker embedding.
 
@@ -294,7 +288,9 @@ class ControlVCWrapper:
         Returns:
             Converted waveform tensor of shape (1, T)
         """
-        source_wav = Path(source_wav).expanduser().resolve()
+        out_sr = 16000
+        pitch_shift = 1.0
+        source_wav = Path(source_file).expanduser().resolve()
         if not source_wav.exists():
             raise FileNotFoundError(f"Source wav not found: {source_wav}")
 
@@ -326,7 +322,7 @@ class ControlVCWrapper:
         code_dict = {
             'code': torch.from_numpy(codes).long().unsqueeze(0).to(self.device),
             'f0': torch.from_numpy(f0).float().to(self.device),
-            'spk_embed': target_embedding.unsqueeze(0).to(self.device)  # (1, 256, 1)
+            'spk_embed': target_embedding.to(self.device)  # (1, 256, 1)
         }
 
         # Add F0 stats if required by model config
@@ -364,7 +360,8 @@ class ControlVCWrapper:
                 audio_out, self.h.sampling_rate, out_sr
             )
 
-        return audio_out
+        audio_np = audio_out.cpu().squeeze().numpy()
+        sf.write(output_file, audio_np, 16000)
 
     # ---------- Helper Methods ----------
     def _ensure_tensor(self, x: Any) -> torch.Tensor:
