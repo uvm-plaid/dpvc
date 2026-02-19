@@ -1,7 +1,7 @@
 # dpvc/controlvc.py
 from __future__ import annotations
 from pathlib import Path
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, Tuple, Union
 import sys
 import json
 import warnings
@@ -274,19 +274,17 @@ class ControlVCWrapper:
         return embedding.squeeze(0).unsqueeze(-1).T  # Shape: (256, 1)
 
     @torch.inference_mode()
-    def inference(self, source_file, output_file, source_embedding, target_embedding):
+    def inference(self, source_file: Union[str, Path], output_file: Union[str, Path],
+                  source_embedding: torch.Tensor, target_embedding: torch.Tensor) -> None:
         """
         Perform voice conversion using precomputed (possibly DP-noised) speaker embedding.
 
         Args:
-            source_wav: Path to source audio file
-            target_embedding: Target speaker embedding (256,) or (256, 1)
-            out_sr: Output sample rate (should match model training, typically 16000)
-            pitch_shift: Pitch shift multiplier (1.0 = no change)
-            **kwargs: Additional arguments (reserved for future use)
-
-        Returns:
-            Converted waveform tensor of shape (1, T)
+            source_file: Path to source audio file.
+            output_file: Path to write converted audio (16 kHz WAV).
+            source_embedding: Speaker embedding of the source audio.
+            target_embedding: Target speaker embedding. Accepts shapes
+                ``(256,)``, ``(1, 256)``, or ``(256, 1)``.
         """
         out_sr = 16000
         pitch_shift = 1.0
