@@ -15,7 +15,7 @@ class ControlVCWrapper:
     """
     Control-VC wrapper with a two-stage API for differential privacy:
       1) extract_embedding(wav_path) -> torch.Tensor (speaker embedding)
-      2) infer(source_wav, target_embedding, **kwargs) -> torch.Tensor (waveform)
+      2) inference(source_file, output_file, source_embedding, target_embedding)
 
     This wrapper directly loads ControlVC models and bypasses script-based execution
     for better integration with the DP anonymization pipeline.
