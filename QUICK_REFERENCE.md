@@ -3,50 +3,48 @@
 ## Installation
 
 ```bash
-# Clone control-vc
-git clone https://github.com/MelissaChen15/control-vc.git ~/repos/control-vc
-
-# Download checkpoints to ~/repos/control-vc/checkpoints/
-# From: https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
-
-# Install dp-vc
-cd ~/UVM-plaid/dp-vc
-pip install -e .
+bash setup.sh
+source .venv310/bin/activate
 ```
+
+See `CONTROLVC_SETUP.md` for full details.
 
 ## Basic Usage
 
 ```python
 from pathlib import Path
 from dpvc import ControlVCWrapper
-import torchaudio
 
 # Initialize
 wrapper = ControlVCWrapper(
-    repo_root="/Users/steve/repos/control-vc",
-    device="cuda"  # or "cpu"
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu"  # or "cuda"
 )
 
 # Extract embedding
-target_emb = wrapper.extract_embedding(Path("target.wav"))
+embedding = wrapper.extract_embedding(Path("target.wav"))
+# Returns: torch.Tensor of shape (1, 256)
 
-# Convert voice
-output = wrapper.infer(
-    source_wav=Path("source.wav"),
-    target_embedding=target_emb
+# Convert voice (writes directly to output.wav)
+wrapper.inference(
+    source_file=Path("source.wav"),
+    output_file=Path("output.wav"),
+    source_embedding=embedding,
+    target_embedding=embedding
 )
-
-# Save
-torchaudio.save("output.wav", output.cpu(), 16000)
 ```
 
 ## With Differential Privacy
 
 ```python
+from pathlib import Path
 from dpvc import ControlVCWrapper, Anonymizer
 
-wrapper = ControlVCWrapper(repo_root="...")
-anonymizer = Anonymizer(wrapper)
+wrapper = ControlVCWrapper(
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu"
+)
+anonymizer = Anonymizer(wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 
 anonymizer.anonymize(
     "source.wav",
@@ -63,35 +61,8 @@ python examples/controlvc_infer.py \
     --source input.wav \
     --reference target.wav \
     --out output.wav \
-    --device cuda \
+    --device cpu \
     --verbose
-```
-
-## Pitch Shifting
-
-```python
-output = wrapper.infer(
-    source_wav=Path("source.wav"),
-    target_embedding=embedding,
-    pitch_shift=1.2  # 20% higher
-)
-```
-
-## Batch Processing
-
-```python
-# Extract embeddings once
-speakers = {
-    "alice": wrapper.extract_embedding("refs/alice.wav"),
-    "bob": wrapper.extract_embedding("refs/bob.wav")
-}
-
-# Convert multiple files
-for source in Path("inputs").glob("*.wav"):
-    for name, emb in speakers.items():
-        output = wrapper.infer(source, emb)
-        torchaudio.save(f"outputs/{source.stem}_{name}.wav",
-                       output.cpu(), 16000)
 ```
 
 ## Checkpoint Structure
@@ -102,8 +73,8 @@ control-vc/checkpoints/
 │   ├── config.json          # Required
 │   └── g_00400000           # Required
 ├── 3000000-BL.ckpt          # Required
-├── hubert_base_ls960.pt     # Optional (recommended)
-└── km.bin                   # Optional (recommended)
+├── hubert_base_ls960.pt     # Strongly recommended (~1.1 GB)
+└── km.bin                   # Strongly recommended
 ```
 
 ## Common Issues
@@ -112,8 +83,9 @@ control-vc/checkpoints/
 |-------|----------|
 | "Failed to import ControlVC modules" | Check `repo_root` path |
 | "Speaker embedding model not loaded" | Download `3000000-BL.ckpt` |
-| "Using dummy content codes" | Download HuBERT checkpoints |
+| "Using dummy content codes" / garbled audio | Download HuBERT checkpoints |
 | CUDA OOM | Use `device="cpu"` |
+| Output sounds the same every run | Lower `noise_level` to 0.5–1.0 |
 
 ## API Reference
 
@@ -121,10 +93,9 @@ control-vc/checkpoints/
 
 ```python
 ControlVCWrapper(
-    repo_root: Path,              # Path to control-vc repo
-    checkpoints_dir: Path = None, # Optional: custom checkpoint path
-    device: str = "cpu",          # "cpu", "cuda", "cuda:0"
-    verbose: bool = False         # Enable debug output
+    repo_root: Path,       # Path to control-vc repo
+    device: str = "cpu",   # "cpu", "cuda", "cuda:0"
+    verbose: bool = False  # Enable debug output
 )
 ```
 
@@ -132,45 +103,24 @@ ControlVCWrapper(
 
 ```python
 embedding = wrapper.extract_embedding(
-    wav_path: Path,              # Audio file path
-    num_utterances: int = 1      # Currently only supports 1
+    wav_path: Path,          # Audio file path
+    num_utterances: int = 1
 )
-# Returns: torch.Tensor of shape (256, 1)
+# Returns: torch.Tensor of shape (1, 256)
 ```
 
-### infer()
+### inference()
 
 ```python
-output = wrapper.infer(
-    source_wav: Path,            # Source audio path
-    target_embedding: Tensor,    # Speaker embedding (256, 1)
-    out_sr: int = 16000,        # Output sample rate
-    pitch_shift: float = 1.0    # Pitch multiplier
+wrapper.inference(
+    source_file,        # Source audio path
+    output_file,        # Output WAV path (written at 16 kHz)
+    source_embedding,   # Source speaker embedding
+    target_embedding    # Target speaker embedding — (256,), (1,256), or (256,1)
 )
-# Returns: torch.Tensor of shape (1, T)
 ```
-
-## Performance
-
-| Hardware | Embedding | Conversion (1s) |
-|----------|-----------|-----------------|
-| CPU (i7) | ~0.5s | ~2-3s |
-| GPU (V100) | ~0.1s | ~0.3s |
-| GPU (3090) | ~0.08s | ~0.2s |
 
 ## Documentation
 
 - Full Guide: `docs/controlvc_wrapper.md`
 - Setup: `CONTROLVC_SETUP.md`
-- Implementation: `WRAPPER_IMPLEMENTATION_SUMMARY.md`
-
-## Example Output
-
-```
-[ControlVC] Initializing ControlVC wrapper with device: cuda
-[ControlVC] Loaded generator: g_00400000
-[ControlVC] Loaded speaker model: 3000000-BL.ckpt
-[ControlVC] All models loaded successfully
-[ControlVC] Extracting embedding from target.wav
-[ControlVC] Converting source.wav
-```

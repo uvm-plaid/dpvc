@@ -27,36 +27,30 @@ checkpoints/
 
 ### Downloading Checkpoints
 
-Download the pre-trained models from the ControlVC repository:
+Download the pre-trained models from the ControlVC Google Drive:
 https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
 
 ## Installation
 
-1. Clone the control-vc repository:
-```bash
-git clone https://github.com/MelissaChen15/control-vc
-cd control-vc
-```
+See `CONTROLVC_SETUP.md` for the full setup guide. The quick path is:
 
-2. Install dependencies:
 ```bash
-pip install torch torchaudio librosa numpy soundfile
+bash setup.sh
+source .venv310/bin/activate
 ```
-
-3. Download and place checkpoints in the `checkpoints/` directory
 
 ## API Reference
 
 ### Initialization
 
 ```python
+from pathlib import Path
 from dpvc import ControlVCWrapper
 
 wrapper = ControlVCWrapper(
-    repo_root="/path/to/control-vc",
-    checkpoints_dir="/path/to/checkpoints",  # Optional, defaults to repo_root/checkpoints
-    device="cuda",                           # or "cpu"
-    verbose=True                             # Enable debug messages
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu",    # or "cuda"
+    verbose=True     # Enable debug messages
 )
 ```
 
@@ -64,7 +58,7 @@ wrapper = ControlVCWrapper(
 
 ```python
 embedding = wrapper.extract_embedding(wav_path)
-# Returns: torch.Tensor of shape (256, 1)
+# Returns: torch.Tensor of shape (1, 256)
 ```
 
 **Parameters:**
@@ -72,28 +66,20 @@ embedding = wrapper.extract_embedding(wav_path)
 - `num_utterances` (int): Number of utterances to average (default: 1)
 
 **Returns:**
-- `torch.Tensor`: Speaker embedding of shape (256, 1)
+- `torch.Tensor`: Speaker embedding of shape (1, 256)
 
 ### Voice Conversion
 
 ```python
-converted_audio = wrapper.infer(
-    source_wav=source_path,
-    target_embedding=embedding,
-    out_sr=16000,
-    pitch_shift=1.0
-)
-# Returns: torch.Tensor of shape (1, T)
+wrapper.inference(source_file, output_file, source_embedding, target_embedding)
+# Writes converted audio to output_file (16 kHz WAV)
 ```
 
 **Parameters:**
-- `source_wav` (Path): Path to source audio file
-- `target_embedding` (torch.Tensor): Target speaker embedding (256,) or (256, 1)
-- `out_sr` (int): Output sample rate (default: 16000)
-- `pitch_shift` (float): Pitch shift multiplier (default: 1.0, no change)
-
-**Returns:**
-- `torch.Tensor`: Converted waveform of shape (1, T)
+- `source_file` (Path or str): Path to source audio file
+- `output_file` (Path or str): Path to write converted audio
+- `source_embedding` (torch.Tensor): Embedding of the source speaker
+- `target_embedding` (torch.Tensor): Embedding of the target speaker — accepts shapes `(256,)`, `(1, 256)`, or `(256, 1)`
 
 ## Usage Examples
 
@@ -102,57 +88,43 @@ converted_audio = wrapper.infer(
 ```python
 from pathlib import Path
 from dpvc import ControlVCWrapper
-import torchaudio
 
 # Initialize wrapper
 wrapper = ControlVCWrapper(
-    repo_root="/path/to/control-vc",
-    device="cuda"
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu"
 )
 
 # Extract target speaker embedding
-target_embedding = wrapper.extract_embedding(Path("target_speaker.wav"))
+embedding = wrapper.extract_embedding(Path("target_speaker.wav"))
 
-# Convert voice
-output = wrapper.infer(
-    source_wav=Path("source.wav"),
-    target_embedding=target_embedding
+# Convert voice (writes directly to output.wav)
+wrapper.inference(
+    source_file=Path("source.wav"),
+    output_file=Path("output.wav"),
+    source_embedding=embedding,
+    target_embedding=embedding
 )
-
-# Save result
-torchaudio.save("output.wav", output.cpu(), 16000)
 ```
 
 ### With Differential Privacy
 
 ```python
+from pathlib import Path
 from dpvc import ControlVCWrapper, Anonymizer
 
-# Initialize wrapper
 vc_wrapper = ControlVCWrapper(
-    repo_root="/path/to/control-vc",
-    device="cuda"
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu"
 )
 
-# Create anonymizer with DP
-anonymizer = Anonymizer(vc_wrapper)
+# Pass the ControlVC-specific VAE checkpoint
+anonymizer = Anonymizer(vc_wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 
-# Anonymize with differential privacy
 anonymizer.anonymize(
     source_file="source.wav",
     output_file="anonymized.wav",
-    noise_level=1.0  # DP noise level
-)
-```
-
-### Pitch Shifting
-
-```python
-# Convert with pitch shift
-output = wrapper.infer(
-    source_wav=Path("source.wav"),
-    target_embedding=target_embedding,
-    pitch_shift=1.2  # 20% higher pitch
+    noise_level=1.0  # higher = more privacy, less speaker diversity
 )
 ```
 
@@ -162,12 +134,11 @@ The wrapper includes an example CLI script:
 
 ```bash
 python examples/controlvc_infer.py \
-    --repo-root /path/to/control-vc \
+    --repo-root ~/repos/control-vc \
     --source source.wav \
     --reference target_speaker.wav \
     --out output.wav \
-    --device cuda \
-    --pitch-shift 1.0 \
+    --device cpu \
     --verbose
 ```
 
@@ -248,7 +219,6 @@ Place them in the checkpoints directory.
 **Solutions**:
 - Use `device="cpu"` instead of CUDA
 - Process shorter audio segments
-- Reduce batch size (not applicable for single-file inference)
 
 ## Integration with DP Pipeline
 
@@ -258,33 +228,17 @@ The wrapper is designed to work seamlessly with the differential privacy pipelin
 # 1. Extract embedding
 embedding = wrapper.extract_embedding(source_wav)
 
-# 2. Apply DP noise (via VAE)
-noised_embedding = vae(embedding, noise_level=1.0)
-
-# 3. Convert with noised embedding
-output = wrapper.infer(source_wav, noised_embedding)
+# 2. Apply DP noise (via VAE + Anonymizer)
+anonymizer = Anonymizer(wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
+anonymizer.anonymize(source_wav, output_wav, noise_level=1.0)
 ```
 
 This ensures privacy-preserving voice conversion where the target speaker identity is differentially private.
 
-## Performance
-
-Typical inference times on different hardware:
-
-| Hardware | Embedding Extraction | Voice Conversion (1s audio) |
-|----------|---------------------|----------------------------|
-| CPU (Intel i7) | ~0.5s | ~2-3s |
-| GPU (NVIDIA V100) | ~0.1s | ~0.3s |
-| GPU (NVIDIA RTX 3090) | ~0.08s | ~0.2s |
-
-## Contributing
-
-For issues, improvements, or questions about the ControlVC wrapper, please open an issue in the dp-vc repository.
-
 ## References
 
 - ControlVC Paper: https://arxiv.org/abs/2209.11866
-- ControlVC Repository: https://github.com/MelissaChen15/control-vc
+- ControlVC Repository: https://github.com/zuruoke/control-vc
 - HiFi-GAN: https://github.com/jik876/hifi-gan
 - HuBERT: https://github.com/facebookresearch/fairseq
 
