@@ -296,13 +296,15 @@ class ControlVCWrapper:
 
         self._print(f"Converting {source_wav.name}")
 
-        # Ensure target embedding is on correct device and shape
+        # Ensure target embedding is on correct device and shape.
+        # Generator's _upsample expects (batch, dim) or (batch, dim, 1),
+        # where batch=1 and dim=256.
         target_embedding = self._ensure_tensor(target_embedding)
         if target_embedding.dim() == 1:
-            target_embedding = target_embedding.unsqueeze(-1)  # (256,) -> (256, 1)
-        if target_embedding.dim() == 2 and target_embedding.shape[0] == 1:
-            target_embedding = target_embedding.squeeze(0)  # (1, 256) -> (256,) then (256, 1)
-            target_embedding = target_embedding.unsqueeze(-1) if target_embedding.dim() == 1 else target_embedding
+            target_embedding = target_embedding.unsqueeze(0)       # (256,) -> (1, 256)
+        elif target_embedding.dim() == 2 and target_embedding.shape[0] != 1:
+            target_embedding = target_embedding.squeeze(-1).unsqueeze(0)  # (256, 1) -> (1, 256)
+        # (1, 256) and (1, 256, 1) are already correct
 
         # Load and preprocess source audio
         audio, sr = librosa.load(str(source_wav), sr=self.h.sampling_rate, mono=True)

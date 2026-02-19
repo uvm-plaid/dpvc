@@ -1,21 +1,19 @@
 # ControlVC Wrapper Setup Guide
 
-## Quick Start
-
-This guide will help you set up and use the ControlVC wrapper in the dp-vc repository.
-
 ## Prerequisites
 
-- Python 3.8+
-- PyTorch with CUDA support (optional, for GPU acceleration)
-- Control-VC repository cloned locally
+- **Python 3.10** (required — fairseq 0.12.2 is incompatible with Python 3.11+)
+- PyTorch (CPU is fine; CUDA optional for GPU acceleration)
+- Control-VC repository cloned locally (see Step 1)
+
+If you use pyenv, the project includes a `.python-version` file that selects 3.10 automatically.
 
 ## Step 1: Clone Control-VC Repository
 
+Use the `zuruoke` fork, which fixes a librosa compatibility issue that allows newer versions of torchaudio:
+
 ```bash
-cd ~/repos  # or your preferred location
-git clone https://github.com/meiyingchen/ControlVC.git control-vc
-cd control-vc
+git clone https://github.com/zuruoke/control-vc.git ~/repos/control-vc
 ```
 
 ## Step 2: Download Checkpoints
@@ -23,34 +21,25 @@ cd control-vc
 Download all required checkpoints from the ControlVC Google Drive:
 https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
 
-Place the checkpoints in the following structure:
+Place them in `~/repos/control-vc/checkpoints/`:
 
 ```
-control-vc/
-└── checkpoints/
-    ├── embed_f0stat2/
-    │   ├── config.json
-    │   └── g_00400000
-    ├── 3000000-BL.ckpt
-    ├── hubert_base_ls960.pt
-    ├── km.bin
-    └── vctk_f0_vq/
-        └── g_00400000
+checkpoints/
+├── embed_f0stat2/
+│   ├── config.json
+│   └── g_00400000        # (or g_00350000)
+├── 3000000-BL.ckpt       # Required: speaker embedding model
+├── hubert_base_ls960.pt  # Strongly recommended (~1.1 GB)
+├── km.bin                # Strongly recommended
+└── vctk_f0_vq/
+    └── g_00400000
 ```
 
-**Minimum Required (for basic functionality):**
-- `embed_f0stat2/` directory with config and checkpoint
-- `3000000-BL.ckpt` (speaker embedding model)
+**Without `hubert_base_ls960.pt` and `km.bin`**, the wrapper falls back to dummy content codes and produces garbled audio.
 
-**Optional (for better quality):**
-- `hubert_base_ls960.pt` (HuBERT model for content extraction)
-- `km.bin` (K-means quantizer)
+## Step 3: Apply Fix for Apple Silicon (MPS)
 
-## Step 3: Apply Critical Fix to Control-VC
-
-**IMPORTANT**: The control-vc repository needs a small fix for Apple Silicon (M1/M2) compatibility.
-
-Edit `control-vc/fairseq_feature_reader.py` line 22-24:
+If you are on an M1/M2/M3 Mac, edit `~/repos/control-vc/fairseq_feature_reader.py` lines 22–26:
 
 **Before:**
 ```python
@@ -61,212 +50,126 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available()
 
 **After:**
 ```python
-# Force CPU for compatibility - MPS doesn't support all fairseq operators
+# Force CPU - MPS does not support all fairseq operators
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
-
-This prevents MPS device errors on Apple Silicon Macs.
 
 ## Step 4: Install Dependencies
 
 ```bash
-# In the dp-vc repository
 cd ~/UVM-plaid/dp-vc
+
+# Create and activate a Python 3.10 virtual environment
+python3.10 -m venv .venv310
+source .venv310/bin/activate
+pip install --upgrade pip
+
+# Install dp-vc package in editable mode
 pip install -e .
 
-# Install critical dependencies for HuBERT extraction
-# Note: Use older pip version to avoid omegaconf metadata issues
+# fairseq requires an older pip to handle omegaconf metadata
 pip install 'pip<24.1'
 pip install 'omegaconf==2.0.6'
 pip install git+https://github.com/facebookresearch/fairseq.git@v0.12.2
 
-# Install audio processing dependencies
-pip install torchaudio==2.0.2 librosa soundfile joblib amfm_decompy
-
-# Upgrade pip back if desired
-pip install --upgrade pip
+# Audio processing dependencies (no version pin needed with the zuruoke fork)
+pip install torchaudio librosa soundfile joblib amfm_decompy matplotlib
 ```
 
-**Note on fairseq**: Version 0.12.2 is required for HuBERT support. Earlier versions lack the `hubert_pretraining` task.
+**Note on fairseq**: version 0.12.2 is required for HuBERT support. It requires Python 3.10 — Python 3.11+ changed dataclass validation in a way that breaks fairseq's internal configs.
 
-## Step 5: Test the Wrapper
+## Step 4b: Patch fairseq for PyTorch 2.6+
 
-### Python API Test
+PyTorch 2.6 changed `torch.load` to use `weights_only=True` by default, which blocks loading the HuBERT checkpoint (it contains `argparse.Namespace`). Apply this one-line fix after installation:
 
-Create a test script `test_wrapper.py`:
-
-```python
-from pathlib import Path
-from dpvc import ControlVCWrapper
-import torchaudio
-
-# Initialize wrapper
-wrapper = ControlVCWrapper(
-    repo_root=Path("/Users/steve/repos/control-vc"),
-    device="cpu",  # or "cuda" if available
-    verbose=True
-)
-
-# Test embedding extraction
-print("Testing embedding extraction...")
-embedding = wrapper.extract_embedding(Path("examples/trump_0.wav"))
-print(f"Embedding shape: {embedding.shape}")
-print(f"Embedding range: [{embedding.min():.3f}, {embedding.max():.3f}]")
-
-# Test voice conversion
-print("\nTesting voice conversion...")
-output = wrapper.infer(
-    source_wav=Path("examples/trump_0.wav"),
-    target_embedding=embedding,
-    out_sr=16000
-)
-print(f"Output shape: {output.shape}")
-
-# Save result
-torchaudio.save("test_output.wav", output.cpu(), 16000)
-print("Saved to test_output.wav")
+```bash
+python - <<'EOF'
+import site, pathlib
+for d in site.getsitepackages():
+    f = pathlib.Path(d) / "fairseq/checkpoint_utils.py"
+    if f.exists():
+        txt = f.read_text()
+        old = "torch.load(f, map_location=torch.device(\"cpu\"))"
+        new = "torch.load(f, map_location=torch.device(\"cpu\"), weights_only=False)"
+        if old in txt:
+            f.write_text(txt.replace(old, new))
+            print(f"Patched {f}")
+        else:
+            print(f"Already patched or not found in {f}")
+EOF
 ```
 
-Run the test:
+## Step 5: Verify the Setup
+
 ```bash
 python test_wrapper.py
 ```
 
-### Command-Line Test
+Expected output:
+```
+==================================================
+Testing ControlVC Wrapper
+==================================================
+1. Initializing wrapper...
+[ControlVC] Loaded generator: g_00350000.pth
+[ControlVC] Loaded speaker model: 3000000-BL.ckpt
+✓ Initialization successful!
 
-```bash
-python examples/controlvc_infer.py \
-    --repo-root /Users/steve/repos/control-vc \
-    --source examples/trump_0.wav \
-    --reference examples/trump_0.wav \
-    --out test_output_cli.wav \
-    --device cpu \
-    --verbose
+2. Testing embedding extraction with examples/trump_0.wav...
+✓ Embedding extracted: shape=torch.Size([256, 1])
+
+3. Testing voice conversion...
+[ControlVC] Loaded HuBERT and K-means models
+✓ Conversion successful: shape=torch.Size([1, 124480])
+✓ Saved output to test_output.wav
+
+==================================================
+All tests passed! ✓
+==================================================
 ```
 
-## Step 5: Use with Differential Privacy
+Listen to `test_output.wav` — it should be clear, intelligible speech. Garbled audio means HuBERT/k-means is not loading correctly.
 
-```python
-from dpvc import ControlVCWrapper, Anonymizer
-
-# Initialize wrapper
-vc_wrapper = ControlVCWrapper(
-    repo_root="/Users/steve/repos/control-vc",
-    device="cuda"
-)
-
-# Create anonymizer (uses VAE for DP noise)
-anonymizer = Anonymizer(vc_wrapper)
-
-# Anonymize with differential privacy
-anonymizer.anonymize(
-    source_file="input.wav",
-    output_file="anonymized_output.wav",
-    noise_level=1.0  # Adjust DP noise level
-)
-```
-
-## Troubleshooting
-
-### Issue: "Failed to import ControlVC modules"
-
-**Cause**: The wrapper can't find the Control-VC repository modules.
-
-**Solution**:
-- Verify the `repo_root` path points to the correct directory
-- Ensure the repository contains: `models.py`, `dataset.py`, `utils.py`, etc.
-
-### Issue: "Speaker embedding model not loaded"
-
-**Cause**: Missing `3000000-BL.ckpt` checkpoint.
-
-**Solution**: Download the speaker embedding checkpoint and place it in `checkpoints/`
-
-### Issue: "Using dummy content codes" warning
-
-**Cause**: HuBERT checkpoint not found.
-
-**Solution**:
-- Download `hubert_base_ls960.pt` and `km.bin`
-- Place them in the `checkpoints/` directory
-- **Note**: The wrapper will still work but with reduced quality
-
-### Issue: CUDA Out of Memory
-
-**Solutions**:
-- Switch to CPU: `device="cpu"`
-- Process shorter audio clips
-- Use a GPU with more memory
-
-### Issue: Import error on `fairseq_feature_reader`
-
-**Cause**: Missing `fairseq_feature_reader.py` in control-vc repo.
-
-**Solution**:
-- Ensure you have the complete ControlVC repository
-- The wrapper will fall back to dummy codes if this file is missing
-
-## File Locations
-
-### In control-vc repository (`~/repos/control-vc/`)
-- `models.py` - Model definitions
-- `dataset.py` - Data loading and preprocessing
-- `utils.py` - Utility functions
-- `fairseq_feature_reader.py` - HuBERT feature extraction
-- `checkpoints/` - All model checkpoints
-
-### In dp-vc repository (`~/UVM-plaid/dp-vc/`)
-- `dpvc/controlvc.py` - ControlVC wrapper implementation
-- `dpvc/anonymizer.py` - DP anonymization pipeline
-- `examples/controlvc_infer.py` - Example CLI script
-- `docs/controlvc_wrapper.md` - Full documentation
-
-## Performance Tips
-
-1. **Use GPU**: Set `device="cuda"` for 5-10x speedup
-2. **Batch Processing**: Use the wrapper in a loop for multiple files
-3. **Checkpoint Caching**: The wrapper loads models once during initialization
-4. **Audio Format**: Use 16kHz mono WAV files for best performance
-
-## Example Workflow
+## Step 6: Use with Differential Privacy
 
 ```python
 from pathlib import Path
-from dpvc import ControlVCWrapper
-import torchaudio
+from dpvc import ControlVCWrapper, Anonymizer
 
-# Initialize once
-wrapper = ControlVCWrapper(
-    repo_root="/Users/steve/repos/control-vc",
-    device="cuda",
-    verbose=True
+vc_wrapper = ControlVCWrapper(
+    repo_root=Path("~/repos/control-vc").expanduser(),
+    device="cpu"
 )
 
-# Extract reference embeddings (do this once per target speaker)
-target_speakers = {
-    "speaker_a": wrapper.extract_embedding(Path("refs/speaker_a.wav")),
-    "speaker_b": wrapper.extract_embedding(Path("refs/speaker_b.wav")),
-}
+# Pass the ControlVC-specific VAE checkpoint
+anonymizer = Anonymizer(vc_wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 
-# Convert multiple files
-source_files = Path("inputs").glob("*.wav")
-for source in source_files:
-    for speaker_name, embedding in target_speakers.items():
-        output = wrapper.infer(source, embedding)
-        output_path = f"outputs/{source.stem}_{speaker_name}.wav"
-        torchaudio.save(output_path, output.cpu(), 16000)
-        print(f"Saved: {output_path}")
+anonymizer.anonymize(
+    source_file="examples/trump_0.wav",
+    output_file="output_anonymized.wav",
+    noise_level=1.0   # higher = more privacy, less speaker diversity
+)
 ```
 
-## Next Steps
+**Note on `noise_level`**: At high values (e.g., 2.0), the DP noise dominates the 6-dimensional latent space and all outputs converge to a similar-sounding anonymous voice. Lower values (0.5–1.0) preserve more speaker-to-speaker variation while still providing privacy.
 
-- Read the full documentation: [docs/controlvc_wrapper.md](docs/controlvc_wrapper.md)
-- Explore the example: [examples/controlvc_infer.py](examples/controlvc_infer.py)
-- Integrate with your DP pipeline using the `Anonymizer` class
+## Troubleshooting
 
-## Support
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "Using dummy content codes" / garbled audio | HuBERT or km.bin not found | Verify checkpoints; check `import fairseq` works |
+| `omegaconf has invalid metadata` | pip >= 24.1 | `pip install 'pip<24.1'` before fairseq |
+| MPS device error on Apple Silicon | fairseq_feature_reader.py uses MPS | Apply Step 3 fix |
+| Output sounds the same every run | `noise_level` too high | Try `noise_level=0.5` |
 
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review the full documentation
-3. Open an issue in the dp-vc repository
+## Command-Line Usage
+
+```bash
+python examples/controlvc_infer.py \
+    --repo-root ~/repos/control-vc \
+    --source examples/trump_0.wav \
+    --reference examples/trump_0.wav \
+    --out output.wav \
+    --device cpu \
+    --verbose
+```
