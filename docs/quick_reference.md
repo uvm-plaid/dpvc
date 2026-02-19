@@ -3,11 +3,11 @@
 ## Installation
 
 ```bash
-bash setup.sh
+bash scripts/setup.sh
 source .venv310/bin/activate
 ```
 
-See `CONTROLVC_SETUP.md` for full details.
+See `docs/controlvc_setup.md` for full details.
 
 ## Basic Usage
 
@@ -123,4 +123,4 @@ wrapper.inference(
 ## Documentation
 
 - Full Guide: `docs/controlvc_wrapper.md`
-- Setup: `CONTROLVC_SETUP.md`
+- Setup: `docs/controlvc_setup.md`

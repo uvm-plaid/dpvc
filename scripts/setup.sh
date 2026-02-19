@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# setup.sh — One-shot setup for the ControlVC pipeline.
+# scripts/setup.sh — One-shot setup for the ControlVC pipeline.
 #
-# Usage:
-#   bash setup.sh [--control-vc-dir PATH] [--venv-dir PATH]
+# Usage (run from repo root):
+#   bash scripts/setup.sh [--control-vc-dir PATH] [--venv-dir PATH]
 #
 # Defaults:
 #   --control-vc-dir  ~/repos/control-vc
@@ -31,7 +31,7 @@ done
 
 # Resolve to absolute path
 CONTROL_VC_DIR="${CONTROL_VC_DIR/#\~/$HOME}"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo ""
 info "ControlVC setup"
@@ -227,7 +227,7 @@ else
     echo "    └── vctk_f0_vq/"
     echo "        └── g_00400000"
     echo ""
-    die "Setup incomplete — please download checkpoints and re-run setup.sh."
+    die "Setup incomplete — please download checkpoints and re-run scripts/setup.sh."
   fi
 fi
 
@@ -237,8 +237,8 @@ echo -e "${GREEN}${BOLD}Setup complete!${NC}"
 echo ""
 echo "  Next steps:"
 echo "    source $VENV_DIR/bin/activate"
-echo "    python test_wrapper.py"
+echo "    python scripts/test_wrapper.py"
 echo ""
 echo "  Or, to use a custom control-vc path:"
-echo "    CONTROL_VC_DIR=/path/to/control-vc python test_wrapper.py"
+echo "    CONTROL_VC_DIR=/path/to/control-vc python scripts/test_wrapper.py"
 echo ""

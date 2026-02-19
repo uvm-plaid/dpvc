@@ -5,33 +5,33 @@
 Run the provided setup script — it handles everything automatically:
 
 ```bash
-bash setup.sh
+bash scripts/setup.sh
 ```
 
 Then activate the environment and verify:
 
 ```bash
 source .venv310/bin/activate
-python test_wrapper.py
+python scripts/test_wrapper.py
 ```
 
 Expected output ends with `All tests passed! ✓`. Listen to `test_output.wav` — it should be clear, intelligible speech with a different voice from the original speaker.
 
 **Custom control-vc path** (if you already have the repo elsewhere):
 ```bash
-bash setup.sh --control-vc-dir /path/to/control-vc
+bash scripts/setup.sh --control-vc-dir /path/to/control-vc
 ```
 
-**`CONTROL_VC_DIR` env var** is also respected by `test_wrapper.py`:
+**`CONTROL_VC_DIR` env var** is also respected by `scripts/test_wrapper.py`:
 ```bash
-CONTROL_VC_DIR=/path/to/control-vc python test_wrapper.py
+CONTROL_VC_DIR=/path/to/control-vc python scripts/test_wrapper.py
 ```
 
 ---
 
 ## Manual Setup
 
-Use this if `setup.sh` fails at a specific step, or if you need more control.
+Use this if `scripts/setup.sh` fails at a specific step, or if you need more control.
 
 ### Prerequisites
 
@@ -133,7 +133,7 @@ EOF
 ### Step 5: Verify the Setup
 
 ```bash
-python test_wrapper.py
+python scripts/test_wrapper.py
 ```
 
 Expected output:
@@ -194,7 +194,7 @@ anonymizer.anonymize(
 |---------|-------|-----|
 | "Using dummy content codes" / garbled audio | HuBERT or km.bin not found | Verify checkpoints; check `import fairseq` works |
 | `omegaconf has invalid metadata` | pip >= 24.1 | `pip install 'pip<24.1'` before fairseq |
-| MPS device error on Apple Silicon | fairseq_feature_reader.py uses MPS | Apply Step 3 fix (or re-run `setup.sh`) |
+| MPS device error on Apple Silicon | fairseq_feature_reader.py uses MPS | Apply Step 3 fix (or re-run `scripts/setup.sh`) |
 | Output sounds the same every run | `noise_level` too high | Try `noise_level=0.5` |
 | `gdown` fails during setup | Google Drive quota exceeded | Download checkpoints manually (Step 2) |
 

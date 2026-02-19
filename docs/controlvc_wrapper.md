@@ -32,10 +32,10 @@ https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
 
 ## Installation
 
-See `CONTROLVC_SETUP.md` for the full setup guide. The quick path is:
+See `docs/controlvc_setup.md` for the full setup guide. The quick path is:
 
 ```bash
-bash setup.sh
+bash scripts/setup.sh
 source .venv310/bin/activate
 ```
 
