@@ -1,5 +1,14 @@
+import os
+import torch
 from pathlib import Path
 from dpvc import ControlVCWrapper
+
+_control_vc_dir = os.environ.get("CONTROL_VC_DIR", "~/repos/control-vc")
+_device = (
+    "cuda" if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available()
+    else "cpu"
+)
 
 print("="*50)
 print("Testing ControlVC Wrapper")
@@ -9,8 +18,8 @@ try:
     # Initialize
     print("\n1. Initializing wrapper...")
     wrapper = ControlVCWrapper(
-        repo_root=Path("/home/jnear/co/cvc/control-vc"),
-        device="cuda",
+        repo_root=Path(_control_vc_dir).expanduser(),
+        device=_device,
         verbose=True
     )
     print("✓ Initialization successful!")

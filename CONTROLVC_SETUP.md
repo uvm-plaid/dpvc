@@ -1,22 +1,54 @@
 # ControlVC Wrapper Setup Guide
 
-## Prerequisites
+## Quick Setup (Recommended)
+
+Run the provided setup script — it handles everything automatically:
+
+```bash
+bash setup.sh
+```
+
+Then activate the environment and verify:
+
+```bash
+source .venv310/bin/activate
+python test_wrapper.py
+```
+
+Expected output ends with `All tests passed! ✓`. Listen to `test_output.wav` — it should be clear, intelligible speech with a different voice from the original speaker.
+
+**Custom control-vc path** (if you already have the repo elsewhere):
+```bash
+bash setup.sh --control-vc-dir /path/to/control-vc
+```
+
+**`CONTROL_VC_DIR` env var** is also respected by `test_wrapper.py`:
+```bash
+CONTROL_VC_DIR=/path/to/control-vc python test_wrapper.py
+```
+
+---
+
+## Manual Setup
+
+Use this if `setup.sh` fails at a specific step, or if you need more control.
+
+### Prerequisites
 
 - **Python 3.10** (required — fairseq 0.12.2 is incompatible with Python 3.11+)
 - PyTorch (CPU is fine; CUDA optional for GPU acceleration)
-- Control-VC repository cloned locally (see Step 1)
 
 If you use pyenv, the project includes a `.python-version` file that selects 3.10 automatically.
 
-## Step 1: Clone Control-VC Repository
+### Step 1: Clone Control-VC Repository
 
-Use the `zuruoke` fork, which fixes a librosa compatibility issue that allows newer versions of torchaudio:
+Use the `zuruoke` fork, which removes pinned library versions to allow newer torchaudio/librosa:
 
 ```bash
 git clone https://github.com/zuruoke/control-vc.git ~/repos/control-vc
 ```
 
-## Step 2: Download Checkpoints
+### Step 2: Download Checkpoints
 
 Download all required checkpoints from the ControlVC Google Drive:
 https://drive.google.com/drive/folders/1APVHQFIb1871UhvymdK_oewWKJWrInYK
@@ -37,7 +69,7 @@ checkpoints/
 
 **Without `hubert_base_ls960.pt` and `km.bin`**, the wrapper falls back to dummy content codes and produces garbled audio.
 
-## Step 3: Apply Fix for Apple Silicon (MPS)
+### Step 3: Apply Fix for Apple Silicon (MPS)
 
 If you are on an M1/M2/M3 Mac, edit `~/repos/control-vc/fairseq_feature_reader.py` lines 22–26:
 
@@ -54,7 +86,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
-## Step 4: Install Dependencies
+### Step 4: Install Dependencies
 
 ```bash
 cd ~/UVM-plaid/dp-vc
@@ -62,7 +94,6 @@ cd ~/UVM-plaid/dp-vc
 # Create and activate a Python 3.10 virtual environment
 python3.10 -m venv .venv310
 source .venv310/bin/activate
-pip install --upgrade pip
 
 # Install dp-vc package in editable mode
 pip install -e .
@@ -72,13 +103,13 @@ pip install 'pip<24.1'
 pip install 'omegaconf==2.0.6'
 pip install git+https://github.com/facebookresearch/fairseq.git@v0.12.2
 
-# Audio processing dependencies (no version pin needed with the zuruoke fork)
-pip install torchaudio librosa soundfile joblib amfm_decompy matplotlib
+# Audio processing dependencies
+pip install torchaudio librosa soundfile joblib amfm_decompy matplotlib gdown
 ```
 
 **Note on fairseq**: version 0.12.2 is required for HuBERT support. It requires Python 3.10 — Python 3.11+ changed dataclass validation in a way that breaks fairseq's internal configs.
 
-## Step 4b: Patch fairseq for PyTorch 2.6+
+### Step 4b: Patch fairseq for PyTorch 2.6+
 
 PyTorch 2.6 changed `torch.load` to use `weights_only=True` by default, which blocks loading the HuBERT checkpoint (it contains `argparse.Namespace`). Apply this one-line fix after installation:
 
@@ -99,7 +130,7 @@ for d in site.getsitepackages():
 EOF
 ```
 
-## Step 5: Verify the Setup
+### Step 5: Verify the Setup
 
 ```bash
 python test_wrapper.py
@@ -130,7 +161,9 @@ All tests passed! ✓
 
 Listen to `test_output.wav` — it should be clear, intelligible speech. Garbled audio means HuBERT/k-means is not loading correctly.
 
-## Step 6: Use with Differential Privacy
+---
+
+## Use with Differential Privacy
 
 ```python
 from pathlib import Path
@@ -153,14 +186,17 @@ anonymizer.anonymize(
 
 **Note on `noise_level`**: At high values (e.g., 2.0), the DP noise dominates the 6-dimensional latent space and all outputs converge to a similar-sounding anonymous voice. Lower values (0.5–1.0) preserve more speaker-to-speaker variation while still providing privacy.
 
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | "Using dummy content codes" / garbled audio | HuBERT or km.bin not found | Verify checkpoints; check `import fairseq` works |
 | `omegaconf has invalid metadata` | pip >= 24.1 | `pip install 'pip<24.1'` before fairseq |
-| MPS device error on Apple Silicon | fairseq_feature_reader.py uses MPS | Apply Step 3 fix |
+| MPS device error on Apple Silicon | fairseq_feature_reader.py uses MPS | Apply Step 3 fix (or re-run `setup.sh`) |
 | Output sounds the same every run | `noise_level` too high | Try `noise_level=0.5` |
+| `gdown` fails during setup | Google Drive quota exceeded | Download checkpoints manually (Step 2) |
 
 ## Command-Line Usage
 
