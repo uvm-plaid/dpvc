@@ -30,6 +30,23 @@ See the following files for examples of use:
 - `examples/openvoice_inference.py` contains a more complete example of anonymization using the OpenVoice wrapper
 - `examples/openvoice_train_vae.py` contains an example of how to train a custom DP-VAE for use in the anonymizer
 
+## Example: NaturalSpeech 3
+
+Install NaturalSpeech 3's FACodec with:
+
+```
+pip install git+https://github.com/lifeiteng/naturalspeech3_facodec.git
+```
+
+Then use the wrapper as follows:
+
+```
+import dpvc
+vc_wrapper = dpvc.NaturalSpeech3Wrapper()
+anonymizer = dpvc.Anonymizer(vc_wrapper)
+anonymizer.anonymize(src_path, output_path, noise_level=1.0)
+```
+
 ## Building Documentation
 
 The documentation is built with [MkDocs](https://www.mkdocs.org/). To build the documentation:
