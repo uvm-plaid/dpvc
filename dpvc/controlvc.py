@@ -29,6 +29,8 @@ class ControlVCWrapper:
         ├── hubert_base_ls960.pt    # HuBERT model (optional for content extraction)
         └── km.bin                  # K-means quantizer (optional)
     """
+    clip_threshold = 10.0
+    post_clip_threshold = 10.0
 
     def __init__(
         self,

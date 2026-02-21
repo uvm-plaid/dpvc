@@ -1,8 +1,8 @@
 from .wrapper import *
 from .anonymizer import *
 from .controlvc import ControlVCWrapper
-from .openvoice import *
-from .naturalspeech3 import *
+from .openvoice import OpenVoiceWrapper
+from .naturalspeech3 import NaturalSpeech3Wrapper
 from . import model_embedding_vae
 from .model_embedding_vae import *
 
