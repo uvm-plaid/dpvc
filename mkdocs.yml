@@ -20,6 +20,9 @@ markdown_extensions:
 nav:
   - index.md
   - using.md
+  - controlvc_wrapper.md
+  - controlvc_setup.md
+  - quick_reference.md
   - training.md
   - wrapping.md
   - reference.md
