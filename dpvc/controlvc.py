@@ -10,6 +10,7 @@ import torch
 import torchaudio
 import librosa
 import soundfile as sf
+import os
 
 class ControlVCWrapper:
     """
@@ -29,9 +30,6 @@ class ControlVCWrapper:
         ├── hubert_base_ls960.pt    # HuBERT model (optional for content extraction)
         └── km.bin                  # K-means quantizer (optional)
     """
-    clip_threshold = 10.0
-    post_clip_threshold = 10.0
-
     def __init__(
         self,
         repo_root: Path,
@@ -63,6 +61,19 @@ class ControlVCWrapper:
 
         # Load models
         self._load_models()
+
+    def get_vae_config(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        vae_path = f'{local_path}/controlvc_embedding_vae.pt'
+
+        config = {
+            'checkpoint_path': vae_path,
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 10.0,
+            'post_clip_threshold': 10.0
+        }
+        return config
 
     def _print(self, msg: str):
         """Print if verbose mode enabled."""

@@ -1,12 +1,10 @@
 import dpvc
 from pathlib import Path
 
-src_path = 'trump_0.wav'
-ae_path = 'controlvc_vae.pt'
-# ae_path = None
+src_path = 'joe.wav'
 
 vc_wrapper = dpvc.ControlVCWrapper(repo_root=Path("/home/jnear/co/cvc/control-vc"))
-anonymizer = dpvc.Anonymizer(vc_wrapper, vae_checkpoint_path=ae_path)
+anonymizer = dpvc.Anonymizer(vc_wrapper)
 
 for i in range(10):
     save_path = f'output/controlvc_noisy_{i}.wav'

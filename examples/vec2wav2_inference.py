@@ -6,10 +6,7 @@ ae_path = 'vec2wav2_vae.pt'
 #ae_path = None
 
 vc_wrapper = dpvc.Vec2Wav2Wrapper()
-anonymizer = dpvc.Anonymizer(vc_wrapper,
-                             vae_checkpoint_path=ae_path,
-                             vae_latent_dim=16,
-                             vae_input_dim=1024)
+anonymizer = dpvc.Anonymizer(vc_wrapper)
 
 for i in range(10):
     save_path = f'output/vec2wav2_noisy_{i}.wav'

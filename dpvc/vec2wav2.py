@@ -2,8 +2,8 @@ import torch
 import random
 import os
 import sys
+# TODO: deal with updating paths
 sys.path.append('/home/jnear/co/vec2wav2.0')
-
 
 import vec2wav2
 from vec2wav2.ssl_models.vqw2v_extractor import Extractor as VQW2VExtractor
@@ -19,13 +19,7 @@ from . import VoiceControlWrapper
 expdir = '/home/jnear/co/vec2wav2.0/pretrained'
 
 class Vec2Wav2Wrapper(VoiceControlWrapper):
-    clip_threshold = 5.0
-    post_clip_threshold = 3.0
-
     def __init__(self):
-        local_path = os.path.dirname(os.path.abspath(__file__))
-        self.default_vae_path = f'{local_path}/naturalspeech3_embedding_vae.pt'
-
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         # set up token extractor
@@ -49,6 +43,19 @@ class Vec2Wav2Wrapper(VoiceControlWrapper):
         
         self.model.backend.remove_weight_norm()
         self.model.eval().to(self.device)
+
+    def get_vae_config(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        vae_path = f'{local_path}/vec2wav2_embedding_vae.pt'
+
+        config = {
+            'checkpoint_path': vae_path,
+            'latent_dim': 16,
+            'input_dim': 1024,
+            'clip_threshold': 5.0,
+            'post_clip_threshold': 3.0
+        }
+        return config
 
     @torch.no_grad
     def extract_embedding(self, source_file) -> torch.Tensor:
