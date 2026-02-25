@@ -6,6 +6,8 @@ examples/processed/
 # Virtual environment
 venv/
 env/
+.venv/
+.venv310/
 
 # Compiled Python bytecode
 __pycache__/
@@ -19,3 +21,7 @@ __pycache__/
 
 # Log files
 *.log
+
+# Generated audio test outputs
+test_output*.wav
+test_cli_output*.wav

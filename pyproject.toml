@@ -15,9 +15,11 @@ license = {file = "LICENSE"}
 requires-python = ">=3.9,<=3.12"
 dependencies = [
     "torch>=2.4.0",
-    "numpy>=1.22",
-    "MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git",
+    "numpy>=1.22"
 ]
+
+[project.optional-dependencies]
+openvoice = ["MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git"]
 
 [project.urls]
 Repository = "https://github.com/uvm-plaid/dpvc"
