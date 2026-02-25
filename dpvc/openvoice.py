@@ -11,9 +11,6 @@ from . import VoiceControlWrapper
 CHECKPOINT_URL = "https://myshell-public-repo-host.s3.amazonaws.com/openvoice/checkpoints_v2_0417.zip"
 
 class OpenVoiceWrapper(VoiceControlWrapper):
-    clip_threshold = 10.0
-    post_clip_threshold = 10.0
-
     def __init__(self):
         ckpt_path = utils.ensure_checkpoint(CHECKPOINT_URL)
 
@@ -39,14 +36,11 @@ class OpenVoiceWrapper(VoiceControlWrapper):
         return config
 
     def extract_embedding(self, source_file) -> torch.Tensor:
-        """Extract the speaker embedding from a source .wav file"""
         source_se, _ = se_extractor.get_se(source_file, self.tone_color_converter,
                                            target_dir='processed', vad=True)
         return source_se
 
     def inference(self, source_file, output_file, source_embedding, target_embedding):
-        """Perform inference with a source file and target speaker embedding,
-        writing to the output file"""
         self.tone_color_converter.convert(
             audio_src_path=source_file, 
             src_se=source_embedding,

@@ -13,15 +13,22 @@ from . import utils
 from . import VoiceControlWrapper
 
 class NaturalSpeech3Wrapper(VoiceControlWrapper):
-    clip_threshold = 3.0
-    post_clip_threshold = 1.0
-
     def __init__(self):
-        local_path = os.path.dirname(os.path.abspath(__file__))
-        self.default_vae_path = f'{local_path}/naturalspeech3_embedding_vae.pt'
-
         self.device="cuda:0" if torch.cuda.is_available() else "cpu"
         self._load_models()
+
+    def get_vae_config(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        vae_path = f'{local_path}/naturalspeech3_embedding_vae.pt'
+
+        config = {
+            'checkpoint_path': vae_path,
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 3.0,
+            'post_clip_threshold': 1.0
+        }
+        return config
 
     def _load_models(self):
         self.fa_encoder_v2 = FACodecEncoderV2(
