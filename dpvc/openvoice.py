@@ -15,9 +15,6 @@ class OpenVoiceWrapper(VoiceControlWrapper):
     post_clip_threshold = 10.0
 
     def __init__(self):
-        local_path = os.path.dirname(os.path.abspath(__file__))
-        self.default_vae_path = f'{local_path}/openvoice_embedding_vae.pt'
-
         ckpt_path = utils.ensure_checkpoint(CHECKPOINT_URL)
 
         ckpt_base = f'{ckpt_path}/checkpoints_v2/base_speakers/EN'
@@ -27,6 +24,19 @@ class OpenVoiceWrapper(VoiceControlWrapper):
         tone_color_converter = ToneColorConverter(f'{ckpt_converter}/config.json', device=device)
         tone_color_converter.load_ckpt(f'{ckpt_converter}/checkpoint.pth')
         self.tone_color_converter = tone_color_converter
+
+    def get_vae_config(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        vae_path = f'{local_path}/openvoice_embedding_vae.pt'
+
+        config = {
+            'checkpoint_path': vae_path,
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 10.0,
+            'post_clip_threshold': 10.0
+        }
+        return config
 
     def extract_embedding(self, source_file) -> torch.Tensor:
         """Extract the speaker embedding from a source .wav file"""
@@ -40,5 +50,5 @@ class OpenVoiceWrapper(VoiceControlWrapper):
         self.tone_color_converter.convert(
             audio_src_path=source_file, 
             src_se=source_embedding,
-            tgt_se=target_embedding,
+            tgt_se=target_embedding.unsqueeze(-1),
             output_path=output_file)

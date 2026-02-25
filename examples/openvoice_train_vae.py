@@ -11,5 +11,5 @@ vc_wrapper = dpvc.OpenVoiceWrapper()
 
 # Train the VAE
 AE = dpvc.VariationalAutoencoder(latent_dims=6).to(device)
-dpvc.utils.train_autoencoder(AE, embeddings, epochs=2000)
+dpvc.utils.train_autoencoder(AE, embeddings, epochs=500)
 torch.save(AE.state_dict(), 'openvoice_vae.pt')
