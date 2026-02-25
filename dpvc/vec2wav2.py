@@ -2,8 +2,9 @@ import torch
 import random
 import os
 import sys
-# TODO: deal with updating paths
-sys.path.append('/home/jnear/co/vec2wav2.0')
+
+repo_root = os.environ['VEC2WAV2_PATH']
+sys.path.append(repo_root)
 
 import vec2wav2
 from vec2wav2.ssl_models.vqw2v_extractor import Extractor as VQW2VExtractor
@@ -16,7 +17,7 @@ import yaml
 from . import utils
 from . import VoiceControlWrapper
 
-expdir = '/home/jnear/co/vec2wav2.0/pretrained'
+expdir = f'{repo_root}/pretrained'
 
 class Vec2Wav2Wrapper(VoiceControlWrapper):
     def __init__(self):

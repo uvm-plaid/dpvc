@@ -6,15 +6,12 @@ from tqdm import tqdm
 from pathlib import Path
 from dpvc import ControlVCWrapper
 
-# TODO: not yet updated to use the wrappers
-
 base_path = '/data/cv-corpus-21.0-2025-03-14/en'
 df = pd.read_csv(f'{base_path}/validated.tsv', sep='\t')
 print('number of clips:', len(df))
 clients = list(df['client_id'].unique())
 print('number of clients:', len(clients))
 wrapper = ControlVCWrapper(
-    repo_root=Path("/home/jnear/co/cvc/control-vc"),
     device="cuda"
     )
 

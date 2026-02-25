@@ -1,9 +1,6 @@
 import dpvc
 
-#src_path = 'trump_0.wav'
-src_path = 'joe.wav'
-ae_path = 'vec2wav2_vae.pt'
-#ae_path = None
+src_path = 'wavs/example1.wav'
 
 vc_wrapper = dpvc.Vec2Wav2Wrapper()
 anonymizer = dpvc.Anonymizer(vc_wrapper)

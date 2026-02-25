@@ -1,12 +1,9 @@
 import dpvc
 
-#src_path = 'trump_0.wav'
-src_path = 'joe.wav'
-ae_path = 'naturalspeech3_vae.pt'
-#ae_path = None
+src_path = 'wavs/example1.wav'
 
 vc_wrapper = dpvc.NaturalSpeech3Wrapper()
-anonymizer = dpvc.Anonymizer(vc_wrapper)#, vae_checkpoint_path=ae_path)
+anonymizer = dpvc.Anonymizer(vc_wrapper)
 
 for i in range(10):
     save_path = f'output/naturalspeech3_noisy_{i}.wav'

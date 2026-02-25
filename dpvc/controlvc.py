@@ -32,12 +32,12 @@ class ControlVCWrapper:
     """
     def __init__(
         self,
-        repo_root: Path,
         device: str = "cuda",
         checkpoints_dir: Optional[Path] = None,
         config: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
     ):
+        repo_root = os.environ['CONTROLVC_PATH']
         self.repo_root = Path(repo_root).expanduser().resolve()
         self.verbose = verbose
 

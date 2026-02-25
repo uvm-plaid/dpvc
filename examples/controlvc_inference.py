@@ -1,9 +1,9 @@
 import dpvc
 from pathlib import Path
 
-src_path = 'joe.wav'
+src_path = 'wavs/example1.wav'
 
-vc_wrapper = dpvc.ControlVCWrapper(repo_root=Path("/home/jnear/co/cvc/control-vc"))
+vc_wrapper = dpvc.ControlVCWrapper()
 anonymizer = dpvc.Anonymizer(vc_wrapper)
 
 for i in range(10):

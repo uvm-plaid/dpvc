@@ -1,7 +1,6 @@
 import dpvc
 
-#src_path = 'trump_0.wav'
-src_path = 'joe.wav'
+src_path = 'wavs/example1.wav'
 
 vc_wrapper = dpvc.OpenVoiceWrapper()
 anonymizer = dpvc.Anonymizer(vc_wrapper)
