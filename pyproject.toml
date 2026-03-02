@@ -6,7 +6,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dpvc"
 description = "Differentially private voice control"
-authors = []
+authors = [{name = "Ivoline Ngong", email = "kngongiv@uvm.edu"},
+           {name = "Jack D'Iorio", email = "Jack.C.DIorio@uvm.edu"},
+           {name = "Hailey Schoppe", email = "Hailey.Schoppe@uvm.edu"},
+           {name = "Stephen Oladele", email = "steve.deve89@gmail.com"},
+           {name = "Joe Near", email = "jnear@uvm.edu"}]
 version = "0.2"
 readme = "README.md"
 license = {file = "LICENSE"}
