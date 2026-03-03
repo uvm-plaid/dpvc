@@ -6,7 +6,6 @@ from .model_embedding_vae import VariationalAutoencoder
 from . import utils
 
 class Anonymizer:
-    #def __init__(self, vc_wrapper, vae_checkpoint_path=None, vae_input_dim=256, vae_latent_dim=6):
     def __init__(self, vc_wrapper, vae_config=None):
         device="cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -27,7 +26,7 @@ class Anonymizer:
         self.AE = AE
 
     @torch.inference_mode()
-    def anonymize(self, source_file, output_file, noise_level, seed=None):
+    def anonymize(self, source_file, output_file, noise_level, seed=None, control_features=None):
         """Anonymize the source file, using the specified noise level, writing
         to the output file"""
         self.AE.set_noise_mult(noise_level)
@@ -35,7 +34,9 @@ class Anonymizer:
         utils.set_seed(seed)
 
         source_embedding = self.vc_wrapper.extract_embedding(source_file)
-        target_embedding = self.AE(source_embedding.squeeze(-1), seed=seed)#.unsqueeze(-1)
+        target_embedding = self.AE(source_embedding.squeeze(-1),
+                                   seed=seed,
+                                   control_features=control_features)#.unsqueeze(-1)
 
         self.vc_wrapper.inference(
             source_file,

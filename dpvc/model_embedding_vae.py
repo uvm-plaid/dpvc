@@ -76,9 +76,11 @@ class VariationalAutoencoder(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
-    def forward(self, x, seed=None):
+    def forward(self, x, seed=None, control_features=None):
         mu, logvar = self.encoder(x)
         z = self.reparameterize(mu, logvar)
+        self.last_z = z
+        print('z before', z)
 
         if self.noise_mult:
             # print('******************* input max/min/norm:',
@@ -102,6 +104,12 @@ class VariationalAutoencoder(nn.Module):
             #z = self.clip_by_l2norm(z, 10*self.clip_threshold)
 
 
+        if control_features:
+            assert isinstance(control_features, dict)
+            for idx, val in control_features.items():
+                z[:,idx] = val
+
+        print('z after', z)
         recon = self.decoder(z)
         self.kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
         # return recon, mu, logvar, z
