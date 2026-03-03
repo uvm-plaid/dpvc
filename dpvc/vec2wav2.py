@@ -3,24 +3,25 @@ import random
 import os
 import sys
 
-repo_root = os.environ['VEC2WAV2_PATH']
-sys.path.append(repo_root)
-
-import vec2wav2
-from vec2wav2.ssl_models.vqw2v_extractor import Extractor as VQW2VExtractor
-from vec2wav2.ssl_models.wavlm_extractor import Extractor as WavLMExtractor
-# from vec2wav2.ssl_models.w2v2_extractor import Extractor as W2V2Extractor
-from vec2wav2.utils.utils import load_model, load_feat_codebook, idx2vec, read_wav_16k
 import soundfile as sf
 import yaml
 
 from . import utils
 from . import VoiceControlWrapper
 
-expdir = f'{repo_root}/pretrained'
-
 class Vec2Wav2Wrapper(VoiceControlWrapper):
     def __init__(self):
+        repo_root = os.environ['VEC2WAV2_PATH']
+        sys.path.append(repo_root)
+
+        import vec2wav2
+        from vec2wav2.ssl_models.vqw2v_extractor import Extractor as VQW2VExtractor
+        from vec2wav2.ssl_models.wavlm_extractor import Extractor as WavLMExtractor
+        # from vec2wav2.ssl_models.w2v2_extractor import Extractor as W2V2Extractor
+        from vec2wav2.utils.utils import load_model, load_feat_codebook, idx2vec, read_wav_16k
+
+        expdir = f'{repo_root}/pretrained'
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         # set up token extractor
