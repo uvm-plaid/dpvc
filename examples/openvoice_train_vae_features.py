@@ -8,13 +8,14 @@ device="cuda:0" if torch.cuda.is_available() else "cpu"
 
 def train_autoencoder(model, embeddings, epochs=1000, labels=None):
     BATCH_SIZE = min(256, len(embeddings))
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
     outputs = []
     losses = []
     beta = 1
 
     if labels is not None:
         num_labels = len(labels.keys())
+        print('Label ordering:', [f for f in labels])
         label_vals = [list(labels[f]) for f in labels]
         label_tensor = torch.tensor(label_vals).to(embeddings.device).squeeze().T
     else:
@@ -48,10 +49,13 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None):
     print('Ending loss:', loss.item())
 
 
-data = torch.load('embeddings/openvoice_embeddings_features.pt')
+data = torch.load('embeddings/openvoice_embeddings_features2.pt')
 embeddings = data['data'].to(device).squeeze()
-ages = data['ages']
-genders = data['genders']
+
+labels = {'ages': data['ages'],
+          'genders': data['genders'],
+          'accents': data['accents']
+          }
 print('Shape of extracted embeddings:', embeddings.shape)
 
 # Construct the VC system wrapper
@@ -59,5 +63,5 @@ vc_wrapper = dpvc.OpenVoiceWrapper()
 
 # Train the VAE
 AE = dpvc.VariationalAutoencoder(latent_dims=8).to(device)
-train_autoencoder(AE, embeddings, epochs=200, labels={'ages': ages, 'genders': genders})
-torch.save(AE.state_dict(), 'openvoice_vae_features.pt')
+train_autoencoder(AE, embeddings, epochs=2000, labels=labels)
+torch.save(AE.state_dict(), 'openvoice_vae_features2.pt')
