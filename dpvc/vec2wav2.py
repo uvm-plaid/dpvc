@@ -11,6 +11,8 @@ from . import VoiceControlWrapper
 
 class Vec2Wav2Wrapper(VoiceControlWrapper):
     def __init__(self):
+        global read_wav_16k, idx2vec
+
         repo_root = os.environ['VEC2WAV2_PATH']
         sys.path.append(repo_root)
 
