@@ -5,15 +5,13 @@ import random
 import numpy as np
 from . import utils
 
-INPUT_DIM = 256
-
 class Decoder(nn.Module):
-    def __init__(self, latent_dims):
+    def __init__(self, latent_dims, input_dim=256):
         super(Decoder, self).__init__()
         self.linear1 = nn.Linear(latent_dims, 32)
         self.linear2 = nn.Linear(32, 64)
         self.linear3 = nn.Linear(64, 128)
-        self.linear4 = nn.Linear(128, INPUT_DIM)
+        self.linear4 = nn.Linear(128, input_dim)
 
     def forward(self, z):
         z = F.relu(self.linear1(z))
@@ -23,9 +21,9 @@ class Decoder(nn.Module):
         return z
 
 class VariationalEncoder(nn.Module):
-    def __init__(self, latent_dims):
+    def __init__(self, latent_dims, input_dim=256):
         super(VariationalEncoder, self).__init__()
-        self.linear1 = nn.Linear(INPUT_DIM, 128)
+        self.linear1 = nn.Linear(input_dim, 128)
         self.linear11 = nn.Linear(128, 64)
         self.linear12 = nn.Linear(64, 32)
         self.linear2 = nn.Linear(32, latent_dims)
@@ -46,10 +44,10 @@ class VariationalEncoder(nn.Module):
         return z
 
 class VariationalAutoencoder(nn.Module):
-    def __init__(self, latent_dims):
+    def __init__(self, latent_dims, input_dim=256):
         super(VariationalAutoencoder, self).__init__()
-        self.encoder = VariationalEncoder(latent_dims)
-        self.decoder = Decoder(latent_dims)
+        self.encoder = VariationalEncoder(latent_dims, input_dim)
+        self.decoder = Decoder(latent_dims, input_dim)
         self.noise_mult = None
         self.clip_threshold = 5.0
 

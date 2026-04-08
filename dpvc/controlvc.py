@@ -33,7 +33,7 @@ class ControlVCWrapper:
     def __init__(
         self,
         repo_root: Path,
-        device: str = "cuda",
+        device: str = None,
         checkpoints_dir: Optional[Path] = None,
         config: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
@@ -41,11 +41,10 @@ class ControlVCWrapper:
         self.repo_root = Path(repo_root).expanduser().resolve()
         self.verbose = verbose
 
-        # Set device
-        if device == "cpu" or not torch.cuda.is_available():
-            self.device = torch.device("cpu")
-        else:
-            self.device = torch.device(device)
+        # Set device: auto-detect if not specified
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device)
 
         self.checkpoints_dir = (Path(checkpoints_dir).resolve()
                                 if checkpoints_dir else (self.repo_root / "checkpoints"))

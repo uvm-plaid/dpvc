@@ -6,7 +6,7 @@ from .model_embedding_vae import VariationalAutoencoder
 from . import utils
 
 class Anonymizer:
-    def __init__(self, vc_wrapper, vae_checkpoint_path=None):
+    def __init__(self, vc_wrapper, vae_checkpoint_path=None, vae_input_dim=256, vae_latent_dim=6):
         device="cuda:0" if torch.cuda.is_available() else "cpu"
 
         self.vc_wrapper = vc_wrapper
@@ -17,10 +17,10 @@ class Anonymizer:
         else:
             ae_path = vae_checkpoint_path
 
-        AE = VariationalAutoencoder(latent_dims=6).to(device)
+        AE = VariationalAutoencoder(latent_dims=vae_latent_dim, input_dim=vae_input_dim).to(device)
         AE.load_state_dict(torch.load(ae_path, weights_only=True, map_location=device))
         AE.eval()
-        AE.clip_threshold = 3.0
+        AE.clip_threshold = getattr(vc_wrapper, 'clip_threshold', 3.0)
         self.AE = AE
 
         # Only needed if we also want to select a random speaker to start from
