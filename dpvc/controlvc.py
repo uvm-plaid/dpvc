@@ -362,6 +362,16 @@ class ControlVCWrapper:
         audio_np = audio_out.cpu().squeeze().numpy()
         sf.write(output_file, audio_np, 16000)
 
+    def get_vae_config(self):
+        """Return default VAE configuration for ControlVC."""
+        return {
+            'checkpoint_path': None,  # must be provided by user
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 10.0,
+            'post_clip_threshold': 10.0,
+        }
+
     # ---------- Helper Methods ----------
     def _ensure_tensor(self, x: Any) -> torch.Tensor:
         """Convert input to torch.Tensor on correct device."""

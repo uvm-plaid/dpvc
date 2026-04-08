@@ -32,30 +32,50 @@ def extract_embeddings(vc_wrapper, dataset: List[str]) -> torch.Tensor:
     return torch.vstack(embeddings).squeeze()
 
 
-def train_autoencoder(model, embeddings, epochs=1000):
-    BATCH_SIZE = min(64, len(embeddings))
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)#, weight_decay=1e-7)
-    outputs = []
-    losses = []
+def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5):
+    BATCH_SIZE = min(256, len(embeddings))
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     beta = 1
+
+    if labels is not None:
+        num_labels = len(labels.keys())
+        print('Label ordering:', [f for f in labels])
+        label_vals = [list(labels[f]) for f in labels]
+        label_tensor = torch.tensor(label_vals).to(embeddings.device).squeeze().T
+    else:
+        num_labels = 0
+        label_tensor = None
 
     print(f'Training autoencoder for {epochs} epochs...')
     for epoch in tqdm(range(epochs)):
         with torch.no_grad():
             indexes = torch.randperm(embeddings.shape[0])
-            embeddings = embeddings[indexes]
-            embeddings_batches = torch.split(embeddings, BATCH_SIZE)
+            embeddings_batches = torch.split(embeddings[indexes], BATCH_SIZE)
+            if label_tensor is not None:
+                labels_batches = torch.split(label_tensor[indexes], BATCH_SIZE)
+            else:
+                labels_batches = [None] * len(embeddings_batches)
 
-        for embeddings_b in embeddings_batches:
+        for embeddings_b, labels_b in zip(embeddings_batches, labels_batches):
             optimizer.zero_grad()
 
             reconstructed = model(embeddings_b)
             recon_loss = ((embeddings_b - reconstructed)**2).sum()
-            kl_loss = beta*model.encoder.kl
-            loss = recon_loss + kl_loss
+            kl_loss = beta * model.kl
+
+            if labels_b is not None:
+                label_loss = beta * ((model.last_z[:, :num_labels] - labels_b)**2).sum()
+            else:
+                label_loss = 0
+
+            loss = recon_loss + kl_loss + label_loss
 
             loss.backward()
             optimizer.step()
+
+        if epoch % 10 == 0:
+            label_loss_val = label_loss.item() if isinstance(label_loss, torch.Tensor) else label_loss
+            print(f'loss: {loss.item():.2f}  recon: {recon_loss.item():.2f}  kl: {kl_loss.item():.2f}  label: {label_loss_val:.2f}')
 
     print('Ending loss:', loss.item())
 

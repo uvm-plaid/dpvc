@@ -28,11 +28,23 @@ class OpenVoiceWrapper(VoiceControlWrapper):
                                            target_dir='processed', vad=True)
         return source_se
 
+    def get_vae_config(self):
+        """Return default VAE configuration for OpenVoice."""
+        local_path = os.path.dirname(os.path.abspath(__file__))
+        vae_path = f'{local_path}/openvoice_embedding_vae.pt'
+        return {
+            'checkpoint_path': vae_path,
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 10.0,
+            'post_clip_threshold': 10.0,
+        }
+
     def inference(self, source_file, output_file, source_embedding, target_embedding):
         """Perform inference with a source file and target speaker embedding,
         writing to the output file"""
         self.tone_color_converter.convert(
-            audio_src_path=source_file, 
+            audio_src_path=source_file,
             src_se=source_embedding,
             tgt_se=target_embedding,
             output_path=output_file)

@@ -13,3 +13,11 @@ class VoiceControlWrapper:
         """Perform inference with a source file and target speaker embedding,
         writing to the output file"""
         raise NotImplementedError
+
+    def get_vae_config(self) -> dict:
+        """Return default VAE configuration for this wrapper.
+
+        Returns a dict with keys: checkpoint_path, latent_dim, input_dim,
+        clip_threshold, post_clip_threshold.
+        """
+        raise NotImplementedError
