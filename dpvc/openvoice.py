@@ -23,10 +23,12 @@ class OpenVoiceWrapper(VoiceControlWrapper):
         self.tone_color_converter = tone_color_converter
 
     def extract_embedding(self, source_file) -> torch.Tensor:
-        """Extract the speaker embedding from a source .wav file"""
-        source_se, _ = se_extractor.get_se(source_file, self.tone_color_converter,
-                                           target_dir='processed', vad=True)
-        return source_se
+        """Extract the speaker embedding from a source .wav file.
+
+        Calls extract_se directly on the audio file, bypassing OpenVoice's
+        VAD-based splitting which fails on short utterances (<10s).
+        """
+        return self.tone_color_converter.extract_se([source_file])
 
     def get_vae_config(self):
         """Return default VAE configuration for OpenVoice."""

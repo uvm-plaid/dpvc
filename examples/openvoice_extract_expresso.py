@@ -4,18 +4,17 @@ Extract speaker embeddings and style labels from the Expresso dataset using Open
 OpenVoice embeds F0/prosody in the speaker embedding, so style differences
 should be captured in the extracted embeddings (unlike ControlVC's D_VECTOR).
 
-Note: If downloads are slow, set HF_HUB_DISABLE_XET=1 to bypass the xet storage backend.
-
 Usage:
-    python examples/openvoice_extract_expresso.py \
-        --output embeddings/openvoice_expresso_emb.pt
-
-    # From locally cached parquet files:
+    # From locally cached parquet files (recommended):
     python examples/openvoice_extract_expresso.py \
         --output embeddings/openvoice_expresso_emb.pt \
         --parquet-dir ~/.cache/huggingface/hub/datasets--ylacombe--expresso/snapshots/.../read
 
-Requires: pip install datasets soundfile openvoice
+    # Or download from HuggingFace:
+    python examples/openvoice_extract_expresso.py \
+        --output embeddings/openvoice_expresso_emb.pt
+
+Requires: pip install pandas soundfile openvoice
 """
 
 import argparse
@@ -26,8 +25,7 @@ import soundfile as sf
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
-import datasets
-from datasets import load_dataset
+import pandas as pd
 import io
 from dpvc import OpenVoiceWrapper
 
@@ -43,35 +41,39 @@ def encode_style_onehot(style_name):
     return vec
 
 
+def load_expresso(parquet_dir=None, max_samples=None):
+    """Load Expresso dataset from parquet files or HuggingFace."""
+    if parquet_dir:
+        print(f"Loading Expresso from local parquet files in {parquet_dir}...")
+        files = sorted([os.path.join(parquet_dir, f)
+                        for f in os.listdir(parquet_dir) if f.endswith('.parquet')])
+        dfs = [pd.read_parquet(f) for f in files]
+        df = pd.concat(dfs, ignore_index=True)
+    else:
+        print("Loading Expresso dataset from HuggingFace...")
+        from datasets import load_dataset, Audio
+        dataset = load_dataset("ylacombe/expresso", "read", split="train")
+        dataset = dataset.cast_column("audio", Audio(decode=False))
+        df = dataset.to_pandas()
+
+    if max_samples:
+        df = df.head(max_samples)
+
+    print(f"Total samples: {len(df)}")
+    return df
+
+
 def main():
     ap = argparse.ArgumentParser(description="Extract OpenVoice embeddings from Expresso dataset")
     ap.add_argument("--output", default="embeddings/openvoice_expresso_emb.pt",
                     help="Output file path (default: embeddings/openvoice_expresso_emb.pt)")
     ap.add_argument("--max-samples", type=int, default=None,
                     help="Limit number of samples to process (default: all)")
-    ap.add_argument("--split", default="train", help="Dataset split to use (default: train)")
     ap.add_argument("--parquet-dir", default=None,
                     help="Load from local parquet files instead of downloading")
     args = ap.parse_args()
 
-    # Load Expresso dataset
-    if args.parquet_dir:
-        print(f"Loading Expresso from local parquet files in {args.parquet_dir}...")
-        files = sorted([os.path.join(args.parquet_dir, f)
-                        for f in os.listdir(args.parquet_dir) if f.endswith('.parquet')])
-        slice_spec = f'{args.split}[:{args.max_samples}]' if args.max_samples else args.split
-        dataset = load_dataset('parquet', data_files=files, split=slice_spec)
-    else:
-        print("Loading Expresso dataset from HuggingFace...")
-        dataset = load_dataset("ylacombe/expresso", "read", split=args.split)
-
-    if args.max_samples and not args.parquet_dir:
-        dataset = dataset.select(range(min(args.max_samples, len(dataset))))
-
-    # Disable automatic audio decoding (avoids torchcodec dependency)
-    dataset = dataset.cast_column("audio", datasets.Audio(decode=False))
-
-    print(f"Total samples: {len(dataset)}")
+    df = load_expresso(args.parquet_dir, args.max_samples)
 
     # Initialize OpenVoice wrapper
     wrapper = OpenVoiceWrapper()
@@ -81,15 +83,15 @@ def main():
     all_styles = {f'style_{s}': [] for s in STYLES}
     skipped = 0
 
-    for i, sample in tqdm(enumerate(dataset), total=len(dataset)):
-        style = sample.get('style', sample.get('style_tag', ''))
+    for i, row in tqdm(df.iterrows(), total=len(df)):
+        style = row.get('style', '')
 
         if style not in STYLES:
             skipped += 1
             continue
 
         try:
-            audio_data = sample['audio']
+            audio_data = row['audio']
             audio_bytes = audio_data['bytes']
             audio_array, sample_rate = sf.read(io.BytesIO(audio_bytes), dtype='float32')
 
@@ -111,9 +113,9 @@ def main():
             skipped += 1
 
         # Periodic checkpoint
-        if (i + 1) % 1000 == 0 and all_emb:
-            print(f"  Processed {i + 1} samples, {len(all_emb)} embeddings extracted, {skipped} skipped")
-            _save_checkpoint(all_emb, all_ids, all_styles, f"{args.output}.checkpoint_{i}.pt")
+        if (len(all_emb)) % 1000 == 0 and all_emb:
+            print(f"  {len(all_emb)} embeddings extracted, {skipped} skipped")
+            _save_checkpoint(all_emb, all_ids, all_styles, f"{args.output}.checkpoint.pt")
 
     if not all_emb:
         print("No embeddings extracted. Check dataset and wrapper configuration.")
