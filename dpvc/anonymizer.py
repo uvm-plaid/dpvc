@@ -26,7 +26,8 @@ class Anonymizer:
         self.AE = AE
 
     @torch.inference_mode()
-    def anonymize(self, source_file, output_file, noise_level, seed=None, control_features=None):
+    def anonymize(self, source_file, output_file, noise_level, seed=None,
+                  control_features=None):
         """Anonymize the source file, using the specified noise level, writing
         to the output file"""
         self.AE.set_noise_mult(noise_level)

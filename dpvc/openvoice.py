@@ -45,6 +45,11 @@ class OpenVoiceWrapper(VoiceControlWrapper):
     def inference(self, source_file, output_file, source_embedding, target_embedding):
         """Perform inference with a source file and target speaker embedding,
         writing to the output file"""
+        # OpenVoice expects [1, 256, 1] shaped embeddings
+        if target_embedding.dim() == 2:
+            target_embedding = target_embedding.unsqueeze(-1)
+        if source_embedding.dim() == 2:
+            source_embedding = source_embedding.unsqueeze(-1)
         self.tone_color_converter.convert(
             audio_src_path=source_file,
             src_se=source_embedding,
