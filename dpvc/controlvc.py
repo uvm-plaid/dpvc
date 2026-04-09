@@ -274,7 +274,8 @@ class ControlVCWrapper:
 
     @torch.inference_mode()
     def inference(self, source_file: Union[str, Path], output_file: Union[str, Path],
-                  source_embedding: torch.Tensor, target_embedding: torch.Tensor) -> None:
+                  source_embedding: torch.Tensor, target_embedding: torch.Tensor,
+                  f0_transform: Optional[Dict[str, float]] = None) -> None:
         """
         Perform voice conversion using precomputed (possibly DP-noised) speaker embedding.
 
@@ -284,6 +285,10 @@ class ControlVCWrapper:
             source_embedding: Speaker embedding of the source audio.
             target_embedding: Target speaker embedding. Accepts shapes
                 ``(256,)``, ``(1, 256)``, or ``(256, 1)``.
+            f0_transform: Optional dict controlling F0 manipulation for style control.
+                Keys: 'pitch_shift' (float, multiplier on voiced F0, default 1.0),
+                      'range_scale' (float, scale variation around mean, default 1.0),
+                      'flatten' (float, 0.0=no change, 1.0=completely flat, default 0.0).
         """
         out_sr = 16000
         pitch_shift = 1.0
@@ -316,6 +321,25 @@ class ControlVCWrapper:
         # Apply pitch shift if specified
         if pitch_shift != 1.0:
             f0[f0 != 0] *= pitch_shift
+
+        # Apply F0 style transform if specified
+        if f0_transform is not None:
+            voiced = f0 != 0
+            if voiced.any():
+                # Pitch shift: multiply voiced F0 values
+                if 'pitch_shift' in f0_transform:
+                    f0[voiced] *= f0_transform['pitch_shift']
+
+                # Range scale: expand/compress variation around mean
+                if 'range_scale' in f0_transform:
+                    mean_f0 = f0[voiced].mean()
+                    f0[voiced] = mean_f0 + (f0[voiced] - mean_f0) * f0_transform['range_scale']
+
+                # Flatten: interpolate toward mean (1.0 = completely monotone)
+                if 'flatten' in f0_transform:
+                    mean_f0 = f0[voiced].mean()
+                    alpha = f0_transform['flatten']
+                    f0[voiced] = f0[voiced] * (1 - alpha) + mean_f0 * alpha
 
         # Prepare inputs for generator
         code_dict = {
@@ -397,10 +421,36 @@ class ControlVCWrapper:
 
         if hubert_ckpt.exists() and kmeans_ckpt.exists():
             try:
-                from fairseq_feature_reader import HubertFeatureReader
-                import joblib
-
                 if not hasattr(self, '_hubert_reader'):
+                    # Patch dataclasses to tolerate mutable defaults
+                    # (fairseq 0.12.2 + Python 3.11 compatibility)
+                    import dataclasses as _dc
+                    _orig_get_field = _dc._get_field
+                    def _patched_get_field(cls, a_name, a_type, kw_only):
+                        try:
+                            return _orig_get_field(cls, a_name, a_type, kw_only)
+                        except ValueError as exc:
+                            if 'mutable default' in str(exc):
+                                val = getattr(cls, a_name, _dc.MISSING)
+                                if isinstance(val, _dc.Field):
+                                    # Already a field descriptor — skip
+                                    return val
+                                if val is not _dc.MISSING:
+                                    t = type(val)
+                                    setattr(cls, a_name, _dc.field(
+                                        default_factory=lambda t=t: t()))
+                                    return _orig_get_field(cls, a_name, a_type, kw_only)
+                            raise
+                    _dc._get_field = _patched_get_field
+
+                    # Add control-vc repo to path so fairseq_feature_reader is importable
+                    repo_str = str(self.repo_root)
+                    if repo_str not in sys.path:
+                        sys.path.insert(0, repo_str)
+
+                    from fairseq_feature_reader import HubertFeatureReader
+                    import joblib
+
                     self._hubert_reader = HubertFeatureReader(
                         checkpoint_path=str(hubert_ckpt),
                         layer=6,
@@ -417,7 +467,6 @@ class ControlVCWrapper:
                 import tempfile
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
                     temp_path = f.name
-                    import soundfile as sf
                     sf.write(temp_path, audio, sr)
 
                 # Extract features and quantize

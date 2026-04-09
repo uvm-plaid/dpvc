@@ -9,9 +9,10 @@ class VoiceControlWrapper:
         raise NotImplementedError
 
     def inference(self, source_file: str, output_file: str,
-                  source_embedding: torch.Tensor, target_embedding: torch.Tensor):
+                  source_embedding: torch.Tensor, target_embedding: torch.Tensor,
+                  f0_transform: dict = None):
         """Perform inference with a source file and target speaker embedding,
-        writing to the output file"""
+        writing to the output file. Optionally apply f0_transform for prosody control."""
         raise NotImplementedError
 
     def get_vae_config(self) -> dict:
