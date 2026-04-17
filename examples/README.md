@@ -146,6 +146,86 @@ Key parameters:
   preservation. 0.5+ degrades style and can make baseline unintelligible.
 - `--seed` (default 42): For reproducible outputs. Use -1 for random.
 
+## Evaluation
+
+Once you have generated outputs (e.g. via `--all-styles`), evaluate emotion
+controllability with `eval_emotion.py`. This runs emotion2vec_plus_large
+(ACL 2024) on each file and reports Recall Rate + emo_sim per the EmoVoice
+paper.
+
+```bash
+# Install the emotion model backend (one-time)
+pip install funasr
+
+# Run on a directory of .wav files (expects <speaker>_<style>.wav naming)
+python examples/eval_emotion.py \
+    --input output/ \
+    --out output/eval_emotion.csv
+```
+
+The script expects files named `<speaker_id>_<style>.wav` — which is what
+`openvoice_infer_controllable.py --all-styles` produces. A file named
+`<speaker_id>_baseline.wav` per speaker is used as the reference for emo_sim.
+
+**Metrics:**
+- **Recall Rate**: predicted emotion == target emotion (only 6 styles have
+  emotion2vec counterparts: anger, disgust, fear, happy, neutral, sad)
+- **emo_sim**: cosine similarity to same-speaker baseline embedding (0–1)
+
+Output is a CSV with one row per file plus a printed summary table.
+
+### WER (intelligibility sanity check)
+
+`eval_wer.py` transcribes each generated .wav with OpenAI Whisper and computes
+Word Error Rate against a reference. Two reference modes:
+
+```bash
+pip install -U openai-whisper jiwer
+
+# Drift-from-baseline (default): compares each <speaker>_<style>.wav to its
+# <speaker>_baseline.wav transcription. Measures how much the style control
+# changes what Whisper hears.
+python examples/eval_wer.py \
+    --input output/diverse_speakers/ \
+    --out output/eval_wer.csv
+
+# Absolute WER against a known ground-truth transcript
+python examples/eval_wer.py \
+    --input output/trump_styles/ \
+    --reference-text "Our great movement. We will make America great again." \
+    --out output/eval_wer_trump.csv
+```
+
+The default (drift) mode is right for the research question "does style
+control degrade intelligibility?". The fixed-reference mode is right for
+reporting absolute WER on a held-out test set.
+
+### MOS (predicted naturalness)
+
+`eval_mos.py` predicts a 1–5 Mean Opinion Score for each generated .wav
+using torchaudio's `SQUIM_SUBJECTIVE` model (Meta, 2023). This is the same
+quantity UTMOS (Saeki 2022, used by EmoVoice) measures; we use SQUIM
+because the `utmos` pip package requires a from-source fairseq build that
+conflicts with this codebase's fairseq monkey-patches.
+
+```bash
+# Score every file; reference = same-speaker baseline (for model conditioning)
+python examples/eval_mos.py \
+    --input output/diverse_speakers/ \
+    --out output/eval_mos.csv
+
+# Use a single fixed reference wav instead
+python examples/eval_mos.py \
+    --input output/diverse_speakers/ \
+    --reference examples/source_speakers/cremad_1007.wav \
+    --out output/eval_mos_fixed.csv
+```
+
+SQUIM_SUBJECTIVE is a **non-matching reference** predictor — it just uses
+the reference waveform to condition the model, not as a comparison target.
+Any clean-speech file works; using the same-speaker baseline makes the
+scores more interpretable.
+
 ## Style Reference
 
 | Dim | Style | Acoustic signature |
@@ -170,6 +250,9 @@ Key parameters:
 | 3 | `openvoice_combine_datasets.py` | Step 1 + 2 outputs | `openvoice_combined_emb.pt` |
 | 4 | `openvoice_train_vae_combined.py` | Step 3 output | `openvoice_vae_combined.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 output + audio | `.wav` files |
+| 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
+| 7 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
+| 8 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.

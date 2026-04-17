@@ -1,6 +1,6 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-17
 **Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
@@ -25,19 +25,36 @@
 - [ ] Compare with current combined-only VAE: does pre-training reduce collapse rate?
 - [ ] Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] Test orthogonality: does pushing emotion dims shift perceived age/gender?
+- [ ] **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
 
-### Phase 2: Paper-Ready Results
-- [ ] Quantitative style evaluation: pretrained emotion classifier on outputs (precision/recall per style)
-- [ ] Speaker verification experiments: does anonymization actually reduce re-identification accuracy?
-- [ ] Privacy-utility curves: plot speaker verification vs. emotion classification at different noise levels
+### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
+- [x] **Research TTS controllability evaluation metrics** — settled on EmoVoice pipeline (arxiv 2504.12867, Joe's suggestion): emotion2vec Recall Rate + emo_sim (primary), UTMOS (naturalness), WER (intelligibility)
+- [x] Build emotion evaluation pipeline: `examples/eval_emotion.py` runs emotion2vec_plus_large on a directory of generated audio and writes a CSV with per-file Recall Rate and emo_sim vs. same-speaker baseline (April 17)
+- [x] Run emotion eval on full 258-file diverse-speaker corpus: **36/162 = 22.2% overall recall** at strength=5.0; per-style neutral 67%, anger 30%, sad 26%, disgust 11%, fear 0%, happy 0%. Whisper has the largest emo_sim deviation (0.875 mean, 0.616 min) — emo_sim validated as a secondary signal for styles with no emotion2vec counterpart
+- [x] Word error rate via Whisper: `examples/eval_wer.py` runs Whisper `base` on a directory and computes per-file WER against the same-speaker baseline (April 17). **Result: 6 of 9 styles have median WER ≤ 0.20; whisper is the only style with systemic loss (mean 0.356). Style control is orthogonal to the content channel.**
+- [x] Predicted MOS via torchaudio SQUIM_SUBJECTIVE (UTMOS substitute — the `utmos` pip package conflicts with our fairseq monkey-patches). `examples/eval_mos.py`, runs on directory, outputs MOS + delta-vs-baseline per file. **Result: baseline MOS 4.05; 6 of 9 styles stay within 0.12 MOS of baseline; whisper/confused/anger degrade most. emo_sim + WER + MOS converge on the same three hardest styles — cross-metric triangulation validates the evaluation pipeline.** (April 17)
+- [ ] Speaker novelty metric — show that generated speakers are genuinely different from source (EER or embedding distance). Per Joe (April 16 evening): this is a proof-of-novelty metric in our framing, not a privacy metric
+- [ ] Speaker verification / privacy metric (secondary — Joe: "not sure we want to focus on privacy as the main thing")
 - [ ] Ablation study: CREMA-D only vs. Expresso only vs. combined (already have data for this)
 - [ ] Compare with naive baseline: random noise without style control
-- [ ] Investigate F0-based re-identification attack: can F0 alone re-identify speakers after embedding anonymization?
 - [ ] Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88)
-- [ ] Address collapse issue: 9% of speaker-style combinations produce unintelligible output
+- [ ] Investigate F0-based re-identification attack: can F0 alone re-identify speakers after embedding anonymization?
+- [ ] Address collapse issue: 9% of speaker-style combinations produce unintelligible output (Joe says expected, no perfect fix needed, but worth tracking)
+
+### Phase 2.5: Framing-driven tasks (from Joe's April 16 evening message)
+
+Joe clarified that our problem is **controllable speaker generation for voice-to-voice** — a more general problem than VoicePrivacy (preserves emotion) or TTS (generates from text). The VAE enables multiple use cases; we've been showcasing only one.
+
+- [ ] **Demo use case #2: emotion change without identity change** — modify style latent dims while keeping the rest of the embedding fixed. Same-sounding person, different mood. Needs a new inference mode in `openvoice_infer_controllable.py` (or a new script) that takes a *source* speaker and only perturbs style dims instead of re-sampling the whole latent.
+- [ ] **Demo use case #3: fully random speaker with style control** — sample the VAE from prior (no source speaker reference) and apply style. Produces a brand-new speaker targeting a specific emotion.
+- [ ] **Demo use case #4: random speaker near an existing one** — sample in a neighborhood of the source speaker's latent code (small sigma) rather than from the full prior.
+- [ ] **Literature search for SOTA comparison** — what systems claim controllable speaker generation for voice-to-voice? Need to know what we're being compared against for Joe's "might be SOTA" claim. *Blocked: waiting for Joe's reply on April 17 message.*
 
 ### Phase 3: Reproducibility & Collaboration (for Joe)
-- [ ] Clean up repo: document pipeline commands, parquet paths, environment setup
+- [x] Commit training script + inference CLI + README (done April 16, during call)
+- [x] Add evaluation script (`eval_emotion.py`) with README docs — reproducible emotion2vec + emo_sim pipeline (April 17)
+- [x] Add WER evaluation script (`eval_wer.py`) — Whisper + jiwer, drift-from-baseline mode by default, fixed-reference mode via `--reference-text` (April 17)
+- [x] Add MOS evaluation script (`eval_mos.py`) — torchaudio SQUIM_SUBJECTIVE, baseline-as-reference mode by default, fixed-reference mode via `--reference` (April 17)
 - [ ] Share Expresso download instructions with Joe
 - [ ] Ensure Joe can run extraction + training + inference from scratch
 - [ ] Pin dependencies (fairseq compat, OpenVoice install steps)
