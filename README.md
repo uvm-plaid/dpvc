@@ -4,37 +4,65 @@ This repository provides a library for defining differentially private speaker a
 
 [Click here for full documentation](https://jnear.w3.uvm.edu/dpvc/)
 
+## Current work — controllable DP voice conversion
+
+Active branch: **`feat/cremad-experiments`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+
+- **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
+- **[`FINDINGS.md`](FINDINGS.md)** — 9 key findings with methodology and per-row takeaways.
+- **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
+- **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
+
 ## Installation
 
-Install the library by cloning this repository and then running:
+Clone this repository, then install with the extras you need:
 
+```bash
+# Core library only
+pip install -e .
+
+# + OpenVoice backend (required for the controllable pipeline)
+pip install -e ".[openvoice]"
+
+# + Expresso dataset extraction
+pip install -e ".[openvoice,expresso]"
+
+# + Evaluation pipeline (emotion2vec, Whisper WER, predicted MOS)
+pip install -e ".[openvoice,expresso,eval]"
 ```
-pip install .
-```
 
-## Example: OpenVoice
+## Example: basic DP anonymization (OpenVoice)
 
-The library provides a wrapper around the OpenVoice voice control system. A minimal example of using it is as follows:
-
-```
+```python
 import dpvc
 vc_wrapper = dpvc.OpenVoiceWrapper()
 anonymizer = dpvc.Anonymizer(vc_wrapper)
 anonymizer.anonymize(src_path, output_path, noise_level=1.0)
 ```
 
-Here, `src_path` should be an input .wav file name, and `output_path` should be the output .wav file name. The `noise_level` parameter controls how much noise is added in the differential privacy step. The `OpenVoiceWrapper` object encapsulates the OpenVoice models, and the `anonymize` method performs the anonymization via differential privacy.
+`src_path` is an input .wav, `output_path` is the anonymized output, and `noise_level` controls the magnitude of DP noise added to the speaker embedding.
 
-See the following files for examples of use:
+See also:
 
-- `examples/openvoice_inference.py` contains a more complete example of anonymization using the OpenVoice wrapper
-- `examples/openvoice_train_vae.py` contains an example of how to train a custom DP-VAE for use in the anonymizer
+- `examples/openvoice_inference.py` — basic anonymization (no style control).
+- `examples/openvoice_train_vae.py` — train a custom DP-VAE for the anonymizer.
+- `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
+
+## Evaluation
+
+The evaluation scripts under `examples/` measure the three axes the EmoVoice paper uses:
+
+- `examples/eval_emotion.py` — emotion2vec_plus_large Recall Rate + emo_sim (target alignment)
+- `examples/eval_wer.py` — OpenAI Whisper drift-from-baseline Word Error Rate (content preservation)
+- `examples/eval_mos.py` — torchaudio SQUIM_SUBJECTIVE predicted MOS (naturalness)
+
+CSV outputs from our runs live in [`results/`](results/). Schemas and reproduction steps are in [`results/README.md`](results/README.md).
 
 ## Building Documentation
 
-The documentation is built with [MkDocs](https://www.mkdocs.org/). To build the documentation:
+The documentation is built with [MkDocs](https://www.mkdocs.org/):
 
-```
+```bash
 pip install mkdocs "mkdocstrings[python]" mkdocs-material
 mkdocs build
 ```

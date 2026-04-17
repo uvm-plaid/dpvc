@@ -28,6 +28,11 @@ dependencies = [
 [project.optional-dependencies]
 openvoice = ["MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git"]
 expresso = ["datasets"]
+eval = [
+    "funasr",           # emotion2vec_plus_large for eval_emotion.py
+    "openai-whisper",   # ASR for eval_wer.py
+    "jiwer",            # WER computation for eval_wer.py
+]
 
 [project.urls]
 Repository = "https://github.com/uvm-plaid/dpvc"
