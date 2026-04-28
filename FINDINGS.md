@@ -358,6 +358,84 @@ This is exactly the kind of result worth reporting because it turns a vague Phas
 
 ---
 
+## Finding 11: Speaker Novelty Metric Confirms Real Identity Shift in the Combined Model and Collapse in the `cv500` Model
+
+### Methodology
+
+We added a **speaker novelty metric** in the native OpenVoice speaker-embedding space. For each generated output we extract:
+
+- the source speaker embedding from the original source audio
+- the generated speaker embedding from the output waveform
+- the same-speaker baseline conversion embedding when available
+
+Then we compute:
+
+- **similarity** = cosine similarity(source, generated)
+- **distance** = `1 - similarity`
+- **novelty gain vs baseline** = similarity(source, baseline) - similarity(source, generated)
+
+The key quantity is **novelty gain vs baseline**. It answers the paper question more cleanly than raw similarity alone:
+
+- positive value: the style-controlled output moved farther from the source than plain voice conversion already does
+- near-zero value: the style-controlled output is not meaningfully more novel than the baseline conversion
+
+This is a **proof-of-novelty** metric in our framing, not yet a full privacy metric. It uses the system's native embedding space and is intended to answer "did we generate a genuinely shifted speaker identity?" before we add an independent speaker-verification/EER pipeline.
+
+We ran it on the same two 110-file validation corpora used in Pass 2:
+
+1. combined-only checkpoint: `results/eval_novelty_pass2_combined.csv`
+2. CommonVoice `cv500` init checkpoint: `results/eval_novelty_pass2_cv500.csv`
+
+### Results
+
+| Metric | Combined-only model | CommonVoice `cv500` model | Takeaway |
+|--------|---------------------|---------------------------|----------|
+| Mean source-to-baseline similarity | `0.9101` | `0.8682` | Both baseline conversions remain relatively close to the source, though `cv500` baseline is already a bit farther away |
+| Mean source-to-styled similarity | `0.6502` | `0.8313` | Combined-only styles are much farther from source; `cv500` styles stay much closer |
+| **Mean novelty gain vs baseline** | **`0.2599`** | **`0.0369`** | Combined-only model creates substantially more novel speakers; `cv500` barely moves beyond baseline conversion |
+
+Per-style novelty gain vs baseline (higher = more novel than the baseline conversion):
+
+| Style | Combined-only | `cv500` | Takeaway |
+|-------|---------------|---------|----------|
+| whisper | `0.6561` | `0.0337` | Strongest example of the collapse: whisper is highly speaker-shifting in the combined model, but almost baseline-like after `cv500` pretraining |
+| confused | `0.5589` | `0.0280` | Same story — style difference largely disappears |
+| enunciated | `0.4495` | `0.0023` | Nearly no novelty beyond baseline under `cv500` |
+| anger | `0.1506` | `0.0371` | Novelty compressed |
+| fear | `0.1027` | `0.1015` | The one style that remains comparably speaker-shifting in both models |
+
+The raw similarity values also line up with intuition from the earlier findings:
+
+- In the combined-only model, **whisper** and **confused** are the most identity-shifting styles, which matches their cross-metric difficulty in WER and MOS.
+- In the `cv500` model, nearly every style clusters close to the source/baseline region, which matches the emotion-classifier collapse toward `neutral`.
+
+### Interpretation
+
+This finding is useful for two reasons:
+
+1. **It validates the main model on a new axis.** The combined-only controllable model is not just changing classifier labels or acoustic surface features; it is producing speaker embeddings that move substantially away from the source relative to baseline conversion.
+2. **It independently confirms the `cv500` failure mode.** The CommonVoice-pretrained model does not just collapse in emotion2vec space; it also stops producing meaningfully novel speaker identities for most styles. That makes the Pass 2 negative result much harder to dismiss as a quirk of one evaluator.
+
+In other words, the novelty metric and the emotion metric tell the same story from different angles:
+
+- **combined-only model**: expressive, identity-shifting, but imperfectly aligned to target emotion labels
+- **`cv500` model**: more conservative, more transcript-stable, but much less novel and much less expressive
+
+### Implication
+
+For the paper, this closes an important gap in the evaluation stack:
+
+- emotion2vec Recall/emo_sim: does the style target land?
+- WER: does the content survive?
+- MOS: does it still sound natural?
+- **Novelty**: does the output become a genuinely different speaker profile?
+
+It also sharpens the CommonVoice follow-up agenda. The next question is no longer just "can pre-training improve recall?" It is:
+
+**Can we preserve the intelligibility gains of broader pre-training without collapsing both emotion control and speaker novelty back toward the baseline identity?**
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
@@ -365,10 +443,11 @@ This is exactly the kind of result worth reporting because it turns a vague Phas
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
 4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. The open question is now whether a larger subset and gentler finetuning can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
-6. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
-7. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
-8. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-9. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Can we clamp the latent space, partially freeze style dims, or detect/reject bad combinations?
+6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
+7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
+8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
+9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Can we clamp the latent space, partially freeze style dims, or detect/reject bad combinations?
 
 ---
 
@@ -399,9 +478,11 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 8. Style control preserves intelligibility (WER sanity check): 6 of 9 styles have median WER ≤ 0.20 against same-speaker baseline; whisper is the only style with systemic loss
 9. Predicted MOS confirms naturalness preservation for 6 of 9 styles; emo_sim + WER + MOS converge on the same three hardest styles (whisper, confused, anger) — cross-metric triangulation validates the signal
 10. Validation-scale CommonVoice pre-training (`cv500`) is a mixed result: WER improves sharply, but emotion recall drops and the model collapses toward neutral. The CommonVoice direction remains promising, but the naive recipe is not paper-ready yet.
+11. Native OpenVoice novelty evaluation confirms that the combined-only model produces genuinely shifted speaker identities relative to the source, while the `cv500` CommonVoice checkpoint largely collapses that shift back toward baseline voice identity.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion
-- **Secondary:** Word error rate via Whisper — intelligibility sanity check only
-- **Tertiary:** Privacy/speaker verification (add as "we can also do this")
+- **Secondary:** Speaker novelty in native OpenVoice embedding space — proof that the output speaker identity actually shifts away from the source
+- **Tertiary:** Word error rate via Whisper — intelligibility sanity check
+- **Quaternary:** Privacy/speaker verification (add as "we can also do this")
 - Baseline for recall: random chance = ~11% (9 classes); current model = 20%; target: >50% for paper

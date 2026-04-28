@@ -34,7 +34,7 @@ pip install -e ".[openvoice]"
 # + Expresso dataset extraction
 pip install -e ".[openvoice,expresso]"
 
-# + Evaluation pipeline (emotion2vec, Whisper WER, predicted MOS)
+# + Evaluation pipeline (emotion2vec, novelty, Whisper WER, predicted MOS)
 pip install -e ".[openvoice,expresso,eval]"
 ```
 
@@ -75,9 +75,11 @@ See also:
 
 ## Evaluation
 
-The evaluation scripts under `examples/` measure the three axes the EmoVoice paper uses:
+The evaluation scripts under `examples/` cover the three EmoVoice-style axes
+plus our speaker-novelty proof:
 
 - `examples/eval_emotion.py` — emotion2vec_plus_large Recall Rate + emo_sim (target alignment)
+- `examples/eval_novelty.py` — OpenVoice native speaker-embedding novelty vs source and vs baseline conversion (speaker shift / proof of novelty)
 - `examples/eval_wer.py` — OpenAI Whisper drift-from-baseline Word Error Rate (content preservation)
 - `examples/eval_mos.py` — torchaudio SQUIM_SUBJECTIVE predicted MOS (naturalness)
 

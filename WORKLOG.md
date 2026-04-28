@@ -43,8 +43,11 @@ Priority tags:
 - [x] Run emotion eval on full 258-file diverse-speaker corpus: **36/162 = 22.2% overall recall** at strength=5.0; per-style neutral 67%, anger 30%, sad 26%, disgust 11%, fear 0%, happy 0%. Whisper has the largest emo_sim deviation (0.875 mean, 0.616 min) — emo_sim validated as a secondary signal for styles with no emotion2vec counterpart
 - [x] Word error rate via Whisper: `examples/eval_wer.py` runs Whisper `base` on a directory and computes per-file WER against the same-speaker baseline (April 17). **Result: 6 of 9 styles have median WER ≤ 0.20; whisper is the only style with systemic loss (mean 0.356). Style control is orthogonal to the content channel.**
 - [x] Predicted MOS via torchaudio SQUIM_SUBJECTIVE (UTMOS substitute — the `utmos` pip package conflicts with our fairseq monkey-patches). `examples/eval_mos.py`, runs on directory, outputs MOS + delta-vs-baseline per file. **Result: baseline MOS 4.05; 6 of 9 styles stay within 0.12 MOS of baseline; whisper/confused/anger degrade most. emo_sim + WER + MOS converge on the same three hardest styles — cross-metric triangulation validates the evaluation pipeline.** (April 17)
-- [ ] `[NOW]` Speaker novelty metric — show that generated speakers are genuinely different from source (EER or embedding distance). Per Joe (April 16 evening): this is a proof-of-novelty metric in our framing, not a privacy metric
+- [x] Speaker novelty metric — `examples/eval_novelty.py` computes source-vs-generated cosine similarity in native OpenVoice speaker-embedding space, with delta-vs-baseline conversion. **Pass 3 result (11-speaker validation corpus):** combined-only model mean novelty gain vs baseline = `0.2599`; `cv500` CommonVoice checkpoint mean novelty gain vs baseline = `0.0369`, confirming the CommonVoice neutral-collapse result on a second axis
 - [ ] `[SOON]` Speaker verification / privacy metric (secondary — Joe: "not sure we want to focus on privacy as the main thing")
+- [ ] `[SOON]` Calibrate novelty thresholds from source-vs-baseline and source-vs-style distributions, so the metric can support a more explicit "novel enough" claim instead of raw cosine values alone
+- [ ] `[SOON]` Cross-check the novelty metric with an independent speaker encoder / EER pipeline, not just OpenVoice's native embedding space
+- [ ] `[SOON]` Run novelty-vs-noise and novelty-vs-style-strength sweeps once the speaker novelty metric is stable, to add a privacy/utility-style novelty curve
 - [ ] `[SOON]` Ablation study: CREMA-D only vs. Expresso only vs. combined (already have data for this)
 - [ ] `[SOON]` Compare with naive baseline: random noise without style control
 - [ ] `[SOON]` Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88)
@@ -68,6 +71,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Share Expresso download instructions with Joe
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
+- [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
 - [ ] `[SOON]` Add an automated smoke test for `openvoice_infer_controllable.py --source-dir` + manifest generation against cached local checkpoints
 
@@ -137,6 +141,32 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 2 with a new paper-facing result: validation-scale Common Voice pretraining (`cv500`) improved WER substantially but caused near-total neutral collapse in emotion classification, so the current naive pretraining recipe is not yet a win for controllable style generalization.
+
+### 0.8 Pass 3 Closeout (April 28, branch `feat/speaker-novelty-metric`)
+
+- Added `examples/eval_novelty.py`
+  - manifest-driven corpus evaluation via `generation_manifest.jsonl`
+  - one-off `--source` / `--generated` mode for spot checks
+  - native OpenVoice speaker-embedding cosine similarity + cosine distance
+  - same-speaker baseline conversion delta when a baseline row exists in the manifest
+- Ran novelty evaluation on both validation corpora:
+  - `results/eval_novelty_pass2_combined.csv`
+  - `results/eval_novelty_pass2_cv500.csv`
+- Updated docs so novelty is part of the reproducible evaluation stack alongside emotion, WER, and MOS
+
+**Validation**
+- [x] The novelty CLI runs on manifest-driven corpora without manual file mapping
+  - validated on `output/pass2_combined_eval/generation_manifest.jsonl` and `output/pass2_cv500_eval/generation_manifest.jsonl`
+- [x] The novelty CSV is reproducible and includes source, generated, style, and similarity fields needed for analysis
+  - validated by writing both checked-in CSV artifacts plus a one-off smoke CSV from explicit `--source` / `--generated`
+- [x] The summary clearly answers whether generated outputs differ from the source speaker, and whether that differs across styles or checkpoints
+  - combined-only checkpoint: mean novelty gain vs baseline = `0.2599`
+  - `cv500` CommonVoice checkpoint: mean novelty gain vs baseline = `0.0369`
+  - strongest novelty on combined-only: `whisper` (`0.6561`) and `confused` (`0.5589`)
+  - interpretation: the native novelty metric confirms that the `cv500` checkpoint's style control largely collapses back toward baseline voice identity
+
+**FINDINGS.md review**
+- Updated after Pass 3 with a new paper-facing result: the novelty metric confirms that the combined-only model creates genuinely shifted speakers relative to the source, while the `cv500` CommonVoice checkpoint suppresses that shift and aligns with the neutral-collapse story from Pass 2.
 
 ---
 

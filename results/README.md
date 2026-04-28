@@ -18,6 +18,8 @@ Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
 | `eval_wer_pass2_combined.csv`     | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Pass 2 combined-only baseline for Finding 10 |
 | `eval_emotion_pass2_cv500.csv`    | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | Finding 10 (`cv500` CommonVoice init candidate) |
 | `eval_wer_pass2_cv500.csv`        | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Finding 10 (`cv500` CommonVoice init candidate) |
+| `eval_novelty_pass2_combined.csv` | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Pass 3 novelty baseline for Finding 11 |
+| `eval_novelty_pass2_cv500.csv`    | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Finding 11 (`cv500` novelty candidate) |
 
 ## Schema
 
@@ -42,6 +44,14 @@ Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
 - `mos`: SQUIM_SUBJECTIVE predicted MOS, 1–5 scale
 - `delta_vs_baseline`: `mos(row) − mos(same-speaker baseline row)`, empty for baseline rows
 - `ref_source`: what SQUIM used as the non-matching reference (`baseline` or `self`)
+
+### `eval_novelty_pass2_combined.csv` / `eval_novelty_pass2_cv500.csv`
+`speaker, style, source_file, generated_file, baseline_file, similarity, distance, baseline_similarity, baseline_distance, similarity_delta_vs_baseline, distance_delta_vs_baseline, novelty_gain_vs_baseline, noise_level, style_strength, seed, vae_checkpoint, latent_dims`
+
+- `similarity`: cosine similarity between the source speaker embedding and the generated output embedding in OpenVoice's native embedding space
+- `distance`: `1 - similarity`
+- `baseline_similarity`: cosine similarity between the source speaker embedding and the same-speaker baseline conversion
+- `novelty_gain_vs_baseline`: `baseline_similarity - similarity`; positive means the style output is farther from the source than baseline conversion already was
 
 ## Reproducing
 
@@ -90,6 +100,7 @@ python examples/openvoice_infer_controllable.py \
     --seed 42
 
 python examples/eval_emotion.py --input output/pass2_combined_eval/ --out results/eval_emotion_pass2_combined.csv
+python examples/eval_novelty.py --manifest output/pass2_combined_eval/generation_manifest.jsonl --out results/eval_novelty_pass2_combined.csv
 python examples/eval_wer.py     --input output/pass2_combined_eval/ --out results/eval_wer_pass2_combined.csv
 
 # CommonVoice-pretrained candidate corpus
@@ -103,6 +114,7 @@ python examples/openvoice_infer_controllable.py \
     --seed 42
 
 python examples/eval_emotion.py --input output/pass2_cv500_eval/ --out results/eval_emotion_pass2_cv500.csv
+python examples/eval_novelty.py --manifest output/pass2_cv500_eval/generation_manifest.jsonl --out results/eval_novelty_pass2_cv500.csv
 python examples/eval_wer.py     --input output/pass2_cv500_eval/ --out results/eval_wer_pass2_cv500.csv
 
 # Emotion recall delta
@@ -114,6 +126,7 @@ python scripts/compare_emotion_eval.py \
 Expected qualitative outcome from the checked-in CSVs:
 
 - emotion recall gets worse (`25.8%` -> `16.7%`)
+- mean novelty gain vs baseline collapses (`0.2599` -> `0.0369`)
 - predicted labels collapse almost entirely to `neutral` (`70/110` -> `109/110`)
 - WER improves substantially (`0.235` -> `0.084` mean across all non-baseline style rows)
 

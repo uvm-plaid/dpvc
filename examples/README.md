@@ -217,6 +217,7 @@ Then evaluate and compare against the combined-only baseline:
 
 ```bash
 python examples/eval_emotion.py --input output/pass2_cv500_eval/ --out results/eval_emotion_pass2_cv500.csv
+python examples/eval_novelty.py --manifest output/pass2_cv500_eval/generation_manifest.jsonl --out results/eval_novelty_pass2_cv500.csv
 python examples/eval_wer.py     --input output/pass2_cv500_eval/ --out results/eval_wer_pass2_cv500.csv
 python scripts/compare_emotion_eval.py \
     --baseline results/eval_emotion_pass2_combined.csv \
@@ -224,8 +225,10 @@ python scripts/compare_emotion_eval.py \
 ```
 
 Current result from that `cv500` pass: content preservation improves sharply,
-but emotion control collapses toward `neutral`. See [`FINDINGS.md`](../FINDINGS.md)
-Finding 10 before scaling this recipe up.
+but emotion control collapses toward `neutral`, and the novelty metric shows
+that most style outputs no longer move much farther from the source than
+baseline conversion already does. See [`FINDINGS.md`](../FINDINGS.md)
+Findings 10 and 11 before scaling this recipe up.
 
 ### 5. Run Controllable Inference
 
@@ -298,6 +301,42 @@ The script expects files named `<speaker_id>_<style>.wav` — which is what
 - **emo_sim**: cosine similarity to same-speaker baseline embedding (0–1)
 
 Output is a CSV with one row per file plus a printed summary table.
+
+### Speaker novelty (proof-of-novelty metric)
+
+`eval_novelty.py` measures how far each generated output moves from the source
+speaker in OpenVoice's native speaker-embedding space. In manifest mode it also
+computes a **novelty gain vs baseline** score:
+
+- positive value: the style output moved farther from the source than plain
+  baseline voice conversion did
+- near-zero value: the style output is not meaningfully more novel than the
+  baseline conversion
+
+```bash
+# Manifest-driven novelty eval (recommended for batch corpora)
+python examples/eval_novelty.py \
+    --manifest output/diverse_speakers/generation_manifest.jsonl \
+    --out output/eval_novelty.csv
+
+# One-off spot check
+python examples/eval_novelty.py \
+    --source examples/source_speakers/cremad_1003.wav \
+    --generated output/diverse_speakers/cremad_1003_whisper.wav \
+    --style whisper \
+    --out /tmp/eval_novelty_oneoff.csv
+```
+
+Key columns in the CSV:
+
+- `similarity`: cosine similarity(source, generated)
+- `distance`: `1 - similarity`
+- `baseline_similarity`: cosine similarity(source, same-speaker baseline conversion)
+- `novelty_gain_vs_baseline`: `baseline_similarity - similarity`
+
+This is a **speaker novelty metric**, not yet a full privacy metric. It is the
+right tool for the paper question "did we generate a genuinely shifted speaker
+identity?" before adding an external speaker-verification / EER pipeline.
 
 ### WER (intelligibility sanity check)
 
@@ -379,14 +418,16 @@ scores more interpretable.
 | 4d | `openvoice_train_vae_combined.py --init-checkpoint ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_finetuned.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
-| 7 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
-| 8 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
+| 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
+| 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
+| 9 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
 - `openvoice_inference.py` — Basic DP inference without style control.
 - `openvoice_extract_commonvoice.py` — Local Common Voice extraction for pretraining.
 - `openvoice_pretrain_vae_commonvoice.py` — Reconstruction-only VAE pretraining on Common Voice.
+- `eval_novelty.py` — Measures source-vs-generated speaker novelty in OpenVoice embedding space.
 - `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
