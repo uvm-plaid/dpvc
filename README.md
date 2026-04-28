@@ -6,10 +6,10 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current paper-strengthening branch: **`research/commonvoice-finetune-ablation`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current paper-strengthening branch: **`research/commonvoice-objective-ablation`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
-- **[`FINDINGS.md`](FINDINGS.md)** — 13 paper-facing findings with methodology and per-row takeaways.
+- **[`FINDINGS.md`](FINDINGS.md)** — 14 paper-facing findings with methodology and per-row takeaways.
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
@@ -19,12 +19,13 @@ recommended path for style control.
 
 Current best checked-in result: the **combined** OpenVoice model remains the
 best tradeoff across controllability, speaker novelty, intelligibility, and
-naturalness. Pass 5 sharpened that conclusion by showing that simple gentler
-CommonVoice finetuning does **not** recover the combined model's tradeoff. The
-two main summary artifacts are:
+naturalness. Passes 5 and 6 sharpened that conclusion by showing that neither
+simple gentler CommonVoice finetuning nor simple scalar objective reweighting
+recovers the combined model's tradeoff. The main summary artifacts are:
 
 - [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)
+- [`results/eval_commonvoice_objective_summary_pass6.csv`](results/eval_commonvoice_objective_summary_pass6.csv)
 
 ## Installation
 
@@ -84,6 +85,7 @@ See also:
 - `scripts/run_ablation_inference.py` — generates the Pass 4 corpora, including the naive unlabeled-latent baseline.
 - `scripts/summarize_ablation_results.py` — builds the condition summary table and collapse taxonomy for the paper.
 - `scripts/summarize_commonvoice_finetune_ablation.py` — compares the Pass 5 CommonVoice finetune variants against `combined` and the original `cv500` init.
+- `scripts/summarize_commonvoice_objective_ablation.py` — compares the Pass 6 CommonVoice objective variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation
@@ -103,6 +105,7 @@ For the current paper matrix, start with:
 - [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
 - [`results/eval_ablation_collapse_pass4.csv`](results/eval_ablation_collapse_pass4.csv)
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)
+- [`results/eval_commonvoice_objective_summary_pass6.csv`](results/eval_commonvoice_objective_summary_pass6.csv)
 
 ## Building Documentation
 

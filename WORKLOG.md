@@ -34,9 +34,10 @@ Priority tags:
 - [ ] `[SOON]` Scale the validated `cv500` CommonVoice recipe to a much larger local slice or a full English mirror before drawing a final conclusion about pre-training
 - [x] `[SOON]` Test gentler finetuning from the CommonVoice init checkpoint (fewer finetune epochs, lower LR, or partial-freeze) to see whether the `cv500` neutral-collapse failure is an over-regularization problem rather than a dead-end. **Pass 5 result:** simple recipe changes recover only small novelty gains (`0.0369 -> 0.0692` best case) and do not recover the combined model's recall/novelty tradeoff
 - [ ] `[SOON]` Scale the best Pass 5 recipe (`cv500_ft_short_low_lr`) to a larger local CommonVoice slice and test whether its partial novelty recovery survives at higher speaker counts
-- [ ] `[SOON]` Test layer-granular freezing or loss-weight schedules instead of full encoder/decoder freezes; Pass 5 suggests coarse freezing alone is too blunt to restore controllability
-- [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Pass 5 suggests the bottleneck may be the pretraining objective as much as the finetuning aggressiveness
-- [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune variants; Pass 5 suggests novelty returns first for a few conservative styles, not as broad emotion recovery
+- [x] `[SOON]` Test layer-granular freezing or loss-weight schedules instead of full encoder/decoder freezes; Pass 6 result: simple CommonVoice loss reweighting (`label2`, `label4`, label-ramp, reduced-reconstruction) still leaves recall flat at `16.7%` and does not beat `cv500_ft_short_low_lr`
+- [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Pass 6 suggests finetune-time scalar reweighting is still too weak and the next objective work likely needs richer supervision than reweighted reconstruction/label loss alone
+- [ ] `[SOON]` Test richer CommonVoice adaptation objectives (teacher or latent anchoring, curriculum label emphasis, or partial-label pretraining) because Pass 6 shows simple loss-weight ramps do not restore recall or beat the best Pass 5 novelty recovery
+- [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune and objective variants; Passes 5-6 suggest novelty returns first for a few conservative styles, not as broad emotion recovery
 - [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
 - [ ] `[SOON]` Test whether CommonVoice-broad pretraining preserves age/gender control more easily than emotion control; Pass 5 suggests different attribute families may survive broad speaker priors differently
@@ -82,7 +83,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
 - [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
-- [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune sweeps are less manual than Pass 5
+- [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune and objective sweeps are less manual than Passes 5-6
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
 - [ ] `[SOON]` Add an automated smoke test for `openvoice_infer_controllable.py --source-dir` + manifest generation against cached local checkpoints
 
@@ -313,6 +314,85 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 5 with a new paper-facing result: simple gentler finetuning helps only marginally and does not fix the CommonVoice collapse, which narrows the next research step to better objectives or larger-scale training rather than just lighter fine-tuning.
+
+### 0.11 Pass 6 Closeout (April 28, branch `research/commonvoice-objective-ablation`)
+
+- Extended `dpvc/utils.py::train_autoencoder` with explicit objective controls:
+  - `recon_weight`
+  - `kl_weight`
+  - `label_weight`
+  - optional `*_final` targets plus `schedule_epochs` for linear ramps
+- Extended `examples/openvoice_train_vae_combined.py` with the matching CLI flags:
+  - `--recon-weight`
+  - `--kl-weight`
+  - `--label-weight`
+  - `--recon-weight-final`
+  - `--kl-weight-final`
+  - `--label-weight-final`
+  - `--schedule-epochs`
+- Extended `scripts/run_ablation_inference.py` with four Pass 6 objective conditions:
+  - `cv500_obj_label2`
+  - `cv500_obj_label4`
+  - `cv500_obj_label_ramp`
+  - `cv500_obj_recon_half_label2`
+- Added `scripts/summarize_commonvoice_objective_ablation.py`
+  - reads `results/eval_*_pass6_*.csv`
+  - writes `results/eval_commonvoice_objective_summary_pass6.csv`
+  - writes `results/eval_commonvoice_objective_collapse_pass6.csv`
+- Trained the four new objective variants from the unchanged CommonVoice init checkpoint `embeddings/openvoice_vae_commonvoice_cv500.pt`:
+  - `embeddings/openvoice_vae_combined_cv500_obj_label2.pt`
+  - `embeddings/openvoice_vae_combined_cv500_obj_label4.pt`
+  - `embeddings/openvoice_vae_combined_cv500_obj_label_ramp.pt`
+  - `embeddings/openvoice_vae_combined_cv500_obj_recon_half_label2.pt`
+- Generated the four matched Pass 6 evaluation corpora:
+  - `output/pass6_cv500_obj_label2_eval/`
+  - `output/pass6_cv500_obj_label4_eval/`
+  - `output/pass6_cv500_obj_label_ramp_eval/`
+  - `output/pass6_cv500_obj_recon_half_label2_eval/`
+- Reused the already validated `combined`, `commonvoice_cv500_init`, and `cv500_ft_short_low_lr` CSVs by copying them into the Pass 6 naming scheme, so the changed variable stayed strictly on objective design
+
+**Pass 6 condition matrix**
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short_low_lr`
+- `cv500_obj_label2`
+- `cv500_obj_label4`
+- `cv500_obj_label_ramp`
+- `cv500_obj_recon_half_label2`
+
+**Top-line result (`results/eval_commonvoice_objective_summary_pass6.csv`)**
+- `combined`: recall `25.8%`, novelty gain `0.2599`, mean WER `0.2353`, mean MOS delta `-0.0792`
+- `commonvoice_cv500_init`: recall `16.7%`, novelty gain `0.0369`, mean WER `0.0844`, mean MOS delta `-0.0123`
+- `cv500_ft_short_low_lr`: recall `16.7%`, novelty gain `0.0692`, mean WER `0.0791`, mean MOS delta `-0.0441`
+- `cv500_obj_label2`: recall `16.7%`, novelty gain `0.0589`, mean WER `0.0862`, mean MOS delta `-0.0300`
+- `cv500_obj_label4`: recall `16.7%`, novelty gain `0.0496`, mean WER `0.1222`, mean MOS delta `-0.0228`
+- `cv500_obj_label_ramp`: recall `16.7%`, novelty gain `0.0442`, mean WER `0.0832`, mean MOS delta `-0.0126`
+- `cv500_obj_recon_half_label2`: recall `16.7%`, novelty gain `0.0500`, mean WER `0.1146`, mean MOS delta `-0.0226`
+
+**Interpretation**
+- None of the simple objective variants beat the best Pass 5 recipe (`cv500_ft_short_low_lr`) on novelty, recall, or collapse counts.
+- `cv500_obj_label2` was the strongest of the new objective variants, but it still trailed `cv500_ft_short_low_lr` on novelty (`0.0589` vs. `0.0692`) and identity collapse (`53` vs. `44`).
+- `cv500_obj_label_ramp` preserved MOS closest to the raw `cv500` init, but it did so by staying close to the same conservative failure shape rather than recovering controllability.
+- The CommonVoice bottleneck now looks deeper than both simple finetune-policy changes (Pass 5) and simple scalar objective reweighting (Pass 6).
+
+**Validation**
+- [x] New objective controls are reproducible from the checked-in training interface
+  - validated via `examples/openvoice_train_vae_combined.py --recon-weight/--label-weight/...`
+  - smoke-tested with short scheduled-weight runs and then used for the four full Pass 6 checkpoints
+- [x] Every objective variant has a named checkpoint and matched evaluation corpus
+  - four checkpoints under `embeddings/`
+  - four 110-row corpora + manifests under `output/pass6_*`
+- [x] The comparison explicitly answers whether objective changes recover controllability and novelty without surrendering the CommonVoice WER/MOS gains
+  - answer: **not with simple scalar reweighting or label ramps**
+  - all four objective variants stay flat at `16.7%` recall and none beats `cv500_ft_short_low_lr` on novelty
+- [x] The pass isolates objective design as the changed variable rather than mixing in new datasets or new metrics
+  - same CommonVoice init checkpoint
+  - same combined fine-tuning embeddings
+  - same 11-speaker evaluation corpus format
+  - same four-metric evaluation stack
+
+**FINDINGS.md review**
+- Updated after Pass 6 with a new paper-facing result: simple loss reweighting and label-weight schedules do not fix the CommonVoice collapse either, which narrows the next research step further toward richer objectives or larger-scale supervision rather than more scalar tuning.
 
 ---
 

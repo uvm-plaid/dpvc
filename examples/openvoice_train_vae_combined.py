@@ -61,6 +61,16 @@ def format_param_count(model):
     return trainable, total
 
 
+def has_schedule(args):
+    return any(
+        value is not None for value in (
+            args.recon_weight_final,
+            args.kl_weight_final,
+            args.label_weight_final,
+        )
+    )
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Train controllable VAE on combined CREMA-D + Expresso embeddings")
@@ -80,12 +90,30 @@ def main():
                     help="Freeze the full encoder during training")
     ap.add_argument("--freeze-decoder", action="store_true",
                     help="Freeze the full decoder during training")
+    ap.add_argument("--recon-weight", type=float, default=1.0,
+                    help="Initial reconstruction-loss weight (default: 1.0)")
+    ap.add_argument("--kl-weight", type=float, default=1.0,
+                    help="Initial KL-loss weight (default: 1.0)")
+    ap.add_argument("--label-weight", type=float, default=1.0,
+                    help="Initial style-label loss weight (default: 1.0)")
+    ap.add_argument("--recon-weight-final", type=float, default=None,
+                    help="Optional final reconstruction-loss weight for a linear schedule")
+    ap.add_argument("--kl-weight-final", type=float, default=None,
+                    help="Optional final KL-loss weight for a linear schedule")
+    ap.add_argument("--label-weight-final", type=float, default=None,
+                    help="Optional final style-label loss weight for a linear schedule")
+    ap.add_argument("--schedule-epochs", type=int, default=0,
+                    help="Number of epochs over which *_final weights are reached (default: full training run if any *_final is set)")
     ap.add_argument("--seed", type=int, default=42,
                     help="Deterministic seed (default: 42)")
     args = ap.parse_args()
 
     if args.freeze_encoder and args.freeze_decoder:
         ap.error("Refusing to freeze both encoder and decoder; nothing would remain trainable")
+    if args.schedule_epochs < 0:
+        ap.error("--schedule-epochs must be non-negative")
+    if has_schedule(args) and args.schedule_epochs == 0:
+        args.schedule_epochs = args.epochs
 
     dpvc.utils.set_seed(args.seed)
     device = resolve_device()
@@ -130,9 +158,29 @@ def main():
     print(f"Freeze encoder: {args.freeze_encoder}")
     print(f"Freeze decoder: {args.freeze_decoder}")
     print(f"Trainable parameters: {trainable_params}/{total_params}")
+    print(f"Loss weights: recon={args.recon_weight}, kl={args.kl_weight}, "
+          f"label={args.label_weight}")
+    if has_schedule(args):
+        print("Loss-weight schedule: "
+              f"recon->{args.recon_weight_final if args.recon_weight_final is not None else args.recon_weight}, "
+              f"kl->{args.kl_weight_final if args.kl_weight_final is not None else args.kl_weight}, "
+              f"label->{args.label_weight_final if args.label_weight_final is not None else args.label_weight} "
+              f"over {args.schedule_epochs} epochs")
 
     dpvc.utils.train_autoencoder(
-        AE, embeddings, epochs=args.epochs, labels=labels, lr=args.lr)
+        AE,
+        embeddings,
+        epochs=args.epochs,
+        labels=labels,
+        lr=args.lr,
+        recon_weight=args.recon_weight,
+        kl_weight=args.kl_weight,
+        label_weight=args.label_weight,
+        recon_weight_final=args.recon_weight_final,
+        kl_weight_final=args.kl_weight_final,
+        label_weight_final=args.label_weight_final,
+        schedule_epochs=args.schedule_epochs,
+    )
 
     torch.save(AE.state_dict(), args.output)
     print(f"Saved VAE checkpoint to {args.output}")

@@ -47,6 +47,20 @@ Pass 5 CommonVoice finetune-ablation artifacts from 2026-04-28:
 | `eval_commonvoice_finetune_summary_pass5.csv` | 7 conditions | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 top-line matrix |
 | `eval_commonvoice_finetune_collapse_pass5.csv` | per generated file | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 collapse taxonomy |
 
+Pass 6 CommonVoice objective-ablation artifacts from 2026-04-28:
+
+| Bundle | Rows | Scripts | Backs |
+|--------|------|---------|-------|
+| `pass6_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 combined reference condition |
+| `pass6_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 raw `cv500` reference condition |
+| `pass6_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 best Pass 5 finetune reference |
+| `pass6_cv500_obj_label2` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 label-upweight condition |
+| `pass6_cv500_obj_label4` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 high-label-weight condition |
+| `pass6_cv500_obj_label_ramp` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 label-ramp condition |
+| `pass6_cv500_obj_recon_half_label2` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 reduced-reconstruction condition |
+| `eval_commonvoice_objective_summary_pass6.csv` | 7 conditions | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 top-line matrix |
+| `eval_commonvoice_objective_collapse_pass6.csv` | per generated file | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 collapse taxonomy |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -106,6 +120,19 @@ Pass 5 CommonVoice finetune-ablation artifacts from 2026-04-28:
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
 
 - same taxonomy as Pass 4, but applied to the CommonVoice finetune matrix
+
+### `eval_commonvoice_objective_summary_pass6.csv`
+`condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_best_ft, delta_novelty_vs_best_ft, delta_wer_vs_best_ft, delta_mos_delta_vs_best_ft, delta_recall_vs_combined, delta_novelty_vs_combined`
+
+- same core fields as `eval_ablation_summary_pass4.csv`
+- `delta_*_vs_cv500`: direct comparison against the original `commonvoice_cv500_init` condition
+- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best Pass 5 finetune recipe
+- `delta_*_vs_combined`: direct comparison against the main paper checkpoint
+
+### `eval_commonvoice_objective_collapse_pass6.csv`
+`condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
+
+- same taxonomy as Passes 4-5, but applied to the CommonVoice objective matrix
 
 ## Reproducing
 
@@ -357,3 +384,84 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500_ft_short_low_lr` is the best partial-recovery condition, mainly by reducing identity collapse rather than improving recall
 - `cv500_ft_freeze_encoder` gives the only recall bump, but it loses too much naturalness
 - `cv500_ft_freeze_decoder` is a strong negative result and should not be treated as the path forward
+
+## Pass 6 Reproduction (CommonVoice objective ablation)
+
+This is the objective-design follow-up to Pass 5. It keeps the CommonVoice
+pretrained checkpoint, the combined embeddings, and the evaluation corpus fixed,
+and changes only the loss weighting during finetuning.
+
+Train the four new objective variants:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label2.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 2.0
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label4.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 4.0
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label_ramp.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 1.0 \
+    --label-weight-final 4.0 \
+    --schedule-epochs 1000
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_recon_half_label2.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --recon-weight 0.5 \
+    --label-weight 2.0
+```
+
+Generate the four evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label2 --out output/pass6_cv500_obj_label2_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label4 --out output/pass6_cv500_obj_label4_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label_ramp --out output/pass6_cv500_obj_label_ramp_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_recon_half_label2 --out output/pass6_cv500_obj_recon_half_label2_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the metrics for each corpus:
+
+```bash
+python examples/eval_emotion.py --input output/pass6_cv500_obj_label2_eval --out results/eval_emotion_pass6_cv500_obj_label2.csv
+python examples/eval_novelty.py --manifest output/pass6_cv500_obj_label2_eval/generation_manifest.jsonl --out results/eval_novelty_pass6_cv500_obj_label2.csv
+python examples/eval_wer.py     --input output/pass6_cv500_obj_label2_eval --out results/eval_wer_pass6_cv500_obj_label2.csv
+python examples/eval_mos.py     --input output/pass6_cv500_obj_label2_eval --out results/eval_mos_pass6_cv500_obj_label2.csv
+```
+
+Repeat that four-metric block for:
+
+- `cv500_obj_label4`
+- `cv500_obj_label_ramp`
+- `cv500_obj_recon_half_label2`
+
+Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
+`cv500_ft_short_low_lr` references by copying their existing metric CSVs into
+the Pass 6 naming scheme, then summarize:
+
+```bash
+python scripts/summarize_commonvoice_objective_ablation.py
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- none of the simple scalar objective variants recovers the **combined** model's controllability/novelty tradeoff
+- none of the four new variants improves recall beyond `16.7%`
+- `cv500_obj_label2` is the strongest of the new objective variants, but it still trails `cv500_ft_short_low_lr` on novelty and identity collapse
+- `cv500_obj_label_ramp` preserves MOS closest to the raw `cv500` init, but only by staying near the same conservative collapse basin
+- the next CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar loss-weight sweeps

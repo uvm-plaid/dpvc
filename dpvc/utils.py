@@ -9,6 +9,7 @@ import zipfile
 import contextlib
 from typing import List
 
+
 def set_seed(seed):
     if seed is not None:
         torch.manual_seed(seed)
@@ -32,10 +33,22 @@ def extract_embeddings(vc_wrapper, dataset: List[str]) -> torch.Tensor:
     return torch.vstack(embeddings).squeeze()
 
 
-def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5):
+def _interpolate_weight(start, end, epoch, schedule_epochs):
+    if end is None or schedule_epochs <= 0:
+        return start
+    progress = min(max(epoch, 0), schedule_epochs) / schedule_epochs
+    return start + (end - start) * progress
+
+
+def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
+                      recon_weight=1.0, kl_weight=1.0, label_weight=1.0,
+                      recon_weight_final=None, kl_weight_final=None,
+                      label_weight_final=None, schedule_epochs=0):
     BATCH_SIZE = min(256, len(embeddings))
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    beta = 1
+    trainable_params = [param for param in model.parameters() if param.requires_grad]
+    if not trainable_params:
+        raise ValueError("No trainable parameters remain in the model")
+    optimizer = torch.optim.Adam(trainable_params, lr=lr)
 
     if labels is not None:
         num_labels = len(labels.keys())
@@ -46,8 +59,28 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5):
         num_labels = 0
         label_tensor = None
 
+    if schedule_epochs <= 0:
+        schedule_epochs = 0
+
+    print('Loss weights:')
+    print(f'  recon: {recon_weight}'
+          + (f' -> {recon_weight_final}' if recon_weight_final is not None else ''))
+    print(f'  kl   : {kl_weight}'
+          + (f' -> {kl_weight_final}' if kl_weight_final is not None else ''))
+    print(f'  label: {label_weight}'
+          + (f' -> {label_weight_final}' if label_weight_final is not None else ''))
+    if schedule_epochs:
+        print(f'  schedule epochs: {schedule_epochs}')
+
     print(f'Training autoencoder for {epochs} epochs...')
     for epoch in tqdm(range(epochs)):
+        current_recon_weight = _interpolate_weight(
+            recon_weight, recon_weight_final, epoch, schedule_epochs)
+        current_kl_weight = _interpolate_weight(
+            kl_weight, kl_weight_final, epoch, schedule_epochs)
+        current_label_weight = _interpolate_weight(
+            label_weight, label_weight_final, epoch, schedule_epochs)
+
         with torch.no_grad():
             indexes = torch.randperm(embeddings.shape[0])
             embeddings_batches = torch.split(embeddings[indexes], BATCH_SIZE)
@@ -61,21 +94,28 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5):
 
             reconstructed = model(embeddings_b)
             recon_loss = ((embeddings_b - reconstructed)**2).sum()
-            kl_loss = beta * model.kl
+            kl_loss = model.kl
 
             if labels_b is not None:
-                label_loss = beta * ((model.last_z[:, :num_labels] - labels_b)**2).sum()
+                label_loss = ((model.last_z[:, :num_labels] - labels_b)**2).sum()
             else:
-                label_loss = 0
+                label_loss = embeddings_b.new_tensor(0.0)
 
-            loss = recon_loss + kl_loss + label_loss
+            weighted_recon = current_recon_weight * recon_loss
+            weighted_kl = current_kl_weight * kl_loss
+            weighted_label = current_label_weight * label_loss
+            loss = weighted_recon + weighted_kl + weighted_label
 
             loss.backward()
             optimizer.step()
 
         if epoch % 10 == 0:
-            label_loss_val = label_loss.item() if isinstance(label_loss, torch.Tensor) else label_loss
-            print(f'loss: {loss.item():.2f}  recon: {recon_loss.item():.2f}  kl: {kl_loss.item():.2f}  label: {label_loss_val:.2f}')
+            print(
+                f'loss: {loss.item():.2f}  '
+                f'recon: {recon_loss.item():.2f} (w={current_recon_weight:.2f})  '
+                f'kl: {kl_loss.item():.2f} (w={current_kl_weight:.2f})  '
+                f'label: {label_loss.item():.2f} (w={current_label_weight:.2f})'
+            )
 
     print('Ending loss:', loss.item())
 

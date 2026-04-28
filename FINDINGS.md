@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-28 (Pass 5 CommonVoice finetune-ablation added as Finding 13; paper framing and open questions updated)
+**Last updated:** 2026-04-28 (Pass 6 CommonVoice objective-ablation added as Finding 14; paper framing and open questions updated)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -593,18 +593,102 @@ That is a much sharper research position than the repo had after Finding 10 alon
 
 ---
 
+## Finding 14: Simple Objective Reweighting Does Not Recover Controllability After CommonVoice Pretraining
+
+### Methodology
+
+Pass 6 asked a narrower follow-up question than Finding 13:
+
+**Was the CommonVoice `cv500` collapse mainly an objective-balance problem that we
+could fix by reweighting the existing reconstruction, KL, and label losses
+during combined finetuning?**
+
+To test that, we kept the data, evaluation corpus, and four-metric stack fixed,
+started from the same CommonVoice-pretrained init checkpoint, and changed only
+the loss weights used during combined finetuning.
+
+We kept these pieces unchanged:
+
+- CommonVoice init checkpoint: `embeddings/openvoice_vae_commonvoice_cv500.pt`
+- combined finetuning embeddings: `embeddings/openvoice_combined_emb.pt`
+- 11-speaker validation corpus format
+- same evaluation stack from Findings 10-13
+- same best Pass 5 training schedule foundation: `1000` epochs at `3e-7`
+
+We compared three references:
+
+1. **combined** — the current paper checkpoint
+2. **CommonVoice `cv500` init** — the original conservative CommonVoice result
+3. **`cv500_ft_short_low_lr`** — the best partial-recovery finetune recipe from Finding 13
+
+against four new objective variants:
+
+1. **`cv500_obj_label2`** — label weight `2.0`, reconstruction weight `1.0`
+2. **`cv500_obj_label4`** — label weight `4.0`, reconstruction weight `1.0`
+3. **`cv500_obj_label_ramp`** — label weight ramps from `1.0` to `4.0`
+4. **`cv500_obj_recon_half_label2`** — reconstruction weight `0.5`, label weight `2.0`
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|----------|
+| combined | 25.8% | 0.2599 | 0.2353 | -0.0792 | Still the only condition with both meaningful control and meaningful identity shift |
+| CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Conservative collapse reference point |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best CommonVoice partial-recovery reference from Finding 13 |
+| `cv500_obj_label2` | 16.7% | 0.0589 | 0.0862 | -0.0300 | Best of the new objective variants, but still below `cv500_ft_short_low_lr` |
+| `cv500_obj_label4` | 16.7% | 0.0496 | 0.1222 | -0.0228 | Larger label weight hurts WER without recovering control |
+| `cv500_obj_label_ramp` | 16.7% | 0.0442 | 0.0832 | -0.0126 | Preserves MOS closest to raw `cv500`, but stays conservative |
+| `cv500_obj_recon_half_label2` | 16.7% | 0.0500 | 0.1146 | -0.0226 | Lower reconstruction weight is still not enough to recover recall or novelty |
+
+### Collapse behavior
+
+The collapse summary confirms that the new objective variants did not escape the
+same underlying failure mode.
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
+|-----------|---------------------------|-------------------------------|----------------|----------|
+| CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse pattern |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
+| `cv500_obj_label2` | 55 | 53 | 28 | Some identity recovery over raw `cv500`, still worse than best Pass 5 recipe |
+| `cv500_obj_label4` | 55 | 55 | 32 | Stronger label weight worsens WER and does not reduce style collapse |
+| `cv500_obj_label_ramp` | 55 | 57 | 35 | Label ramp behaves almost like the original conservative collapse |
+| `cv500_obj_recon_half_label2` | 55 | 56 | 32 | Reduced reconstruction pressure still does not recover control |
+
+### Interpretation
+
+Pass 6 sharpens the CommonVoice story again:
+
+1. **Simple scalar objective reweighting is not enough.** None of the four variants improves recall beyond `16.7%`.
+2. **Objective tuning helps less than the best Pass 5 finetune recipe.** Even the best new variant (`cv500_obj_label2`) trails `cv500_ft_short_low_lr` on novelty and identity collapse.
+3. **The label-ramp result is particularly informative.** It preserves MOS close to the original `cv500` run, but only by staying near the same conservative identity/style collapse basin.
+4. **The CommonVoice failure is now unlikely to be just a basic weight-balance issue.** Pass 5 ruled out simple finetune-policy changes; Pass 6 rules out simple scalar reweighting of the existing losses.
+5. **The next objective work needs to be richer than rebalancing the current losses.** The more promising directions are now partial-label pretraining, teacher or latent anchoring, curriculum objectives, or larger-scale data with stronger supervision.
+
+### Implication
+
+Pass 6 changes how we should describe the CommonVoice line in the paper:
+
+- We should **not** claim that simple objective tuning already solves the CommonVoice collapse.
+- We **can** say that the failure has been narrowed substantially: it survives both gentler finetuning (Finding 13) and simple loss reweighting (Finding 14).
+- The next serious CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar weight sweeps.
+
+That is a stronger and more honest research position than we had after Finding
+13 alone.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 shows that simple gentler finetuning is not enough to fix that on its own. The open question is now whether a larger subset plus a better objective or finer-grained adaptation strategy can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, and Pass 6 shows that simple scalar loss reweighting is not enough either. The open question is now whether a larger subset plus richer supervision or a better objective can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough. Can we use finer-grained latent constraints, layer-level freezes, loss-weight schedules, or detect/reject bad combinations?
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, and Pass 6 shows that simple scalar loss-weight schedules are not enough either. Can we use richer objectives, finer-grained latent constraints, teacher alignment, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 
 ---
@@ -639,6 +723,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 11. Native OpenVoice novelty evaluation confirms that the combined-only model produces genuinely shifted speaker identities relative to the source, while the `cv500` CommonVoice checkpoint largely collapses that shift back toward baseline voice identity.
 12. The Pass 4 ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
 13. Pass 5 shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
+14. Pass 6 shows that simple objective reweighting during CommonVoice finetuning also does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision, partial-label objectives, or larger-scale training rather than more scalar weight sweeps.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

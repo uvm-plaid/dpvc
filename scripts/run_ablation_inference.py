@@ -63,6 +63,30 @@ CONDITION_CONFIGS = {
         "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
         "control_mode": "labeled",
     },
+    "cv500_obj_label2": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_obj_label2.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_obj_label4": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_obj_label4.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_obj_label_ramp": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_obj_label_ramp.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_obj_recon_half_label2": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_obj_recon_half_label2.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
     "cv500_ft_freeze_decoder": {
         "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt",
         "styles": FULL_STYLES,

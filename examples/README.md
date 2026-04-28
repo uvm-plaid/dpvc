@@ -438,6 +438,112 @@ Current Pass 5 conclusion from the checked-in artifacts:
 - `cv500_ft_freeze_decoder` is a strong negative result: it worsens identity collapse (`88` rows) and drops novelty below the original `cv500` init
 - the next CommonVoice experiments should focus on better objectives, finer-grained adaptation, or larger-scale data, not just lighter finetuning
 
+### 4e. Pass 6 CommonVoice objective ablation
+
+Pass 6 asks the next narrower question after Pass 5:
+
+**Can we keep the CommonVoice stability gains while recovering controllability through better loss weighting or simple weight schedules, without changing the data or evaluation stack?**
+
+The Pass 6 matrix compares:
+
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short_low_lr`
+- `cv500_obj_label2`
+- `cv500_obj_label4`
+- `cv500_obj_label_ramp`
+- `cv500_obj_recon_half_label2`
+
+The training interface now supports explicit objective controls:
+
+- `--recon-weight`
+- `--kl-weight`
+- `--label-weight`
+- `--recon-weight-final`
+- `--kl-weight-final`
+- `--label-weight-final`
+- `--schedule-epochs`
+
+Train the four new objective variants from the unchanged CommonVoice init:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label2.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 2.0
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label4.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 4.0
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_label_ramp.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --label-weight 1.0 \
+    --label-weight-final 4.0 \
+    --schedule-epochs 1000
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_obj_recon_half_label2.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7 \
+    --recon-weight 0.5 \
+    --label-weight 2.0
+```
+
+Generate the four matched evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label2 --out output/pass6_cv500_obj_label2_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label4 --out output/pass6_cv500_obj_label4_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_label_ramp --out output/pass6_cv500_obj_label_ramp_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_obj_recon_half_label2 --out output/pass6_cv500_obj_recon_half_label2_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the four metrics on each corpus:
+
+```bash
+python examples/eval_emotion.py --input output/pass6_cv500_obj_label2_eval --out results/eval_emotion_pass6_cv500_obj_label2.csv
+python examples/eval_novelty.py --manifest output/pass6_cv500_obj_label2_eval/generation_manifest.jsonl --out results/eval_novelty_pass6_cv500_obj_label2.csv
+python examples/eval_wer.py     --input output/pass6_cv500_obj_label2_eval --out results/eval_wer_pass6_cv500_obj_label2.csv
+python examples/eval_mos.py     --input output/pass6_cv500_obj_label2_eval --out results/eval_mos_pass6_cv500_obj_label2.csv
+```
+
+Repeat that four-metric block for:
+
+- `cv500_obj_label4`
+- `cv500_obj_label_ramp`
+- `cv500_obj_recon_half_label2`
+
+Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
+`cv500_ft_short_low_lr` references by copying their metric CSVs into the Pass 6
+naming scheme, then summarize:
+
+```bash
+python scripts/summarize_commonvoice_objective_ablation.py
+```
+
+This writes:
+
+- `results/eval_commonvoice_objective_summary_pass6.csv`
+- `results/eval_commonvoice_objective_collapse_pass6.csv`
+
+Current Pass 6 conclusion from the checked-in artifacts:
+
+- none of the simple objective variants recovers the **combined** model's controllability/novelty tradeoff
+- none of the four new variants improves recall beyond `16.7%`
+- `cv500_obj_label2` is the strongest of the new objective variants, but it still trails `cv500_ft_short_low_lr` on both novelty (`0.0589` vs. `0.0692`) and identity collapse (`53` vs. `44`)
+- `cv500_obj_label_ramp` preserves MOS closest to the raw `cv500` init, but only by staying near the same conservative collapse basin
+- the next CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar loss-weight sweeps
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -627,14 +733,16 @@ scores more interpretable.
 | 4e | `../scripts/prepare_ablation_embeddings.py` | Step 1 or 2 outputs | `openvoice_*_ablation_emb.pt` |
 | 4f | `openvoice_train_vae_combined.py` | Step 4e output | `openvoice_vae_*_ablation.pt` |
 | 4g | `openvoice_train_vae_combined.py --freeze-* ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_cv500_ft_*.pt` |
+| 4h | `openvoice_train_vae_combined.py --label-weight/...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_cv500_obj_*.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
-| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g output + audio | Pass 4 or Pass 5 evaluation corpora + manifest |
+| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g / 4h output + audio | Pass 4, Pass 5, or Pass 6 evaluation corpora + manifest |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
 | 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
 | 9 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
 | 10 | `../scripts/summarize_ablation_results.py` | Pass 4 eval CSVs | `eval_ablation_summary_pass4.csv` + `eval_ablation_collapse_pass4.csv` |
 | 10b | `../scripts/summarize_commonvoice_finetune_ablation.py` | Pass 5 eval CSVs | `eval_commonvoice_finetune_summary_pass5.csv` + `eval_commonvoice_finetune_collapse_pass5.csv` |
+| 10c | `../scripts/summarize_commonvoice_objective_ablation.py` | Pass 6 eval CSVs | `eval_commonvoice_objective_summary_pass6.csv` + `eval_commonvoice_objective_collapse_pass6.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
@@ -644,8 +752,10 @@ scores more interpretable.
 - `eval_novelty.py` — Measures source-vs-generated speaker novelty in OpenVoice embedding space.
 - `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
 - `../scripts/prepare_ablation_embeddings.py` — Builds the Pass 4 `cremad_only` / `expresso_only` embedding sets.
-- `../scripts/run_ablation_inference.py` — Generates Pass 4 ablation corpora and the naive free-dim baseline.
+- `../scripts/run_ablation_inference.py` — Generates the Pass 4 ablation corpora, the Pass 5 CommonVoice finetune corpora, and the Pass 6 CommonVoice objective corpora.
 - `../scripts/summarize_ablation_results.py` — Aggregates Pass 4 metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_finetune_ablation.py` — Aggregates Pass 5 CommonVoice finetune metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_objective_ablation.py` — Aggregates Pass 6 CommonVoice objective metrics into a condition table and a collapse taxonomy.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
 
