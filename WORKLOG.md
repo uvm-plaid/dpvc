@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-04-28
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -48,11 +48,16 @@ Priority tags:
 - [ ] `[SOON]` Calibrate novelty thresholds from source-vs-baseline and source-vs-style distributions, so the metric can support a more explicit "novel enough" claim instead of raw cosine values alone
 - [ ] `[SOON]` Cross-check the novelty metric with an independent speaker encoder / EER pipeline, not just OpenVoice's native embedding space
 - [ ] `[SOON]` Run novelty-vs-noise and novelty-vs-style-strength sweeps once the speaker novelty metric is stable, to add a privacy/utility-style novelty curve
-- [ ] `[SOON]` Ablation study: CREMA-D only vs. Expresso only vs. combined (already have data for this)
-- [ ] `[SOON]` Compare with naive baseline: random noise without style control
-- [ ] `[SOON]` Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88)
+- [x] Ablation study: CREMA-D only vs. Expresso only vs. combined, extended with the validation-scale CommonVoice `cv500` init and a naive baseline. **Pass 4 result:** the combined model remains the best tradeoff across controllability, novelty, intelligibility, and naturalness (`results/eval_ablation_summary_pass4.csv`)
+- [x] Compare with naive baseline: random unlabeled latent control without style supervision. **Pass 4 result:** it creates more novelty than the combined model (`0.4708` vs. `0.2599`) but with worse recall (`18.2%`) and much worse MOS delta (`-0.6453`)
+- [x] Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88) — now explicitly carried by Finding 1 and the Pass 4 paper-strengthening pass
+- [x] Collapse taxonomy across ablations: content collapse (`WER >= 0.8`), style collapse to neutral, identity collapse to baseline, and mixed collapse. **Pass 4 result:** `cv500`, `cremad_only`, and `expresso_only` are dominated by identity/style collapse; the combined model has fewer but more diverse failures
 - [ ] `[LATER]` Investigate F0-based re-identification attack: can F0 alone re-identify speakers after embedding anonymization?
 - [ ] `[SOON]` Address collapse issue: 9% of speaker-style combinations produce unintelligible output (Joe says expected, no perfect fix needed, but worth tracking)
+- [ ] `[SOON]` Add bootstrap confidence intervals or repeated-seed uncertainty to the Pass 4 ablation matrix before freezing paper tables
+- [ ] `[SOON]` Add condition-by-style plots for emotion recall, novelty gain, WER, and MOS so the paper can show where each condition fails, not just overall means
+- [ ] `[SOON]` Add a manual collapse-audit sheet for rows where metrics disagree (for example: high novelty but low emotional alignment, or good WER but strong neutral collapse)
+- [ ] `[SOON]` Cross-check the ablation matrix with an independent speaker verifier / EER pipeline, not just OpenVoice's native embedding space
 
 ### Phase 2.5: Framing-driven tasks (from Joe's April 16 evening message)
 
@@ -167,6 +172,63 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 3 with a new paper-facing result: the novelty metric confirms that the combined-only model creates genuinely shifted speakers relative to the source, while the `cv500` CommonVoice checkpoint suppresses that shift and aligns with the neutral-collapse story from Pass 2.
+
+### 0.9 Pass 4 Closeout (April 28, branch `research/eval-ablations`)
+
+- Added `scripts/prepare_ablation_embeddings.py`
+  - prepares `cremad_only` and `expresso_only` ablation datasets directly in the unified `label_*` format expected by the OpenVoice trainer
+  - uses saved Expresso row ids to realign parquet metadata with the extracted embedding file, so the ablation dataset is reproducible even when extraction skipped rows
+- Added `scripts/run_ablation_inference.py`
+  - generates condition-specific evaluation corpora without overloading the main public inference CLI
+  - supports the single-dataset style maps and the naive free-dimension baseline
+- Added `scripts/summarize_ablation_results.py`
+  - reads `results/eval_*_pass4_*.csv`
+  - writes `results/eval_ablation_summary_pass4.csv`
+  - writes `results/eval_ablation_collapse_pass4.csv`
+- Trained the two missing single-dataset ablation checkpoints:
+  - `embeddings/openvoice_vae_cremad_ablation.pt`
+  - `embeddings/openvoice_vae_expresso_ablation.pt`
+- Generated the three new Pass 4 evaluation corpora:
+  - `output/pass4_cremad_only_eval/`
+  - `output/pass4_expresso_only_eval/`
+  - `output/pass4_naive_noise_baseline_eval/`
+- Reused the already validated Pass 2 generation corpora for the unchanged `combined` and `commonvoice_cv500_init` conditions, then copied their existing emotion/WER/novelty CSVs into the Pass 4 naming scheme and added the missing MOS layer
+
+**Pass 4 condition matrix**
+- `combined`
+- `commonvoice_cv500_init`
+- `cremad_only`
+- `expresso_only`
+- `naive_noise_baseline`
+
+**Top-line result (`results/eval_ablation_summary_pass4.csv`)**
+- `combined`: recall `25.8%`, novelty gain `0.2599`, mean WER `0.2353`, mean MOS delta `-0.0792`
+- `commonvoice_cv500_init`: recall `16.7%`, novelty gain `0.0369`, mean WER `0.0844`, mean MOS delta `-0.0123`
+- `cremad_only`: recall `16.7%`, novelty gain `0.0158`, mean WER `0.0534`, mean MOS delta `+0.0059`
+- `expresso_only`: recall `36.4%` on `33` emotional rows only, novelty gain `-0.0008`, mean WER `0.0549`, mean MOS delta `-0.0120`
+- `naive_noise_baseline`: recall `18.2%`, novelty gain `0.4708`, mean WER `0.1579`, mean MOS delta `-0.6453`
+
+**Interpretation**
+- The combined checkpoint remains the best overall tradeoff. It is the only condition with both non-trivial controllability and non-trivial identity shift while keeping WER and MOS within a survivable range.
+- The `cv500` CommonVoice init, `cremad_only`, and `expresso_only` conditions all expose the same research trap from different angles: they can sound stable and transcribe well while still collapsing back toward baseline identity and/or neutral emotion.
+- The naive baseline proves that **novelty alone is not the paper objective**. Random unlabeled latent pushes can create larger identity shifts than the combined model, but they do not create clean target emotion control and they degrade naturalness badly.
+
+**Validation**
+- [x] Every ablation condition has a reproducible command path and named artifacts
+  - generation: `scripts/run_ablation_inference.py`
+  - aggregation: `scripts/summarize_ablation_results.py`
+  - artifact bundle: `results/eval_*_pass4_*.csv`
+- [x] The summary table clearly shows which condition best balances controllability, novelty, intelligibility, and naturalness
+  - `results/eval_ablation_summary_pass4.csv`
+- [x] The naive baseline is concrete, reproducible, and fair
+  - deterministic random control vectors are applied only to the six free latent dims (`9-14`) and are L2-matched to the style-control strength
+- [x] The collapse summary distinguishes failure modes rather than flattening them into one bucket
+  - `results/eval_ablation_collapse_pass4.csv`
+- [x] The ControlVC negative-result writeup is backed by concrete evidence already present in the repo
+  - Finding 1 plus the explicit Pass 4 matrix framing
+
+**FINDINGS.md review**
+- Updated after Pass 4 with a new paper-facing result: the combined model remains the best overall tradeoff in the ablation matrix, and the naive baseline shows that raw novelty is not enough without target alignment and naturalness.
 
 ---
 

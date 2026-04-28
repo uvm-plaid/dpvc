@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-17 (methodology preambles + per-row Takeaway columns added to Findings 2, 3, 6, 7, 8, 9)
+**Last updated:** 2026-04-28 (Pass 4 ablation matrix added as Finding 12; paper framing and open questions updated)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -436,6 +436,80 @@ It also sharpens the CommonVoice follow-up agenda. The next question is no longe
 
 ---
 
+## Finding 12: The Combined Model Best Balances Control, Novelty, Intelligibility, and Naturalness
+
+### Methodology
+
+We ran a **five-condition ablation matrix** on the same 11-speaker validation corpus used in Findings 10 and 11, with the same evaluation stack:
+
+- emotion2vec Recall Rate + emo_sim
+- native OpenVoice novelty gain vs baseline
+- Whisper drift-from-baseline WER
+- SQUIM_SUBJECTIVE predicted MOS delta vs baseline
+
+The five conditions were:
+
+1. **combined** — the main 9-style CREMA-D + Expresso checkpoint
+2. **CommonVoice `cv500` init** — the Pass 2 finetuned checkpoint
+3. **CREMA-D only** — a speaker-diverse 6-style checkpoint trained only on CREMA-D labels
+4. **Expresso only** — a 6-style checkpoint trained only on the balanced Expresso subset
+5. **naive baseline** — the combined checkpoint, but with deterministic random control vectors applied only to the six *unlabeled* latent dims (9-14), L2-matched to the style-control strength
+
+That naive condition is important. It answers a harder question than "does noise change the speaker?" It asks:
+
+**Can arbitrary latent perturbation create something that looks as good as labeled style control?**
+
+### Results
+
+| Condition | Supported styles | Emotional rows scored | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Takeaway |
+|-----------|------------------|-----------------------|--------|--------------------------|----------|----------------|----------|
+| combined | 9 | 66 | 25.8% | 0.2599 | 0.2353 | -0.0792 | Best overall tradeoff — non-trivial target alignment and non-trivial identity shift, with moderate WER/MOS cost |
+| CommonVoice `cv500` init | 9 | 66 | 16.7% | 0.0369 | 0.0844 | -0.0123 | Sounds stable and transcribes well, but style and novelty collapse back toward baseline |
+| CREMA-D only | 6 | 66 | 16.7% | 0.0158 | 0.0534 | +0.0059 | Excellent stability, weak speaker shift — speaker-diverse emotion data alone is not enough |
+| Expresso only | 6 | 33 | 36.4% | -0.0008 | 0.0549 | -0.0120 | Superficially decent recall on a tiny emotional subset, but almost no identity shift at all |
+| naive free-dim baseline | 9 | 66 | 18.2% | 0.4708 | 0.1579 | -0.6453 | High novelty without clean control — random latent pushes are not a substitute for labeled style axes |
+
+### Collapse taxonomy
+
+To keep "collapse" from meaning everything and nothing, we tracked four failure types:
+
+- **content collapse**: `WER >= 0.8`
+- **style collapse to neutral**: target is emotional, but emotion2vec predicts `neutral`
+- **identity collapse to baseline**: novelty gain vs baseline `<= 0.05`
+- **mixed collapse**: at least two collapse axes on the same file
+
+Condition-level summary:
+
+| Condition | Content collapse | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
+|-----------|------------------|---------------------------|-------------------------------|----------------|----------|
+| combined | 6 | 37 | 7 | 4 | Fewer failures overall, but the failures that remain are spread across content, style, and identity |
+| CommonVoice `cv500` init | 0 | 54 | 72 | 34 | Classic conservative collapse: no catastrophic audio failures, but the model washes back toward neutral and baseline identity |
+| CREMA-D only | 0 | 55 | 61 | 50 | Very stable audio, but almost every row is a style/identity collapse rather than a successful controlled speaker shift |
+| Expresso only | 0 | 21 | 66 | 21 | The dominant failure is identity collapse — outputs stay too close to the baseline speaker profile |
+| naive free-dim baseline | 1 | 41 | 0 | 0 | The failure is the opposite of `cv500`: lots of speaker movement, but poor emotional targeting and degraded naturalness |
+
+### Interpretation
+
+This ablation answers several paper-critical questions at once:
+
+1. **The combined model is still the main model.** It is not the cleanest on every single metric, but it is the only condition that jointly preserves meaningful target alignment and meaningful identity shift.
+2. **Single-dataset stability is not enough.** `CREMA-D only`, `Expresso only`, and `cv500` all show that a model can sound natural and transcribe well while still failing the actual controllable-speaker objective.
+3. **Novelty alone is not the goal.** The naive baseline produces *more* novelty than the combined model, but its recall is worse and its MOS collapses by `-0.6453`. This is the clearest evidence yet that the project is not "make the embedding move"; it is "make the embedding move in a useful, controllable way."
+4. **The CommonVoice direction remains open but narrowed.** `cv500` is better framed now as a stability-biased initialization that over-regularizes the system unless the finetuning recipe changes.
+
+### Implication
+
+Pass 4 turns the repo from "we have a working system" into "we have a defensible comparison story":
+
+- **combined** is the paper's current headline model
+- **CommonVoice `cv500` init** is a real negative result and a focused follow-up agenda
+- **CREMA-D only** and **Expresso only** explain *why* the combined condition is necessary
+- **naive free-dim baseline** shows why labeled style supervision matters beyond raw novelty
+
+That is the comparison structure the paper needs.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
@@ -448,6 +522,7 @@ It also sharpens the CommonVoice follow-up agenda. The next question is no longe
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
 10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Can we clamp the latent space, partially freeze style dims, or detect/reject bad combinations?
+11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 
 ---
 
@@ -479,6 +554,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 9. Predicted MOS confirms naturalness preservation for 6 of 9 styles; emo_sim + WER + MOS converge on the same three hardest styles (whisper, confused, anger) — cross-metric triangulation validates the signal
 10. Validation-scale CommonVoice pre-training (`cv500`) is a mixed result: WER improves sharply, but emotion recall drops and the model collapses toward neutral. The CommonVoice direction remains promising, but the naive recipe is not paper-ready yet.
 11. Native OpenVoice novelty evaluation confirms that the combined-only model produces genuinely shifted speaker identities relative to the source, while the `cv500` CommonVoice checkpoint largely collapses that shift back toward baseline voice identity.
+12. The Pass 4 ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

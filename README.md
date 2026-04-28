@@ -6,16 +6,22 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Active branch: **`feat/cremad-experiments`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current paper-strengthening branch: **`research/eval-ablations`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
-- **[`FINDINGS.md`](FINDINGS.md)** — 9 key findings with methodology and per-row takeaways.
+- **[`FINDINGS.md`](FINDINGS.md)** — 12 paper-facing findings with methodology and per-row takeaways.
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
 OpenVoice is the **canonical controllable pipeline**. ControlVC remains in the
 repository as a useful DP baseline and wrapper reference, but not as the
 recommended path for style control.
+
+Current best checked-in result: the **combined** OpenVoice model remains the
+best tradeoff across controllability, speaker novelty, intelligibility, and
+naturalness. The Pass 4 ablation matrix and collapse taxonomy live in
+[`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
+and [`results/eval_ablation_collapse_pass4.csv`](results/eval_ablation_collapse_pass4.csv).
 
 ## Installation
 
@@ -71,6 +77,9 @@ See also:
 - `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
 - `examples/openvoice_extract_commonvoice.py` + `examples/openvoice_pretrain_vae_commonvoice.py` — Common Voice pretraining path for improving style generalization.
 - `scripts/prepare_commonvoice_subset.py` — helper for turning downloaded Common Voice shards into a filtered local `validated.tsv` + `clips/` subset.
+- `scripts/prepare_ablation_embeddings.py` — builds the `cremad_only` and `expresso_only` Pass 4 ablation datasets in the unified label format.
+- `scripts/run_ablation_inference.py` — generates the Pass 4 corpora, including the naive unlabeled-latent baseline.
+- `scripts/summarize_ablation_results.py` — builds the condition summary table and collapse taxonomy for the paper.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation
@@ -84,6 +93,11 @@ plus our speaker-novelty proof:
 - `examples/eval_mos.py` — torchaudio SQUIM_SUBJECTIVE predicted MOS (naturalness)
 
 CSV outputs from our runs live in [`results/`](results/). Schemas and reproduction steps are in [`results/README.md`](results/README.md).
+
+For the current paper matrix, start with:
+
+- [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
+- [`results/eval_ablation_collapse_pass4.csv`](results/eval_ablation_collapse_pass4.csv)
 
 ## Building Documentation
 

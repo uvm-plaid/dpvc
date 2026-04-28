@@ -1,0 +1,6 @@
+condition,styles_present,styles_count,sources_count,rows_total,emotion_rows_scored,emotion_recall,mean_emo_sim,mean_wer,mean_mos,mean_mos_delta_vs_baseline,mean_novelty_gain_vs_baseline,content_collapse_count,style_collapse_to_neutral_count,identity_collapse_to_baseline_count,mixed_collapse_count,files_with_any_collapse
+combined,"anger,confused,disgust,enunciated,fear,happy,neutral,sad,whisper",9,11,110,66,0.2576,0.9510,0.2353,3.8716,-0.0792,0.2599,6,37,7,4,46
+commonvoice_cv500_init,"anger,confused,disgust,enunciated,fear,happy,neutral,sad,whisper",9,11,110,66,0.1667,0.9934,0.0844,3.9504,-0.0123,0.0369,0,54,72,34,92
+cremad_only,"anger,disgust,fear,happy,neutral,sad",6,11,77,66,0.1667,0.9985,0.0534,3.9738,0.0059,0.0158,0,55,61,50,66
+expresso_only,"confused,enunciated,happy,neutral,sad,whisper",6,11,77,33,0.3636,0.9961,0.0549,4.5490,-0.0120,-0.0008,0,21,66,21,66
+naive_noise_baseline,"anger,confused,disgust,enunciated,fear,happy,neutral,sad,whisper",9,11,110,66,0.1818,0.9563,0.1579,3.3055,-0.6453,0.4708,1,41,0,0,42

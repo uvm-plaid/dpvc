@@ -21,6 +21,18 @@ Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
 | `eval_novelty_pass2_combined.csv` | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Pass 3 novelty baseline for Finding 11 |
 | `eval_novelty_pass2_cv500.csv`    | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Finding 11 (`cv500` novelty candidate) |
 
+Pass 4 ablation-matrix artifacts from 2026-04-28:
+
+| Bundle | Rows | Scripts | Backs |
+|--------|------|---------|-------|
+| `pass4_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 12 combined reference condition |
+| `pass4_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 12 CommonVoice-init condition |
+| `pass4_cremad_only` | 77 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 12 CREMA-D-only condition |
+| `pass4_expresso_only` | 77 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 12 Expresso-only condition |
+| `pass4_naive_noise_baseline` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 12 naive unlabeled-latent baseline |
+| `eval_ablation_summary_pass4.csv` | 5 conditions | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 top-line matrix |
+| `eval_ablation_collapse_pass4.csv` | per generated file | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 collapse taxonomy |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -52,6 +64,22 @@ Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
 - `distance`: `1 - similarity`
 - `baseline_similarity`: cosine similarity between the source speaker embedding and the same-speaker baseline conversion
 - `novelty_gain_vs_baseline`: `baseline_similarity - similarity`; positive means the style output is farther from the source than baseline conversion already was
+
+### `eval_ablation_summary_pass4.csv`
+`condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse`
+
+- `emotion_recall`: fraction of emotional rows whose predicted label matches target
+- `mean_novelty_gain_vs_baseline`: average `baseline_similarity - similarity`
+- `mean_mos_delta_vs_baseline`: average style-row MOS minus same-speaker baseline MOS
+- collapse counts use the Pass 4 taxonomy implemented in `scripts/summarize_ablation_results.py`
+
+### `eval_ablation_collapse_pass4.csv`
+`condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
+
+- `content_collapse`: `WER >= 0.8`
+- `style_collapse_to_neutral`: emotional target predicted as `neutral`
+- `identity_collapse_to_baseline`: novelty gain vs baseline `<= 0.05`
+- `mixed_collapse`: at least two collapse axes on the same row
 
 ## Reproducing
 
@@ -132,3 +160,95 @@ Expected qualitative outcome from the checked-in CSVs:
 
 That makes the `cv500` run a useful negative result: better content
 preservation, weaker style controllability.
+
+## Pass 4 Reproduction (ablation matrix)
+
+This is the paper-strengthening ablation pass used in Finding 12. The matrix
+compares:
+
+- `combined`
+- `commonvoice_cv500_init`
+- `cremad_only`
+- `expresso_only`
+- `naive_noise_baseline`
+
+Prepare and train the two single-dataset ablation conditions:
+
+```bash
+python scripts/prepare_ablation_embeddings.py --condition cremad_only
+python scripts/prepare_ablation_embeddings.py --condition expresso_only \
+    --parquet-dir ~/.cache/huggingface/hub/datasets--ylacombe--expresso/snapshots/*/read
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_cremad_only_ablation_emb.pt \
+    --output embeddings/openvoice_vae_cremad_ablation.pt
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_expresso_only_ablation_emb.pt \
+    --output embeddings/openvoice_vae_expresso_ablation.pt
+```
+
+Generate the three new evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition cremad_only \
+    --out output/pass4_cremad_only_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition expresso_only \
+    --out output/pass4_expresso_only_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition naive_noise_baseline \
+    --out output/pass4_naive_noise_baseline_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+```
+
+The unchanged `combined` and `commonvoice_cv500_init` conditions reuse the
+already generated Pass 2 corpora:
+
+- `output/pass2_combined_eval/`
+- `output/pass2_cv500_eval/`
+
+Run the metrics:
+
+```bash
+python examples/eval_emotion.py --input output/pass4_cremad_only_eval --out results/eval_emotion_pass4_cremad_only.csv
+python examples/eval_novelty.py --manifest output/pass4_cremad_only_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_cremad_only.csv
+python examples/eval_wer.py     --input output/pass4_cremad_only_eval --out results/eval_wer_pass4_cremad_only.csv
+python examples/eval_mos.py     --input output/pass4_cremad_only_eval --out results/eval_mos_pass4_cremad_only.csv
+
+python examples/eval_emotion.py --input output/pass4_expresso_only_eval --out results/eval_emotion_pass4_expresso_only.csv
+python examples/eval_novelty.py --manifest output/pass4_expresso_only_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_expresso_only.csv
+python examples/eval_wer.py     --input output/pass4_expresso_only_eval --out results/eval_wer_pass4_expresso_only.csv
+python examples/eval_mos.py     --input output/pass4_expresso_only_eval --out results/eval_mos_pass4_expresso_only.csv
+
+python examples/eval_emotion.py --input output/pass4_naive_noise_baseline_eval --out results/eval_emotion_pass4_naive_noise_baseline.csv
+python examples/eval_novelty.py --manifest output/pass4_naive_noise_baseline_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_naive_noise_baseline.csv
+python examples/eval_wer.py     --input output/pass4_naive_noise_baseline_eval --out results/eval_wer_pass4_naive_noise_baseline.csv
+python examples/eval_mos.py     --input output/pass4_naive_noise_baseline_eval --out results/eval_mos_pass4_naive_noise_baseline.csv
+```
+
+Then aggregate:
+
+```bash
+python scripts/summarize_ablation_results.py
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- `combined` is still the best overall tradeoff
+- `cv500`, `cremad_only`, and `expresso_only` are all stability-biased failures that collapse back toward neutral emotion and/or baseline identity
+- the naive baseline produces **more novelty** than the combined model, but with worse recall and a much worse MOS delta

@@ -230,6 +230,116 @@ that most style outputs no longer move much farther from the source than
 baseline conversion already does. See [`FINDINGS.md`](../FINDINGS.md)
 Findings 10 and 11 before scaling this recipe up.
 
+### 4c. Pass 4 ablation matrix
+
+Pass 4 is the paper-strengthening comparison pass. It asks a sharper question
+than "does the model work?":
+
+**Which training condition gives the best balance of target alignment, speaker novelty, intelligibility, and naturalness?**
+
+The official matrix compares:
+
+- `combined`
+- `commonvoice_cv500_init`
+- `cremad_only`
+- `expresso_only`
+- `naive_noise_baseline`
+
+Prepare the two single-dataset ablation embedding sets:
+
+```bash
+python scripts/prepare_ablation_embeddings.py --condition cremad_only
+python scripts/prepare_ablation_embeddings.py --condition expresso_only \
+    --parquet-dir ~/.cache/huggingface/hub/datasets--ylacombe--expresso/snapshots/*/read
+```
+
+Train the two ablation checkpoints:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_cremad_only_ablation_emb.pt \
+    --output embeddings/openvoice_vae_cremad_ablation.pt
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_expresso_only_ablation_emb.pt \
+    --output embeddings/openvoice_vae_expresso_ablation.pt
+```
+
+Generate the three new Pass 4 corpora:
+
+```bash
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition cremad_only \
+    --out output/pass4_cremad_only_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition expresso_only \
+    --out output/pass4_expresso_only_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python scripts/run_ablation_inference.py \
+    --source-dir examples/source_speakers/ \
+    --condition naive_noise_baseline \
+    --out output/pass4_naive_noise_baseline_eval/ \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+```
+
+Notes:
+
+- The `combined` and `commonvoice_cv500_init` conditions reuse the already generated
+  validation corpora from Pass 2:
+  - `output/pass2_combined_eval/`
+  - `output/pass2_cv500_eval/`
+- The naive baseline is **not** a plain noising baseline. It applies
+  deterministic, L2-matched random control vectors only to the six *free*
+  latent dims (`9-14`) of the combined checkpoint. That makes it a fair test
+  of whether arbitrary latent perturbation can mimic structured style control.
+
+Run the Pass 4 metrics:
+
+```bash
+python examples/eval_emotion.py --input output/pass4_cremad_only_eval --out results/eval_emotion_pass4_cremad_only.csv
+python examples/eval_novelty.py --manifest output/pass4_cremad_only_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_cremad_only.csv
+python examples/eval_wer.py     --input output/pass4_cremad_only_eval --out results/eval_wer_pass4_cremad_only.csv
+python examples/eval_mos.py     --input output/pass4_cremad_only_eval --out results/eval_mos_pass4_cremad_only.csv
+
+python examples/eval_emotion.py --input output/pass4_expresso_only_eval --out results/eval_emotion_pass4_expresso_only.csv
+python examples/eval_novelty.py --manifest output/pass4_expresso_only_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_expresso_only.csv
+python examples/eval_wer.py     --input output/pass4_expresso_only_eval --out results/eval_wer_pass4_expresso_only.csv
+python examples/eval_mos.py     --input output/pass4_expresso_only_eval --out results/eval_mos_pass4_expresso_only.csv
+
+python examples/eval_emotion.py --input output/pass4_naive_noise_baseline_eval --out results/eval_emotion_pass4_naive_noise_baseline.csv
+python examples/eval_novelty.py --manifest output/pass4_naive_noise_baseline_eval/generation_manifest.jsonl --out results/eval_novelty_pass4_naive_noise_baseline.csv
+python examples/eval_wer.py     --input output/pass4_naive_noise_baseline_eval --out results/eval_wer_pass4_naive_noise_baseline.csv
+python examples/eval_mos.py     --input output/pass4_naive_noise_baseline_eval --out results/eval_mos_pass4_naive_noise_baseline.csv
+```
+
+Then summarize the matrix:
+
+```bash
+python scripts/summarize_ablation_results.py
+```
+
+This writes:
+
+- `results/eval_ablation_summary_pass4.csv`
+- `results/eval_ablation_collapse_pass4.csv`
+
+Current Pass 4 conclusion from the checked-in artifacts:
+
+- the **combined** model remains the best overall tradeoff
+- `cv500`, `cremad_only`, and `expresso_only` are all more stable but collapse toward baseline identity and/or neutral emotion
+- the naive baseline proves that **raw novelty is not enough** — it creates a larger identity shift than the combined model, but with worse target alignment and much worse naturalness
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -416,11 +526,15 @@ scores more interpretable.
 | 4b | `openvoice_extract_commonvoice.py` | local Common Voice `validated.tsv` + `clips/` | `openvoice_commonvoice_emb.pt` |
 | 4c | `openvoice_pretrain_vae_commonvoice.py` | Step 4b output | `openvoice_vae_commonvoice.pt` |
 | 4d | `openvoice_train_vae_combined.py --init-checkpoint ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_finetuned.pt` |
+| 4e | `../scripts/prepare_ablation_embeddings.py` | Step 1 or 2 outputs | `openvoice_*_ablation_emb.pt` |
+| 4f | `openvoice_train_vae_combined.py` | Step 4e output | `openvoice_vae_*_ablation.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
+| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f output + audio | Pass 4 evaluation corpora + manifest |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
 | 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
 | 9 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
+| 10 | `../scripts/summarize_ablation_results.py` | Pass 4 eval CSVs | `eval_ablation_summary_pass4.csv` + `eval_ablation_collapse_pass4.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
@@ -429,6 +543,9 @@ scores more interpretable.
 - `openvoice_pretrain_vae_commonvoice.py` — Reconstruction-only VAE pretraining on Common Voice.
 - `eval_novelty.py` — Measures source-vs-generated speaker novelty in OpenVoice embedding space.
 - `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
+- `../scripts/prepare_ablation_embeddings.py` — Builds the Pass 4 `cremad_only` / `expresso_only` embedding sets.
+- `../scripts/run_ablation_inference.py` — Generates Pass 4 ablation corpora and the naive free-dim baseline.
+- `../scripts/summarize_ablation_results.py` — Aggregates Pass 4 metrics into a condition table and a collapse taxonomy.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
 
