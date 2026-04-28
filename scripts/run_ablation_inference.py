@@ -45,6 +45,36 @@ CONDITION_CONFIGS = {
         "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
         "control_mode": "labeled",
     },
+    "cv500_ft_short": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_short.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_ft_low_lr": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_low_lr.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_ft_short_low_lr": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_short_low_lr.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_ft_freeze_decoder": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_ft_freeze_encoder": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_freeze_encoder.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
     "cremad_only": {
         "checkpoint": "embeddings/openvoice_vae_cremad_ablation.pt",
         "styles": ["anger", "disgust", "fear", "happy", "neutral", "sad"],

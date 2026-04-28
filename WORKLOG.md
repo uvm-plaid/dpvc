@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-04-28
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -27,14 +27,19 @@ Priority tags:
 - [x] Per-speaker style evaluation: brightness is the reliable cross-speaker metric, not F0
 
 ### Phase 1.5: Scale Up Speaker Diversity (Joe's suggestion, April 16)
-- [ ] `[NOW]` Extract OpenVoice embeddings from CommonVoice (20k+ speakers, no style labels)
-- [ ] `[NOW]` Pre-train VAE on CommonVoice (reconstruction loss only)
-- [ ] `[NOW]` Finetune on CREMA-D + Expresso (style labels, label loss)
-- [ ] `[NOW]` Compare with current combined-only VAE: does pre-training reduce collapse rate?
+- [x] `[NOW]` Extract OpenVoice embeddings from CommonVoice (20k+ speakers, no style labels)
+- [x] `[NOW]` Pre-train VAE on CommonVoice (reconstruction loss only)
+- [x] `[NOW]` Finetune on CREMA-D + Expresso (style labels, label loss)
+- [x] `[NOW]` Compare with current combined-only VAE: does pre-training reduce collapse rate?
 - [ ] `[SOON]` Scale the validated `cv500` CommonVoice recipe to a much larger local slice or a full English mirror before drawing a final conclusion about pre-training
-- [ ] `[SOON]` Test gentler finetuning from the CommonVoice init checkpoint (fewer finetune epochs, lower LR, or partial-freeze) to see whether the `cv500` neutral-collapse failure is an over-regularization problem rather than a dead-end
+- [x] `[SOON]` Test gentler finetuning from the CommonVoice init checkpoint (fewer finetune epochs, lower LR, or partial-freeze) to see whether the `cv500` neutral-collapse failure is an over-regularization problem rather than a dead-end. **Pass 5 result:** simple recipe changes recover only small novelty gains (`0.0369 -> 0.0692` best case) and do not recover the combined model's recall/novelty tradeoff
+- [ ] `[SOON]` Scale the best Pass 5 recipe (`cv500_ft_short_low_lr`) to a larger local CommonVoice slice and test whether its partial novelty recovery survives at higher speaker counts
+- [ ] `[SOON]` Test layer-granular freezing or loss-weight schedules instead of full encoder/decoder freezes; Pass 5 suggests coarse freezing alone is too blunt to restore controllability
+- [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Pass 5 suggests the bottleneck may be the pretraining objective as much as the finetuning aggressiveness
+- [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune variants; Pass 5 suggests novelty returns first for a few conservative styles, not as broad emotion recovery
 - [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
+- [ ] `[SOON]` Test whether CommonVoice-broad pretraining preserves age/gender control more easily than emotion control; Pass 5 suggests different attribute families may survive broad speaker priors differently
 - [ ] `[SOON]` **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
 
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
@@ -77,6 +82,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
 - [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
+- [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune sweeps are less manual than Pass 5
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
 - [ ] `[SOON]` Add an automated smoke test for `openvoice_infer_controllable.py --source-dir` + manifest generation against cached local checkpoints
 
@@ -229,6 +235,84 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 4 with a new paper-facing result: the combined model remains the best overall tradeoff in the ablation matrix, and the naive baseline shows that raw novelty is not enough without target alignment and naturalness.
+
+### 0.10 Pass 5 Closeout (April 28, branch `research/commonvoice-finetune-ablation`)
+
+- Extended `examples/openvoice_train_vae_combined.py` with coarse finetune controls:
+  - `--freeze-encoder`
+  - `--freeze-decoder`
+  - explicit reporting of trainable vs total parameter counts
+- Extended `scripts/run_ablation_inference.py` with the new CommonVoice finetune conditions:
+  - `cv500_ft_short`
+  - `cv500_ft_low_lr`
+  - `cv500_ft_short_low_lr`
+  - `cv500_ft_freeze_decoder`
+  - `cv500_ft_freeze_encoder`
+- Added `scripts/summarize_commonvoice_finetune_ablation.py`
+  - reads `results/eval_*_pass5_*.csv`
+  - writes `results/eval_commonvoice_finetune_summary_pass5.csv`
+  - writes `results/eval_commonvoice_finetune_collapse_pass5.csv`
+- Trained the five new finetune variants from `embeddings/openvoice_vae_commonvoice_cv500.pt` against the unchanged combined embedding set:
+  - `embeddings/openvoice_vae_combined_cv500_ft_short.pt` (`1000` epochs, `1e-6`)
+  - `embeddings/openvoice_vae_combined_cv500_ft_low_lr.pt` (`3000` epochs, `3e-7`)
+  - `embeddings/openvoice_vae_combined_cv500_ft_short_low_lr.pt` (`1000` epochs, `3e-7`)
+  - `embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt` (`3000` epochs, `1e-6`, decoder frozen)
+  - `embeddings/openvoice_vae_combined_cv500_ft_freeze_encoder.pt` (`3000` epochs, `1e-6`, encoder frozen)
+- Generated the five matched Pass 5 evaluation corpora:
+  - `output/pass5_cv500_ft_short_eval/`
+  - `output/pass5_cv500_ft_low_lr_eval/`
+  - `output/pass5_cv500_ft_short_low_lr_eval/`
+  - `output/pass5_cv500_ft_freeze_decoder_eval/`
+  - `output/pass5_cv500_ft_freeze_encoder_eval/`
+- Reused the already validated `combined` and `commonvoice_cv500_init` result CSVs from Pass 4 by copying them into the Pass 5 naming scheme, so the changed variable stayed strictly on finetuning policy
+
+**Pass 5 condition matrix**
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short`
+- `cv500_ft_low_lr`
+- `cv500_ft_short_low_lr`
+- `cv500_ft_freeze_decoder`
+- `cv500_ft_freeze_encoder`
+
+**Top-line result (`results/eval_commonvoice_finetune_summary_pass5.csv`)**
+- `combined`: recall `25.8%`, novelty gain `0.2599`, mean WER `0.2353`, mean MOS delta `-0.0792`
+- `commonvoice_cv500_init`: recall `16.7%`, novelty gain `0.0369`, mean WER `0.0844`, mean MOS delta `-0.0123`
+- `cv500_ft_short`: recall `16.7%`, novelty gain `0.0558`, mean WER `0.0390`, mean MOS delta `-0.0108`
+- `cv500_ft_low_lr`: recall `16.7%`, novelty gain `0.0495`, mean WER `0.0340`, mean MOS delta `-0.0142`
+- `cv500_ft_short_low_lr`: recall `16.7%`, novelty gain `0.0692`, mean WER `0.0791`, mean MOS delta `-0.0441`
+- `cv500_ft_freeze_decoder`: recall `16.7%`, novelty gain `0.0192`, mean WER `0.0330`, mean MOS delta `-0.0154`
+- `cv500_ft_freeze_encoder`: recall `18.2%`, novelty gain `0.0594`, mean WER `0.0905`, mean MOS delta `-0.1261`
+
+**Interpretation**
+- None of the simple finetune-policy changes restored the combined model's tradeoff. The best novelty recovery came from `cv500_ft_short_low_lr`, but it still stayed far below the combined model on both novelty (`0.0692` vs. `0.2599`) and recall (`16.7%` vs. `25.8%`).
+- `cv500_ft_short_low_lr` was the strongest partial recovery recipe:
+  - best novelty among the CommonVoice finetune variants
+  - lowest identity-collapse count among the variants (`44`, down from `72` on the original `cv500`)
+  - but no recall improvement over the original `cv500`
+- `cv500_ft_freeze_encoder` was the only variant to improve recall at all (`18.2%` vs. `16.7%`), but it gave back most of the CommonVoice stability story by worsening MOS delta to `-0.1261`
+- `cv500_ft_freeze_decoder` was the clearest negative result in the sweep: it reduced novelty below the original `cv500` (`0.0192`) and increased identity-collapse count to `88`
+- All five variants preserved the same basic Pass 2 failure shape: very low content collapse, but dominant collapse back toward `neutral` emotion and/or baseline identity
+
+**Validation**
+- [x] New finetuning controls are reproducible from the checked-in training interface
+  - validated via `examples/openvoice_train_vae_combined.py --freeze-encoder/--freeze-decoder`
+  - each run logged its checkpoint source, freeze settings, and trainable parameter count
+- [x] Every finetuning variant has a named checkpoint and matched evaluation corpus
+  - five checkpoints under `embeddings/`
+  - five 110-row corpora + manifests under `output/pass5_*`
+- [x] The comparison explicitly answers whether gentler finetuning preserves CommonVoice's WER/MOS gains while recovering novelty and emotion control
+  - answer: **not with these simple recipe changes**
+  - novelty improves modestly for `cv500_ft_short`, `cv500_ft_low_lr`, `cv500_ft_short_low_lr`, and `cv500_ft_freeze_encoder`
+  - recall remains flat at `16.7%` for four of five variants and only rises to `18.2%` once, still well below the combined model's `25.8%`
+- [x] The pass isolates finetuning strategy as the changed variable rather than mixing in new datasets or new metrics
+  - same CommonVoice pretrained init checkpoint
+  - same combined fine-tuning embeddings
+  - same 11-speaker evaluation corpus format
+  - same four-metric evaluation stack
+
+**FINDINGS.md review**
+- Updated after Pass 5 with a new paper-facing result: simple gentler finetuning helps only marginally and does not fix the CommonVoice collapse, which narrows the next research step to better objectives or larger-scale training rather than just lighter fine-tuning.
 
 ---
 

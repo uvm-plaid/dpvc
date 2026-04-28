@@ -340,6 +340,104 @@ Current Pass 4 conclusion from the checked-in artifacts:
 - `cv500`, `cremad_only`, and `expresso_only` are all more stable but collapse toward baseline identity and/or neutral emotion
 - the naive baseline proves that **raw novelty is not enough** — it creates a larger identity shift than the combined model, but with worse target alignment and much worse naturalness
 
+### 4d. Pass 5 CommonVoice finetune ablation
+
+Pass 5 asks a narrower question than Pass 4:
+
+**Can we keep the WER/MOS gains of the CommonVoice `cv500` init while recovering controllability and novelty through gentler finetuning?**
+
+The Pass 5 matrix compares:
+
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short`
+- `cv500_ft_low_lr`
+- `cv500_ft_short_low_lr`
+- `cv500_ft_freeze_decoder`
+- `cv500_ft_freeze_encoder`
+
+Train the five new finetune variants from the unchanged CommonVoice init:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_short.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 1e-6
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_low_lr.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_short_low_lr.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 1e-6 --freeze-decoder
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_freeze_encoder.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 1e-6 --freeze-encoder
+```
+
+Generate the five matched evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_short --out output/pass5_cv500_ft_short_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_low_lr --out output/pass5_cv500_ft_low_lr_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_short_low_lr --out output/pass5_cv500_ft_short_low_lr_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_freeze_decoder --out output/pass5_cv500_ft_freeze_decoder_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_freeze_encoder --out output/pass5_cv500_ft_freeze_encoder_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the four metrics on each corpus:
+
+```bash
+python examples/eval_emotion.py --input output/pass5_cv500_ft_short_eval --out results/eval_emotion_pass5_cv500_ft_short.csv
+python examples/eval_novelty.py --manifest output/pass5_cv500_ft_short_eval/generation_manifest.jsonl --out results/eval_novelty_pass5_cv500_ft_short.csv
+python examples/eval_wer.py     --input output/pass5_cv500_ft_short_eval --out results/eval_wer_pass5_cv500_ft_short.csv
+python examples/eval_mos.py     --input output/pass5_cv500_ft_short_eval --out results/eval_mos_pass5_cv500_ft_short.csv
+```
+
+Repeat those four commands for:
+
+- `cv500_ft_low_lr`
+- `cv500_ft_short_low_lr`
+- `cv500_ft_freeze_decoder`
+- `cv500_ft_freeze_encoder`
+
+The unchanged `combined` and `commonvoice_cv500_init` references can be reused
+from Pass 4 by copying their metric CSVs into the Pass 5 naming scheme.
+
+Then summarize the matrix:
+
+```bash
+python scripts/summarize_commonvoice_finetune_ablation.py
+```
+
+This writes:
+
+- `results/eval_commonvoice_finetune_summary_pass5.csv`
+- `results/eval_commonvoice_finetune_collapse_pass5.csv`
+
+Current Pass 5 conclusion from the checked-in artifacts:
+
+- none of the simple gentler-finetune variants recovers the **combined** model's controllability/novelty tradeoff
+- `cv500_ft_short_low_lr` is the best partial recovery recipe: novelty improves to `0.0692` and identity-collapse count drops to `44`, but recall stays stuck at `16.7%`
+- `cv500_ft_freeze_encoder` is the only variant with any recall gain (`18.2%`), but it gives back too much naturalness (`-0.1261` MOS delta)
+- `cv500_ft_freeze_decoder` is a strong negative result: it worsens identity collapse (`88` rows) and drops novelty below the original `cv500` init
+- the next CommonVoice experiments should focus on better objectives, finer-grained adaptation, or larger-scale data, not just lighter finetuning
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -528,13 +626,15 @@ scores more interpretable.
 | 4d | `openvoice_train_vae_combined.py --init-checkpoint ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_finetuned.pt` |
 | 4e | `../scripts/prepare_ablation_embeddings.py` | Step 1 or 2 outputs | `openvoice_*_ablation_emb.pt` |
 | 4f | `openvoice_train_vae_combined.py` | Step 4e output | `openvoice_vae_*_ablation.pt` |
+| 4g | `openvoice_train_vae_combined.py --freeze-* ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_cv500_ft_*.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
-| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f output + audio | Pass 4 evaluation corpora + manifest |
+| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g output + audio | Pass 4 or Pass 5 evaluation corpora + manifest |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
 | 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
 | 9 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
 | 10 | `../scripts/summarize_ablation_results.py` | Pass 4 eval CSVs | `eval_ablation_summary_pass4.csv` + `eval_ablation_collapse_pass4.csv` |
+| 10b | `../scripts/summarize_commonvoice_finetune_ablation.py` | Pass 5 eval CSVs | `eval_commonvoice_finetune_summary_pass5.csv` + `eval_commonvoice_finetune_collapse_pass5.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.

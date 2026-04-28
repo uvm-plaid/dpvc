@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-28 (Pass 4 ablation matrix added as Finding 12; paper framing and open questions updated)
+**Last updated:** 2026-04-28 (Pass 5 CommonVoice finetune-ablation added as Finding 13; paper framing and open questions updated)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -510,18 +510,101 @@ That is the comparison structure the paper needs.
 
 ---
 
+## Finding 13: Simple Gentler Finetuning Does Not Fix the CommonVoice Collapse
+
+### Methodology
+
+Pass 5 kept the **CommonVoice `cv500` pretrained checkpoint fixed** and asked a
+much narrower question than Finding 10:
+
+**Was the conservative `cv500` collapse mainly caused by an overly aggressive finetuning policy?**
+
+To test that, we held the dataset and evaluation stack constant and changed
+only the finetuning recipe used to adapt the CommonVoice-pretrained VAE onto
+the combined CREMA-D + Expresso labels.
+
+We compared the existing references:
+
+1. **combined** — the main paper checkpoint
+2. **CommonVoice `cv500` init** — the original Pass 2 finetune
+
+against five new finetuning variants:
+
+1. **`cv500_ft_short`** — fewer finetune epochs (`1000` instead of `3000`)
+2. **`cv500_ft_low_lr`** — lower learning rate (`3e-7` instead of `1e-6`)
+3. **`cv500_ft_short_low_lr`** — fewer epochs plus lower learning rate
+4. **`cv500_ft_freeze_decoder`** — finetune only the encoder/latent side
+5. **`cv500_ft_freeze_encoder`** — finetune only the decoder
+
+All conditions used the same:
+
+- CommonVoice init checkpoint: `embeddings/openvoice_vae_commonvoice_cv500.pt`
+- combined finetuning embeddings: `embeddings/openvoice_combined_emb.pt`
+- 11-speaker validation corpus format
+- four-metric evaluation stack from Findings 10-12
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|----------|
+| combined | 25.8% | 0.2599 | 0.2353 | -0.0792 | Still the paper model: the only condition with both meaningful control and meaningful identity shift |
+| CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Stable but collapsed reference point |
+| `cv500_ft_short` | 16.7% | 0.0558 | 0.0390 | -0.0108 | Better novelty than raw `cv500`, but no recall recovery |
+| `cv500_ft_low_lr` | 16.7% | 0.0495 | 0.0340 | -0.0142 | Slight novelty gain, even lower WER, still no control recovery |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best novelty recovery among the CommonVoice variants, still far from combined |
+| `cv500_ft_freeze_decoder` | 16.7% | 0.0192 | 0.0330 | -0.0154 | Worst novelty of the sweep; freezing the decoder makes identity collapse worse |
+| `cv500_ft_freeze_encoder` | 18.2% | 0.0594 | 0.0905 | -0.1261 | Only variant with any recall gain, but it gives back too much naturalness |
+
+### Collapse behavior
+
+The collapse summary makes the failure mode more precise.
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
+|-----------|---------------------------|-------------------------------|----------------|----------|
+| CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse pattern |
+| `cv500_ft_short` | 55 | 55 | 26 | Identity collapse improves, but style collapse does not |
+| `cv500_ft_low_lr` | 55 | 61 | 29 | Slightly better than raw `cv500`, still mostly conservative collapse |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best partial recovery: identity collapse drops the most, but style collapse stays unchanged |
+| `cv500_ft_freeze_decoder` | 54 | 88 | 49 | Decoder freeze is too blunt; it worsens the identity-collapse failure |
+| `cv500_ft_freeze_encoder` | 54 | 63 | 33 | Slight recall gain, only modest identity recovery, worse naturalness |
+
+### Interpretation
+
+This pass narrows the CommonVoice agenda in an important way:
+
+1. **The `cv500` failure is not just “too many finetune steps.”** Shorter training and lower LR help only marginally.
+2. **The `cv500` failure is not solved by coarse freezing either.** Whole-module encoder/decoder freezes are too blunt to restore the combined model's tradeoff.
+3. **Novelty is easier to recover than emotional alignment.** Several variants improve novelty over raw `cv500`, but four of the five do not improve recall at all.
+4. **The best partial recipe is `cv500_ft_short_low_lr`, not because it wins outright, but because it reduces identity collapse the most without destroying WER/MOS.**
+5. **The decoder-freeze result is particularly informative.** It suggests that preserving the pretrained decoder too rigidly keeps the model trapped near the conservative CommonVoice prior.
+
+### Implication
+
+Pass 5 changes the next-step recommendation for the paper:
+
+- We should **not** frame the CommonVoice issue as something that simple “gentler finetuning” already solved.
+- We **can** say that modest identity recovery is possible without giving back all the intelligibility gain.
+- The next meaningful experiments are now narrower and more defensible:
+  - larger-scale CommonVoice with the best partial recipe (`short_low_lr`)
+  - better pretraining objectives, not just reconstruction-only pretraining
+  - finer-grained freeze or loss-weight schedules rather than coarse encoder/decoder freezing
+
+That is a much sharper research position than the repo had after Finding 10 alone.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. The open question is now whether a larger subset and gentler finetuning can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 shows that simple gentler finetuning is not enough to fix that on its own. The open question is now whether a larger subset plus a better objective or finer-grained adaptation strategy can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Can we clamp the latent space, partially freeze style dims, or detect/reject bad combinations?
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough. Can we use finer-grained latent constraints, layer-level freezes, loss-weight schedules, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 
 ---
@@ -555,6 +638,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 10. Validation-scale CommonVoice pre-training (`cv500`) is a mixed result: WER improves sharply, but emotion recall drops and the model collapses toward neutral. The CommonVoice direction remains promising, but the naive recipe is not paper-ready yet.
 11. Native OpenVoice novelty evaluation confirms that the combined-only model produces genuinely shifted speaker identities relative to the source, while the `cv500` CommonVoice checkpoint largely collapses that shift back toward baseline voice identity.
 12. The Pass 4 ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
+13. Pass 5 shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

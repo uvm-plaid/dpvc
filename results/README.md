@@ -33,6 +33,20 @@ Pass 4 ablation-matrix artifacts from 2026-04-28:
 | `eval_ablation_summary_pass4.csv` | 5 conditions | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 top-line matrix |
 | `eval_ablation_collapse_pass4.csv` | per generated file | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 collapse taxonomy |
 
+Pass 5 CommonVoice finetune-ablation artifacts from 2026-04-28:
+
+| Bundle | Rows | Scripts | Backs |
+|--------|------|---------|-------|
+| `pass5_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 combined reference condition |
+| `pass5_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 raw `cv500` reference condition |
+| `pass5_cv500_ft_short` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 short-finetune condition |
+| `pass5_cv500_ft_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 low-LR condition |
+| `pass5_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 best partial-recovery condition |
+| `pass5_cv500_ft_freeze_decoder` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 decoder-freeze negative result |
+| `pass5_cv500_ft_freeze_encoder` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 13 encoder-freeze condition |
+| `eval_commonvoice_finetune_summary_pass5.csv` | 7 conditions | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 top-line matrix |
+| `eval_commonvoice_finetune_collapse_pass5.csv` | per generated file | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 collapse taxonomy |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -80,6 +94,18 @@ Pass 4 ablation-matrix artifacts from 2026-04-28:
 - `style_collapse_to_neutral`: emotional target predicted as `neutral`
 - `identity_collapse_to_baseline`: novelty gain vs baseline `<= 0.05`
 - `mixed_collapse`: at least two collapse axes on the same row
+
+### `eval_commonvoice_finetune_summary_pass5.csv`
+`condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_combined, delta_novelty_vs_combined`
+
+- same core fields as `eval_ablation_summary_pass4.csv`
+- `delta_*_vs_cv500`: direct comparison against the original `commonvoice_cv500_init` condition
+- `delta_*_vs_combined`: direct comparison against the main paper checkpoint
+
+### `eval_commonvoice_finetune_collapse_pass5.csv`
+`condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
+
+- same taxonomy as Pass 4, but applied to the CommonVoice finetune matrix
 
 ## Reproducing
 
@@ -252,3 +278,82 @@ Expected qualitative outcome from the checked-in CSVs:
 - `combined` is still the best overall tradeoff
 - `cv500`, `cremad_only`, and `expresso_only` are all stability-biased failures that collapse back toward neutral emotion and/or baseline identity
 - the naive baseline produces **more novelty** than the combined model, but with worse recall and a much worse MOS delta
+
+## Pass 5 Reproduction (CommonVoice finetune ablation)
+
+This is the narrow follow-up to Finding 10. It keeps the CommonVoice-pretrained
+checkpoint fixed and varies only the finetuning recipe.
+
+Train the five new finetune variants:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_short.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 1e-6
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_low_lr.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_short_low_lr.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 1000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 1e-6 --freeze-decoder
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_ft_freeze_encoder.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --epochs 3000 --lr 1e-6 --freeze-encoder
+```
+
+Generate the five evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_short --out output/pass5_cv500_ft_short_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_low_lr --out output/pass5_cv500_ft_low_lr_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_short_low_lr --out output/pass5_cv500_ft_short_low_lr_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_freeze_decoder --out output/pass5_cv500_ft_freeze_decoder_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_ft_freeze_encoder --out output/pass5_cv500_ft_freeze_encoder_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the metrics for each corpus:
+
+```bash
+python examples/eval_emotion.py --input output/pass5_cv500_ft_short_eval --out results/eval_emotion_pass5_cv500_ft_short.csv
+python examples/eval_novelty.py --manifest output/pass5_cv500_ft_short_eval/generation_manifest.jsonl --out results/eval_novelty_pass5_cv500_ft_short.csv
+python examples/eval_wer.py     --input output/pass5_cv500_ft_short_eval --out results/eval_wer_pass5_cv500_ft_short.csv
+python examples/eval_mos.py     --input output/pass5_cv500_ft_short_eval --out results/eval_mos_pass5_cv500_ft_short.csv
+```
+
+Repeat that four-metric block for:
+
+- `cv500_ft_low_lr`
+- `cv500_ft_short_low_lr`
+- `cv500_ft_freeze_decoder`
+- `cv500_ft_freeze_encoder`
+
+Reuse the unchanged `combined` and `commonvoice_cv500_init` references by
+copying their Pass 4 CSVs into the Pass 5 naming scheme, then summarize:
+
+```bash
+python scripts/summarize_commonvoice_finetune_ablation.py
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- none of the simple gentler CommonVoice finetune variants recovers the **combined** model's controllability/novelty tradeoff
+- `cv500_ft_short_low_lr` is the best partial-recovery condition, mainly by reducing identity collapse rather than improving recall
+- `cv500_ft_freeze_encoder` gives the only recall bump, but it loses too much naturalness
+- `cv500_ft_freeze_decoder` is a strong negative result and should not be treated as the path forward

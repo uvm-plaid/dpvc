@@ -50,6 +50,17 @@ def resolve_device():
     return "cpu"
 
 
+def set_module_requires_grad(module, trainable):
+    for param in module.parameters():
+        param.requires_grad = trainable
+
+
+def format_param_count(model):
+    trainable = sum(param.numel() for param in model.parameters() if param.requires_grad)
+    total = sum(param.numel() for param in model.parameters())
+    return trainable, total
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Train controllable VAE on combined CREMA-D + Expresso embeddings")
@@ -65,9 +76,16 @@ def main():
                     help="Learning rate (default: 1e-6)")
     ap.add_argument("--init-checkpoint", default=None,
                     help="Optional checkpoint to load before finetuning")
+    ap.add_argument("--freeze-encoder", action="store_true",
+                    help="Freeze the full encoder during training")
+    ap.add_argument("--freeze-decoder", action="store_true",
+                    help="Freeze the full decoder during training")
     ap.add_argument("--seed", type=int, default=42,
                     help="Deterministic seed (default: 42)")
     args = ap.parse_args()
+
+    if args.freeze_encoder and args.freeze_decoder:
+        ap.error("Refusing to freeze both encoder and decoder; nothing would remain trainable")
 
     dpvc.utils.set_seed(args.seed)
     device = resolve_device()
@@ -102,6 +120,17 @@ def main():
         AE.load_state_dict(
             torch.load(args.init_checkpoint, weights_only=True, map_location=device)
         )
+
+    if args.freeze_encoder:
+        set_module_requires_grad(AE.encoder, trainable=False)
+    if args.freeze_decoder:
+        set_module_requires_grad(AE.decoder, trainable=False)
+
+    trainable_params, total_params = format_param_count(AE)
+    print(f"Freeze encoder: {args.freeze_encoder}")
+    print(f"Freeze decoder: {args.freeze_decoder}")
+    print(f"Trainable parameters: {trainable_params}/{total_params}")
+
     dpvc.utils.train_autoencoder(
         AE, embeddings, epochs=args.epochs, labels=labels, lr=args.lr)
 
