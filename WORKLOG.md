@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-04-28
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -31,6 +31,8 @@ Priority tags:
 - [ ] `[NOW]` Pre-train VAE on CommonVoice (reconstruction loss only)
 - [ ] `[NOW]` Finetune on CREMA-D + Expresso (style labels, label loss)
 - [ ] `[NOW]` Compare with current combined-only VAE: does pre-training reduce collapse rate?
+- [ ] `[SOON]` Scale the validated `cv500` CommonVoice recipe to a much larger local slice or a full English mirror before drawing a final conclusion about pre-training
+- [ ] `[SOON]` Test gentler finetuning from the CommonVoice init checkpoint (fewer finetune epochs, lower LR, or partial-freeze) to see whether the `cv500` neutral-collapse failure is an over-regularization problem rather than a dead-end
 - [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
 - [ ] `[SOON]` **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
@@ -98,6 +100,43 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Reviewed after Pass 1. No new paper-facing scientific finding was added because this pass stabilized interfaces and reproducibility rather than producing new experimental evidence.
+
+### 0.7 Pass 2 Closeout (April 28, branch `feat/commonvoice-pretrain`)
+
+- Added a local-corpus Common Voice extraction CLI: `examples/openvoice_extract_commonvoice.py`
+  - expects `<corpus-path>/validated.tsv` + `clips/`
+  - deterministic seed `42`
+  - optional speaker and clip caps
+  - recursive clip discovery, missing/unreadable-file accounting, and checkpointed extraction
+- Added `scripts/prepare_commonvoice_subset.py` so downloaded Common Voice shards can be turned into a local subset without hardcoded paths
+- Added reconstruction-only Common Voice pretraining via `examples/openvoice_pretrain_vae_commonvoice.py`
+- Extended `examples/openvoice_train_vae_combined.py` with `--init-checkpoint` so the combined controllable VAE can finetune from Common Voice pretrained weights
+- Added `scripts/compare_emotion_eval.py` to compare baseline vs candidate emotion-eval CSVs directly
+- Built and validated a local English Common Voice subset at `/Users/steve/datasets/cv-corpus-21.0-2025-03-14-subset/en`
+  - local clips matched: `28,116`
+  - local speakers available: `6,795`
+  - validation-scale training subset used for this pass: `500` speakers / `1,202` clips (`cv500`)
+- Ran the full `cv500` comparison end to end:
+  - extracted `embeddings/openvoice_commonvoice_cv500_emb.pt`
+  - pretrained `embeddings/openvoice_vae_commonvoice_cv500.pt`
+  - finetuned `embeddings/openvoice_vae_combined_cv500.pt`
+  - generated `output/pass2_cv500_eval/` + manifest
+  - evaluated `results/eval_emotion_pass2_cv500.csv` and `results/eval_wer_pass2_cv500.csv`
+
+**Validation**
+- [x] A small local CommonVoice subset can be extracted and pretrained without hardcoded paths
+  - validated with the local `cv500` subset: `500` speakers, `1,202` embeddings, `0` missing files, `0` unreadable files
+- [x] Finetuning from the pretrained checkpoint is supported by the existing combined-training path
+  - validated by training `embeddings/openvoice_vae_combined_cv500.pt` from `--init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt`
+- [x] The comparison explicitly answers whether pre-training reduces collapse rate and improves recall/generalization
+  - answer on the validation-scale `cv500` run: **no**
+  - emotion recall dropped from `25.8%` to `16.7%` (`-9.1 pts`)
+  - neutral predictions rose from `70/110` files to `109/110` files
+  - WER improved from `0.235` mean to `0.084` mean across all `99` scored style rows
+  - interpretation: reconstruction-only Common Voice pretraining improved intelligibility/content preservation but over-regularized the model toward baseline/neutral speech and weakened controllable style expression
+
+**FINDINGS.md review**
+- Updated after Pass 2 with a new paper-facing result: validation-scale Common Voice pretraining (`cv500`) improved WER substantially but caused near-total neutral collapse in emotion classification, so the current naive pretraining recipe is not yet a win for controllable style generalization.
 
 ---
 

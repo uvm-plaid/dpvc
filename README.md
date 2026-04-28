@@ -69,6 +69,8 @@ See also:
 - `examples/openvoice_inference.py` — basic anonymization (no style control).
 - `examples/openvoice_train_vae.py` — train a custom DP-VAE for the anonymizer.
 - `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
+- `examples/openvoice_extract_commonvoice.py` + `examples/openvoice_pretrain_vae_commonvoice.py` — Common Voice pretraining path for improving style generalization.
+- `scripts/prepare_commonvoice_subset.py` — helper for turning downloaded Common Voice shards into a filtered local `validated.tsv` + `clips/` subset.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation

@@ -26,6 +26,12 @@ Usage:
         --embeddings embeddings/openvoice_combined_emb.pt \
         --output embeddings/openvoice_vae_combined.pt \
         --epochs 3000 --latent-dims 15 --lr 1e-6
+
+    # Finetune from Common Voice pretraining:
+    python examples/openvoice_train_vae_combined.py \
+        --embeddings embeddings/openvoice_combined_emb.pt \
+        --output embeddings/openvoice_vae_combined_finetuned.pt \
+        --init-checkpoint embeddings/openvoice_vae_commonvoice.pt
 """
 
 import argparse
@@ -34,6 +40,14 @@ import dpvc
 
 UNIFIED_STYLES = ['anger', 'confused', 'disgust', 'enunciated', 'fear',
                   'happy', 'neutral', 'sad', 'whisper']
+
+
+def resolve_device():
+    if torch.cuda.is_available():
+        return "cuda:0"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 def main():
@@ -49,9 +63,14 @@ def main():
                     help="Latent dimensions (default: 15 = 9 style dims + 6 free dims)")
     ap.add_argument("--lr", type=float, default=1e-6,
                     help="Learning rate (default: 1e-6)")
+    ap.add_argument("--init-checkpoint", default=None,
+                    help="Optional checkpoint to load before finetuning")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="Deterministic seed (default: 42)")
     args = ap.parse_args()
 
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    dpvc.utils.set_seed(args.seed)
+    device = resolve_device()
 
     # Load combined embeddings
     data = torch.load(args.embeddings, weights_only=True)
@@ -77,7 +96,12 @@ def main():
 
     # Train
     AE = dpvc.VariationalAutoencoder(
-        latent_dims=args.latent_dims, input_dim=256).to(device)
+        latent_dims=args.latent_dims, input_dim=embeddings.shape[-1]).to(device)
+    if args.init_checkpoint:
+        print(f"Loading init checkpoint from {args.init_checkpoint}")
+        AE.load_state_dict(
+            torch.load(args.init_checkpoint, weights_only=True, map_location=device)
+        )
     dpvc.utils.train_autoencoder(
         AE, embeddings, epochs=args.epochs, labels=labels, lr=args.lr)
 

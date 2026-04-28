@@ -147,6 +147,86 @@ plateaus above 50, try increasing epochs or lowering lr.
 
 Output: `embeddings/openvoice_vae_combined.pt`
 
+### 4b. CommonVoice pretraining extension
+
+If you want to attack the training-coverage bottleneck directly, pretrain the
+VAE on a local Common Voice corpus before finetuning on the combined
+CREMA-D + Expresso labels.
+
+If you only have downloaded Common Voice audio shards plus the full
+`validated.tsv`, first build a filtered local subset that matches the repo's
+expected layout:
+
+```bash
+python scripts/prepare_commonvoice_subset.py \
+    --validated-tsv /path/to/full_validated.tsv \
+    --clips-dir /path/to/cv-corpus-21.0-2025-03-14-subset/en/clips \
+    --output-tsv /path/to/cv-corpus-21.0-2025-03-14-subset/en/validated.tsv \
+    --max-speakers 500 \
+    --max-clips-per-speaker 10 \
+    --seed 42
+```
+
+The validation-scale Pass 2 run used a local `cv500` subset: `500` speakers,
+`1,202` clips, extracted from a larger local pool of `6,795` speakers.
+
+Then extract OpenVoice embeddings from a local Common Voice layout with
+`validated.tsv` and `clips/`:
+
+```bash
+python examples/openvoice_extract_commonvoice.py \
+    --corpus-path /path/to/cv-corpus-21.0-2025-03-14/en \
+    --output embeddings/openvoice_commonvoice_cv500_emb.pt
+```
+
+Then run reconstruction-only pretraining:
+
+```bash
+python examples/openvoice_pretrain_vae_commonvoice.py \
+    --embeddings embeddings/openvoice_commonvoice_cv500_emb.pt \
+    --output embeddings/openvoice_vae_commonvoice_cv500.pt
+```
+
+Finally finetune the combined controllable model from that checkpoint:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt
+```
+
+This preserves the existing controllable training path while letting the model
+start from a broader speaker-distribution prior.
+
+To reproduce the validation-scale comparison from Pass 2, generate the same
+11-speaker evaluation corpus with the finetuned checkpoint:
+
+```bash
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/source_speakers/ \
+    --out output/pass2_cv500_eval/ \
+    --vae-checkpoint embeddings/openvoice_vae_combined_cv500.pt \
+    --all-styles \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+```
+
+Then evaluate and compare against the combined-only baseline:
+
+```bash
+python examples/eval_emotion.py --input output/pass2_cv500_eval/ --out results/eval_emotion_pass2_cv500.csv
+python examples/eval_wer.py     --input output/pass2_cv500_eval/ --out results/eval_wer_pass2_cv500.csv
+python scripts/compare_emotion_eval.py \
+    --baseline results/eval_emotion_pass2_combined.csv \
+    --candidate results/eval_emotion_pass2_cv500.csv
+```
+
+Current result from that `cv500` pass: content preservation improves sharply,
+but emotion control collapses toward `neutral`. See [`FINDINGS.md`](../FINDINGS.md)
+Finding 10 before scaling this recipe up.
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -294,7 +374,10 @@ scores more interpretable.
 | 2 | `openvoice_extract_cremad.py` | HuggingFace | `openvoice_cremad_emb.pt` |
 | 3 | `openvoice_combine_datasets.py` | Step 1 + 2 outputs | `openvoice_combined_emb.pt` |
 | 4 | `openvoice_train_vae_combined.py` | Step 3 output | `openvoice_vae_combined.pt` |
-| 5 | `openvoice_infer_controllable.py` | Step 4 output + audio | `.wav` files |
+| 4b | `openvoice_extract_commonvoice.py` | local Common Voice `validated.tsv` + `clips/` | `openvoice_commonvoice_emb.pt` |
+| 4c | `openvoice_pretrain_vae_commonvoice.py` | Step 4b output | `openvoice_vae_commonvoice.pt` |
+| 4d | `openvoice_train_vae_combined.py --init-checkpoint ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_finetuned.pt` |
+| 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
 | 8 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
@@ -302,7 +385,9 @@ scores more interpretable.
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
 - `openvoice_inference.py` — Basic DP inference without style control.
-- `openvoice_extract_commonvoice.py` — CommonVoice extraction (for future pre-training work).
+- `openvoice_extract_commonvoice.py` — Local Common Voice extraction for pretraining.
+- `openvoice_pretrain_vae_commonvoice.py` — Reconstruction-only VAE pretraining on Common Voice.
+- `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
 

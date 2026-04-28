@@ -301,17 +301,74 @@ This triangulation is what we'd want to see before trusting any single metric. I
 
 ---
 
+## Finding 10: Validation-Scale CommonVoice Pre-Training Improves WER but Collapses Style Toward Neutral
+
+### Methodology
+
+To test the Phase 1.5 hypothesis without waiting for a full Common Voice mirror, we built a **local validation-scale English subset** from downloaded Common Voice 21.0 shards:
+
+- local clips available: `28,116`
+- local speakers matched in `validated.tsv`: `6,795`
+- training subset used for this pass: **`500` speakers / `1,202` clips** (`cv500`)
+
+Pipeline:
+
+1. Build a local `validated.tsv` + `clips/` subset with `scripts/prepare_commonvoice_subset.py`
+2. Extract OpenVoice speaker embeddings with `examples/openvoice_extract_commonvoice.py`
+3. Run reconstruction-only pre-training with `examples/openvoice_pretrain_vae_commonvoice.py`
+4. Finetune the existing CREMA-D + Expresso controllable VAE with `examples/openvoice_train_vae_combined.py --init-checkpoint ...`
+5. Re-run the same 110-file evaluation corpus and compare against the current combined-only baseline
+
+This is an intentionally conservative test: **same controllable training recipe, same source speakers, same evaluation scripts**. The only change is the CommonVoice initialization.
+
+### Results (`cv500` candidate vs current combined-only baseline)
+
+| Metric | Combined-only baseline | CommonVoice `cv500` init | Delta | Takeaway |
+|--------|------------------------|--------------------------|-------|----------|
+| Emotion recall | `17/66 = 25.8%` | `11/66 = 16.7%` | `-9.1 pts` | Worse overall controllability |
+| Neutral recall | `9/11 = 81.8%` | `11/11 = 100%` | `+18.2 pts` | Model got even better at staying neutral |
+| Anger recall | `3/11 = 27.3%` | `0/11 = 0%` | `-27.3 pts` | Previously recoverable style collapsed |
+| Disgust recall | `1/11 = 9.1%` | `0/11 = 0%` | `-9.1 pts` | No gain |
+| Sad recall | `4/11 = 36.4%` | `0/11 = 0%` | `-36.4 pts` | Lost one of the stronger styles |
+| Neutral predictions across all 110 files | `70/110` | `109/110` | `+39 files` | Strong neutral-collapse signature |
+| Mean WER across all 99 non-baseline style rows | `0.235` | `0.084` | `-0.151` | Much better content preservation |
+| Median WER across all 99 non-baseline style rows | `0.143` | `0.000` | `-0.143` | Most candidate outputs transcribe exactly like baseline |
+| Whisper mean WER | `0.448` | `0.111` | `-0.337` | Even the hardest style became far easier for Whisper |
+
+The emotion2vec output distribution makes the failure mode unambiguous: the `cv500` candidate predicts **`neutral` for 109 of 110 files**. Mean `emo_sim` values also jump extremely close to baseline (`0.979–0.998` across styles), which is exactly what we'd expect from a model that learned a tighter reconstruction prior but weakened its style offsets.
+
+### Interpretation
+
+This is a **real negative result**, and an informative one:
+
+1. **Naive reconstruction-only CommonVoice pre-training is not automatically helpful for controllable style generalization.** On this validation-scale run it made the model *less* expressive, not more.
+2. **The gain is real on the content channel.** WER improved substantially, so the pre-training is doing something meaningful: it is regularizing the speaker embedding toward more stable, baseline-like speech.
+3. **The failure mode is over-regularization, not random noise.** The model did not become chaotic; it became too conservative. Almost everything collapsed back toward the neutral/baseline region.
+4. **This does not kill the CommonVoice direction.** It narrows the hypothesis. The question is no longer "does broader speaker coverage help at all?" The question is: **how do we keep the broader speaker prior without washing out the labeled style axes?**
+
+### Implication
+
+For the paper, this gives us a strong and honest intermediate result:
+
+- **positive:** CommonVoice pre-training can improve intelligibility/content preservation dramatically
+- **negative:** the current `cv500` recipe hurts controllability by collapsing style toward neutral
+- **next step:** scale the subset and test gentler finetuning or partial freezing before claiming CommonVoice pre-training improves emotion recall
+
+This is exactly the kind of result worth reporting because it turns a vague Phase 1.5 idea into a concrete research question with a measurable failure mode.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall?** Finding 7 shows the VAE's emotion representations are dataset-specific. Pre-training on a broader base should help. This is Phase 1.5.
+4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. The open question is now whether a larger subset and gentler finetuning can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 7. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 8. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-9. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output. Can we clamp the latent space or detect/reject bad combinations?
+9. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Can we clamp the latent space, partially freeze style dims, or detect/reject bad combinations?
 
 ---
 
@@ -341,6 +398,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 7. emotion2vec evaluation reveals training gap: 22.2% recall at current scale — motivates CommonVoice pre-training
 8. Style control preserves intelligibility (WER sanity check): 6 of 9 styles have median WER ≤ 0.20 against same-speaker baseline; whisper is the only style with systemic loss
 9. Predicted MOS confirms naturalness preservation for 6 of 9 styles; emo_sim + WER + MOS converge on the same three hardest styles (whisper, confused, anger) — cross-metric triangulation validates the signal
+10. Validation-scale CommonVoice pre-training (`cv500`) is a mixed result: WER improves sharply, but emotion recall drops and the model collapses toward neutral. The CommonVoice direction remains promising, but the naive recipe is not paper-ready yet.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

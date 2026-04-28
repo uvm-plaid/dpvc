@@ -10,6 +10,15 @@ These are the full 258-file sweep over 27 speaker/variant configurations run on
 | `eval_wer_full.csv`     | 258 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Finding 8 (drift-from-baseline WER) |
 | `eval_mos_full.csv`     | 258 | [`examples/eval_mos.py`](../examples/eval_mos.py)         | Finding 9 (SQUIM_SUBJECTIVE predicted MOS) |
 
+Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
+
+| File | Rows | Script | Backs |
+|------|------|--------|-------|
+| `eval_emotion_pass2_combined.csv` | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | Pass 2 combined-only baseline for Finding 10 |
+| `eval_wer_pass2_combined.csv`     | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Pass 2 combined-only baseline for Finding 10 |
+| `eval_emotion_pass2_cv500.csv`    | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | Finding 10 (`cv500` CommonVoice init candidate) |
+| `eval_wer_pass2_cv500.csv`        | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Finding 10 (`cv500` CommonVoice init candidate) |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -61,3 +70,52 @@ style strength, seed, and checkpoint used for each row in the evaluation
 corpus.
 
 Numbers should reproduce within rounding.
+
+## Pass 2 Reproduction (`cv500`)
+
+This is the validation-scale CommonVoice pretraining comparison used in
+Finding 10. It compares the current combined-only checkpoint against a
+CommonVoice-initialized checkpoint trained on a local `cv500` subset
+(`500` speakers / `1,202` clips).
+
+```bash
+# Combined-only baseline corpus
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/source_speakers/ \
+    --out output/pass2_combined_eval/ \
+    --vae-checkpoint embeddings/openvoice_vae_combined.pt \
+    --all-styles \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python examples/eval_emotion.py --input output/pass2_combined_eval/ --out results/eval_emotion_pass2_combined.csv
+python examples/eval_wer.py     --input output/pass2_combined_eval/ --out results/eval_wer_pass2_combined.csv
+
+# CommonVoice-pretrained candidate corpus
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/source_speakers/ \
+    --out output/pass2_cv500_eval/ \
+    --vae-checkpoint embeddings/openvoice_vae_combined_cv500.pt \
+    --all-styles \
+    --style-strength 5.0 \
+    --noise-level 0.0 \
+    --seed 42
+
+python examples/eval_emotion.py --input output/pass2_cv500_eval/ --out results/eval_emotion_pass2_cv500.csv
+python examples/eval_wer.py     --input output/pass2_cv500_eval/ --out results/eval_wer_pass2_cv500.csv
+
+# Emotion recall delta
+python scripts/compare_emotion_eval.py \
+    --baseline results/eval_emotion_pass2_combined.csv \
+    --candidate results/eval_emotion_pass2_cv500.csv
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- emotion recall gets worse (`25.8%` -> `16.7%`)
+- predicted labels collapse almost entirely to `neutral` (`70/110` -> `109/110`)
+- WER improves substantially (`0.235` -> `0.084` mean across all non-baseline style rows)
+
+That makes the `cv500` run a useful negative result: better content
+preservation, weaker style controllability.
