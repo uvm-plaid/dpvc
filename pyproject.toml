@@ -21,13 +21,14 @@ dependencies = [
     "soundfile",
     "tqdm",
     "joblib",
+    "requests",
     "amfm_decompy",
     "omegaconf==2.0.6",
 ]
 
 [project.optional-dependencies]
 openvoice = ["MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git"]
-expresso = ["datasets"]
+expresso = ["datasets", "pandas"]
 eval = [
     "funasr",           # emotion2vec_plus_large for eval_emotion.py
     "openai-whisper",   # ASR for eval_wer.py

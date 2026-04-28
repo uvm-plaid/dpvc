@@ -1,18 +1,27 @@
 import torch
-import os
-import random
 
 from .model_embedding_vae import VariationalAutoencoder
 from . import utils
 
 class Anonymizer:
-    def __init__(self, vc_wrapper, vae_config=None):
+    def __init__(self, vc_wrapper, vae_config=None, vae_checkpoint_path=None):
+        """Create an anonymizer for a wrapper-backed VC system.
+
+        `vae_config` is the canonical interface. `vae_checkpoint_path` is kept
+        as a temporary compatibility alias so older examples continue to work
+        while the docs migrate to the config-dict pattern.
+        """
         device="cuda:0" if torch.cuda.is_available() else "cpu"
 
         self.vc_wrapper = vc_wrapper
 
         if vae_config is None:
             vae_config = vc_wrapper.get_vae_config()
+        else:
+            vae_config = dict(vae_config)
+
+        if vae_checkpoint_path is not None:
+            vae_config['checkpoint_path'] = vae_checkpoint_path
 
         ae_path = vae_config['checkpoint_path']
 

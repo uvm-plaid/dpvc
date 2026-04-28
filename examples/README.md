@@ -3,6 +3,9 @@
 End-to-end guide for reproducing the controllable voice anonymization results
 using OpenVoice as the VC backend.
 
+This is the repository's **active** controllable pipeline. ControlVC is still
+available as a DP baseline, but style-control work should start here.
+
 ## Quick Start
 
 If you just want to run inference with a pre-trained VAE:
@@ -25,24 +28,52 @@ python examples/openvoice_infer_controllable.py \
     --all-styles
 ```
 
+Batch-generate the same 10-file set (baseline + 9 styles) for every `.wav`
+in `examples/source_speakers/`:
+
+```bash
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/source_speakers/ \
+    --out output/diverse_speakers/ \
+    --vae-checkpoint embeddings/openvoice_vae_combined.pt \
+    --all-styles
+```
+
+Each run writes a JSONL manifest by default. Single-file runs create
+`<out_stem>_manifest.jsonl`; batch runs create
+`<out>/generation_manifest.jsonl`.
+
 ## Full Pipeline
 
 ### 0. Environment Setup
 
 ```bash
-# Create venv (Python 3.9-3.12)
+# Create venv (tested with Python 3.12 in .venv)
 python -m venv .venv
 source .venv/bin/activate
 
 # Install dpvc with OpenVoice support
 pip install -e ".[openvoice]"
 
-# Additional dependencies for dataset extraction
-pip install datasets pandas
+# Dataset extraction
+pip install -e ".[expresso]"
+
+# Optional evaluation stack
+pip install -e ".[eval]"
 ```
 
 OpenVoice model checkpoints download automatically on first use to
 `~/.cache/openvoice_checkpoint/`.
+
+Tested Pass 1 environment:
+
+- `torch==2.9.1`
+- `torchaudio==2.9.1`
+- `numpy==2.3.5`
+- `librosa==0.9.1`
+- `soundfile==0.13.1`
+- `datasets==4.8.4`
+- `pandas==3.0.2`
 
 ### 1. Extract Expresso Embeddings
 
@@ -139,12 +170,26 @@ python examples/openvoice_infer_controllable.py \
     --noise-level 0.1
 ```
 
+Batch-generate for a whole directory of sources:
+
+```bash
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/source_speakers/ \
+    --out output/diverse_speakers/ \
+    --vae-checkpoint embeddings/openvoice_vae_combined.pt \
+    --all-styles \
+    --noise-level 0.1
+```
+
 Key parameters:
 - `--style-strength` (default 5.0): How hard to push the style. Higher = more
   pronounced but risks output collapse on some speakers. Try 3.0 for safer results.
 - `--noise-level` (default 0.0): DP noise. 0.1 = light privacy with good style
   preservation. 0.5+ degrades style and can make baseline unintelligible.
 - `--seed` (default 42): For reproducible outputs. Use -1 for random.
+- `--manifest` (optional): Override the default manifest path. The manifest
+  records source path, output path, style, style strength, noise level, seed,
+  checkpoint, and latent dimensions for each generated file.
 
 ## Evaluation
 
@@ -265,7 +310,9 @@ scores more interpretable.
 The `controlvc_*` scripts are the ControlVC equivalents. These require cloning
 the control-vc repo and passing `--repo-root`. Note: ControlVC's D_VECTOR
 embedding does not encode style (see FINDINGS.md, Finding 1), so style
-control does not work with ControlVC.
+control does not work with ControlVC. Treat those scripts as the ControlVC DP
+baseline path, not as the main controllable pipeline. Setup details live in
+`docs/controlvc_setup.md`.
 
 ## Troubleshooting
 
@@ -283,7 +330,8 @@ a different source speaker. This affects ~9% of speaker-style combinations.
 `--latent-dims` than what you're loading with. The combined VAE uses 15 dims.
 Pass `--latent-dims 15`.
 
-**fairseq errors on Apple Silicon**: fairseq may fail on MPS. Force CPU:
+**fairseq errors on Apple Silicon**: this only applies to the ControlVC
+baseline path. fairseq may fail on MPS; force CPU:
 ```bash
 export CUDA_VISIBLE_DEVICES=""
 ```

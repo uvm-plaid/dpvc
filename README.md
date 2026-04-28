@@ -13,9 +13,16 @@ Active branch: **`feat/cremad-experiments`**. We've extended the library with a 
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
+OpenVoice is the **canonical controllable pipeline**. ControlVC remains in the
+repository as a useful DP baseline and wrapper reference, but not as the
+recommended path for style control.
+
 ## Installation
 
-Clone this repository, then install with the extras you need:
+Clone this repository, then install with the extras you need. The active
+OpenVoice path is covered by package extras; the ControlVC baseline has a
+separate setup guide because it depends on an external repo plus Python 3.10 /
+fairseq compatibility work.
 
 ```bash
 # Core library only
@@ -30,6 +37,21 @@ pip install -e ".[openvoice,expresso]"
 # + Evaluation pipeline (emotion2vec, Whisper WER, predicted MOS)
 pip install -e ".[openvoice,expresso,eval]"
 ```
+
+Tested Pass 1 environment in `.venv`:
+
+- `torch==2.9.1`
+- `torchaudio==2.9.1`
+- `numpy==2.3.5`
+- `librosa==0.9.1`
+- `soundfile==0.13.1`
+- `datasets==4.8.4`
+- `pandas==3.0.2`
+- `funasr==1.3.1`
+- `openai-whisper==20250625`
+- `jiwer==4.0.0`
+
+For ControlVC-specific setup, use [`docs/controlvc_setup.md`](docs/controlvc_setup.md).
 
 ## Example: basic DP anonymization (OpenVoice)
 
@@ -47,6 +69,7 @@ See also:
 - `examples/openvoice_inference.py` — basic anonymization (no style control).
 - `examples/openvoice_train_vae.py` — train a custom DP-VAE for the anonymizer.
 - `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
+- `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation
 

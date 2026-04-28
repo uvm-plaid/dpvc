@@ -55,4 +55,9 @@ python examples/eval_wer.py     --input output/diverse_speakers/ --out results/e
 python examples/eval_mos.py     --input output/diverse_speakers/ --out results/eval_mos_full.csv
 ```
 
+The generation step also writes `output/diverse_speakers/generation_manifest.jsonl`.
+That manifest records the exact source file, output file, style, noise level,
+style strength, seed, and checkpoint used for each row in the evaluation
+corpus.
+
 Numbers should reproduce within rounding.

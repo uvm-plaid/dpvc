@@ -1,12 +1,20 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-04-17
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`
+**Last updated:** 2026-04-28
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
 
 ## 0. Roadmap
+
+Priority tags:
+- `NOW` = immediate next work; unblocks reproducibility or addresses the main research bottleneck
+- `SOON` = important after the `NOW` items are stable
+- `LATER` = downstream, stretch, or productization work
+
+### Phase 0.5: Consolidate Active Path
+- [x] `[NOW]` Consolidate the active controllable pipeline around OpenVoice; treat ControlVC as a useful DP baseline and negative result for style control
 
 ### Phase 1: Core Controllability (prove it works)
 - [x] End-to-end pipeline: extract → train VAE → infer → intelligible speech
@@ -19,13 +27,13 @@
 - [x] Per-speaker style evaluation: brightness is the reliable cross-speaker metric, not F0
 
 ### Phase 1.5: Scale Up Speaker Diversity (Joe's suggestion, April 16)
-- [ ] Extract OpenVoice embeddings from CommonVoice (20k+ speakers, no style labels)
-- [ ] Pre-train VAE on CommonVoice (reconstruction loss only)
-- [ ] Finetune on CREMA-D + Expresso (style labels, label loss)
-- [ ] Compare with current combined-only VAE: does pre-training reduce collapse rate?
-- [ ] Add age/gender control dims using CommonVoice metadata (dims 9-10)
-- [ ] Test orthogonality: does pushing emotion dims shift perceived age/gender?
-- [ ] **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
+- [ ] `[NOW]` Extract OpenVoice embeddings from CommonVoice (20k+ speakers, no style labels)
+- [ ] `[NOW]` Pre-train VAE on CommonVoice (reconstruction loss only)
+- [ ] `[NOW]` Finetune on CREMA-D + Expresso (style labels, label loss)
+- [ ] `[NOW]` Compare with current combined-only VAE: does pre-training reduce collapse rate?
+- [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
+- [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
+- [ ] `[SOON]` **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
 
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
 - [x] **Research TTS controllability evaluation metrics** — settled on EmoVoice pipeline (arxiv 2504.12867, Joe's suggestion): emotion2vec Recall Rate + emo_sim (primary), UTMOS (naturalness), WER (intelligibility)
@@ -33,42 +41,63 @@
 - [x] Run emotion eval on full 258-file diverse-speaker corpus: **36/162 = 22.2% overall recall** at strength=5.0; per-style neutral 67%, anger 30%, sad 26%, disgust 11%, fear 0%, happy 0%. Whisper has the largest emo_sim deviation (0.875 mean, 0.616 min) — emo_sim validated as a secondary signal for styles with no emotion2vec counterpart
 - [x] Word error rate via Whisper: `examples/eval_wer.py` runs Whisper `base` on a directory and computes per-file WER against the same-speaker baseline (April 17). **Result: 6 of 9 styles have median WER ≤ 0.20; whisper is the only style with systemic loss (mean 0.356). Style control is orthogonal to the content channel.**
 - [x] Predicted MOS via torchaudio SQUIM_SUBJECTIVE (UTMOS substitute — the `utmos` pip package conflicts with our fairseq monkey-patches). `examples/eval_mos.py`, runs on directory, outputs MOS + delta-vs-baseline per file. **Result: baseline MOS 4.05; 6 of 9 styles stay within 0.12 MOS of baseline; whisper/confused/anger degrade most. emo_sim + WER + MOS converge on the same three hardest styles — cross-metric triangulation validates the evaluation pipeline.** (April 17)
-- [ ] Speaker novelty metric — show that generated speakers are genuinely different from source (EER or embedding distance). Per Joe (April 16 evening): this is a proof-of-novelty metric in our framing, not a privacy metric
-- [ ] Speaker verification / privacy metric (secondary — Joe: "not sure we want to focus on privacy as the main thing")
-- [ ] Ablation study: CREMA-D only vs. Expresso only vs. combined (already have data for this)
-- [ ] Compare with naive baseline: random noise without style control
-- [ ] Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88)
-- [ ] Investigate F0-based re-identification attack: can F0 alone re-identify speakers after embedding anonymization?
-- [ ] Address collapse issue: 9% of speaker-style combinations produce unintelligible output (Joe says expected, no perfect fix needed, but worth tracking)
+- [ ] `[NOW]` Speaker novelty metric — show that generated speakers are genuinely different from source (EER or embedding distance). Per Joe (April 16 evening): this is a proof-of-novelty metric in our framing, not a privacy metric
+- [ ] `[SOON]` Speaker verification / privacy metric (secondary — Joe: "not sure we want to focus on privacy as the main thing")
+- [ ] `[SOON]` Ablation study: CREMA-D only vs. Expresso only vs. combined (already have data for this)
+- [ ] `[SOON]` Compare with naive baseline: random noise without style control
+- [ ] `[SOON]` Write up negative result: ControlVC D_VECTOR doesn't encode style (separability ratio 0.88)
+- [ ] `[LATER]` Investigate F0-based re-identification attack: can F0 alone re-identify speakers after embedding anonymization?
+- [ ] `[SOON]` Address collapse issue: 9% of speaker-style combinations produce unintelligible output (Joe says expected, no perfect fix needed, but worth tracking)
 
 ### Phase 2.5: Framing-driven tasks (from Joe's April 16 evening message)
 
 Joe clarified that our problem is **controllable speaker generation for voice-to-voice** — a more general problem than VoicePrivacy (preserves emotion) or TTS (generates from text). The VAE enables multiple use cases; we've been showcasing only one.
 
-- [ ] **Demo use case #2: emotion change without identity change** — modify style latent dims while keeping the rest of the embedding fixed. Same-sounding person, different mood. Needs a new inference mode in `openvoice_infer_controllable.py` (or a new script) that takes a *source* speaker and only perturbs style dims instead of re-sampling the whole latent.
-- [ ] **Demo use case #3: fully random speaker with style control** — sample the VAE from prior (no source speaker reference) and apply style. Produces a brand-new speaker targeting a specific emotion.
-- [ ] **Demo use case #4: random speaker near an existing one** — sample in a neighborhood of the source speaker's latent code (small sigma) rather than from the full prior.
-- [ ] **Literature search for SOTA comparison** — what systems claim controllable speaker generation for voice-to-voice? Need to know what we're being compared against for Joe's "might be SOTA" claim. *Blocked: waiting for Joe's reply on April 17 message.*
+- [ ] `[SOON]` **Demo use case #2: emotion change without identity change** — modify style latent dims while keeping the rest of the embedding fixed. Same-sounding person, different mood. Needs a new inference mode in `openvoice_infer_controllable.py` (or a new script) that takes a *source* speaker and only perturbs style dims instead of re-sampling the whole latent.
+- [ ] `[SOON]` **Demo use case #3: fully random speaker with style control** — sample the VAE from prior (no source speaker reference) and apply style. Produces a brand-new speaker targeting a specific emotion.
+- [ ] `[SOON]` **Demo use case #4: random speaker near an existing one** — sample in a neighborhood of the source speaker's latent code (small sigma) rather than from the full prior.
+- [ ] `[LATER]` **Literature search for SOTA comparison** — what systems claim controllable speaker generation for voice-to-voice? Need to know what we're being compared against for Joe's "might be SOTA" claim. *Blocked: waiting for Joe's reply on April 17 message.*
 
 ### Phase 3: Reproducibility & Collaboration (for Joe)
 - [x] Commit training script + inference CLI + README (done April 16, during call)
 - [x] Add evaluation script (`eval_emotion.py`) with README docs — reproducible emotion2vec + emo_sim pipeline (April 17)
 - [x] Add WER evaluation script (`eval_wer.py`) — Whisper + jiwer, drift-from-baseline mode by default, fixed-reference mode via `--reference-text` (April 17)
 - [x] Add MOS evaluation script (`eval_mos.py`) — torchaudio SQUIM_SUBJECTIVE, baseline-as-reference mode by default, fixed-reference mode via `--reference` (April 17)
-- [ ] Share Expresso download instructions with Joe
-- [ ] Ensure Joe can run extraction + training + inference from scratch
-- [ ] Pin dependencies (fairseq compat, OpenVoice install steps)
+- [ ] `[NOW]` Share Expresso download instructions with Joe
+- [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
+- [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
+- [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
+- [ ] `[SOON]` Add an automated smoke test for `openvoice_infer_controllable.py --source-dir` + manifest generation against cached local checkpoints
 
 ### Phase 4: Application / Demo
-- [ ] Design interactive demo: upload voice → choose style → choose privacy level → download anonymized output
-- [ ] Web UI or CLI tool that non-researchers can use
-- [ ] Real-time voice conversion mode (stretch goal)
-- [ ] Package as installable tool (pip install dpvc or similar)
+- [ ] `[LATER]` Design interactive demo: upload voice → choose style → choose privacy level → download anonymized output
+- [ ] `[LATER]` Web UI or CLI tool that non-researchers can use
+- [ ] `[LATER]` Real-time voice conversion mode (stretch goal)
+- [ ] `[LATER]` Package as installable tool (pip install dpvc or similar)
 
 ### Key Insight from Joe (April 9 call)
 > "If I want to invent a completely hypothetical speaker who has some properties, everybody's bad at that. And in some ways, that's what we're trying to do. If we can make this work, that's a big deal."
 
 The paper contribution is **controllable speaker profile synthesis with formal privacy guarantees** — something the speech community has struggled with. Even without the privacy angle, demonstrating controllability over speaker profiles is itself a significant result.
+
+### 0.6 Pass 1 Closeout (April 28, branch `feat/openvoice-pipeline-stabilization`)
+
+- Reframed the public docs so **OpenVoice is the active controllable pipeline** and **ControlVC is the DP baseline / negative-result path for style control**
+- Added a temporary `vae_checkpoint_path` compatibility alias back to `dpvc.Anonymizer`, while keeping `vae_config` as the canonical interface for new docs and scripts
+- Extended `examples/openvoice_infer_controllable.py` with:
+  - `--source-dir` batch generation
+  - default JSONL manifest output (`generation_manifest.jsonl` for batch runs)
+  - manifest rows containing source path, output path, style, style strength, noise level, seed, checkpoint, and latent dims
+- Updated `README.md`, `examples/README.md`, `results/README.md`, `docs/using.md`, `docs/training.md`, and ControlVC docs to match the real interfaces and current project framing
+- Fixed packaging drift for the active OpenVoice path: `requests` is now a base dependency, `pandas` is included in the `expresso` extra
+
+**Verification**
+- `./.venv/bin/python examples/openvoice_infer_controllable.py --help` shows the new `--source-dir` and `--manifest` interface
+- `./.venv/bin/python` compatibility smoke test confirmed both `Anonymizer(..., vae_checkpoint_path=...)` and `Anonymizer(..., vae_config=...)` load the same VAE class successfully
+- Real OpenVoice run completed on a one-file source directory: baseline + 9 style outputs written to `/tmp/dpvc_pass1_out/`, with a 10-row manifest at `/tmp/dpvc_pass1_out/generation_manifest.jsonl`
+
+**FINDINGS.md review**
+- Reviewed after Pass 1. No new paper-facing scientific finding was added because this pass stabilized interfaces and reproducibility rather than producing new experimental evidence.
 
 ---
 
