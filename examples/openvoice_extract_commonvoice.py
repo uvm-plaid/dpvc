@@ -34,6 +34,20 @@ def resolve_accent_column(df):
     return None
 
 
+def print_metadata_report(report):
+    for field, summary in report.items():
+        print(
+            f"{field:>6s}: known={summary['known']}/{summary['total']}  "
+            f"missing={summary['missing']}  unique={summary['unique_known']}"
+        )
+        top_values = summary.get('top_values', [])
+        if top_values:
+            top_str = ", ".join(
+                f"{row['value']} ({row['count']})" for row in top_values[:5]
+            )
+            print(f"        top values: {top_str}")
+
+
 def parse_args():
     ap = argparse.ArgumentParser(
         description="Extract OpenVoice embeddings from a local Common Voice corpus")
@@ -60,6 +74,7 @@ def save_checkpoint(path, save_dict):
 def build_save_dict(embeddings, speaker_ids, clip_paths, ages, genders, accents,
                     corpus_path, seed, max_clips_per_speaker, missing_files,
                     unreadable_files):
+    metadata_report = utils.build_commonvoice_metadata_report(ages, genders, accents)
     return {
         "data": torch.vstack(embeddings),
         "speaker_ids": speaker_ids,
@@ -67,6 +82,7 @@ def build_save_dict(embeddings, speaker_ids, clip_paths, ages, genders, accents,
         "age": ages,
         "gender": genders,
         "accent": accents,
+        "metadata_report": metadata_report,
         "corpus_path": str(corpus_path),
         "seed": seed,
         "max_clips_per_speaker": max_clips_per_speaker,
@@ -201,6 +217,8 @@ def main():
     print(f"Unique speakers extracted: {len(set(out_speaker_ids))}")
     print(f"Missing clip files skipped: {missing_files}")
     print(f"Unreadable clip files skipped: {unreadable_files}")
+    print("Metadata coverage on extracted rows:")
+    print_metadata_report(save_dict["metadata_report"])
 
 
 if __name__ == "__main__":

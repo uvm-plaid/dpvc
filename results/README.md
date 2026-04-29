@@ -74,6 +74,20 @@ Pass 7 CommonVoice rich-objective artifacts from 2026-04-29:
 | `eval_commonvoice_rich_objectives_summary_pass7.csv` | 6 conditions | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 top-line matrix |
 | `eval_commonvoice_rich_objectives_collapse_pass7.csv` | per generated file | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 collapse taxonomy |
 
+Pass 8 CommonVoice partial-label artifacts from 2026-04-29:
+
+| Bundle | Rows | Scripts | Backs |
+|--------|------|---------|-------|
+| `pass8_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 combined reference condition |
+| `pass8_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 raw `cv500` reference condition |
+| `pass8_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best Pass 5 finetune reference |
+| `pass8_cv500_rich_free_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best Pass 7 rich-objective reference |
+| `pass8_cv500_pl_meta` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 metadata-only weak-label condition |
+| `pass8_cv500_pl_pseudo_style` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 pseudo-style weak-label condition |
+| `pass8_cv500_pl_meta_plus_pseudo` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 hybrid weak-label condition |
+| `eval_commonvoice_partial_label_summary_pass8.csv` | 7 conditions | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 top-line matrix |
+| `eval_commonvoice_partial_label_collapse_pass8.csv` | per generated file | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 collapse taxonomy |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -159,6 +173,19 @@ Pass 7 CommonVoice rich-objective artifacts from 2026-04-29:
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
 
 - same taxonomy as Passes 4-6, but applied to the CommonVoice rich-objective matrix
+
+### `eval_commonvoice_partial_label_summary_pass8.csv`
+`condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_best_ft, delta_novelty_vs_best_ft, delta_wer_vs_best_ft, delta_mos_delta_vs_best_ft, delta_recall_vs_best_rich, delta_novelty_vs_best_rich, delta_wer_vs_best_rich, delta_mos_delta_vs_best_rich, delta_recall_vs_combined, delta_novelty_vs_combined, delta_wer_vs_combined, delta_mos_delta_vs_combined`
+
+- same core fields as Passes 5-7
+- `best_ft` is `cv500_ft_short_low_lr`
+- `best_rich` is `cv500_rich_free_anchor`
+- deltas make the Pass 8 weak-label conditions directly comparable to the strongest earlier CommonVoice baselines
+
+### `eval_commonvoice_partial_label_collapse_pass8.csv`
+`condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
+
+- same taxonomy as Passes 4-7, but applied to the CommonVoice weak-label matrix
 
 ## Reproducing
 
@@ -564,3 +591,80 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500_rich_free_anchor` is the strongest Pass 7 variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty and identity collapse
 - `cv500_rich_teacher_style` and `cv500_rich_teacher_plus_anchor` stay in the same conservative neutral-collapse basin
 - the next CommonVoice experiments should focus on richer supervision earlier in the pipeline, partial-label/pseudo-label CommonVoice objectives, or larger-scale training once a stronger objective survives on the validation corpus
+
+---
+
+## Pass 8 Reproduction (CommonVoice partial-label / pseudo-label pretraining)
+
+Pass 8 tests whether adding weak supervision during the CommonVoice stage
+itself helps before combined finetuning begins.
+
+First annotate the CommonVoice embedding artifact with pseudo labels:
+
+```bash
+python scripts/annotate_commonvoice_pseudolabels.py \
+    --embeddings embeddings/openvoice_commonvoice_cv500_emb.pt \
+    --output embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --report-threshold 0.6
+```
+
+Train the three weak-supervision CommonVoice pretraining variants:
+
+```bash
+python examples/openvoice_pretrain_vae_commonvoice.py \
+    --embeddings embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --output embeddings/openvoice_vae_commonvoice_cv500_pl_meta.pt \
+    --epochs 3000 \
+    --metadata-targets gender,age_bucket \
+    --metadata-weight 0.5
+
+python examples/openvoice_pretrain_vae_commonvoice.py \
+    --embeddings embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --output embeddings/openvoice_vae_commonvoice_cv500_pl_pseudo_style.pt \
+    --epochs 3000 \
+    --pseudo-style-weight 1.0 \
+    --pseudo-style-threshold 0.6
+
+python examples/openvoice_pretrain_vae_commonvoice.py \
+    --embeddings embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --output embeddings/openvoice_vae_commonvoice_cv500_pl_meta_plus_pseudo.pt \
+    --epochs 3000 \
+    --metadata-targets gender,age_bucket \
+    --metadata-weight 0.5 \
+    --pseudo-style-weight 1.0 \
+    --pseudo-style-threshold 0.6
+```
+
+Finetune on the combined labeled embeddings:
+
+```bash
+python examples/openvoice_train_vae_combined.py --embeddings embeddings/openvoice_combined_emb.pt --output embeddings/openvoice_vae_combined_cv500_pl_meta.pt --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500_pl_meta.pt --epochs 1000 --lr 3e-7
+python examples/openvoice_train_vae_combined.py --embeddings embeddings/openvoice_combined_emb.pt --output embeddings/openvoice_vae_combined_cv500_pl_pseudo_style.pt --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500_pl_pseudo_style.pt --epochs 1000 --lr 3e-7
+python examples/openvoice_train_vae_combined.py --embeddings embeddings/openvoice_combined_emb.pt --output embeddings/openvoice_vae_combined_cv500_pl_meta_plus_pseudo.pt --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500_pl_meta_plus_pseudo.pt --epochs 1000 --lr 3e-7
+```
+
+Generate the three matched corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_pl_meta --out output/pass8_cv500_pl_meta_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_pl_pseudo_style --out output/pass8_cv500_pl_pseudo_style_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_pl_meta_plus_pseudo --out output/pass8_cv500_pl_meta_plus_pseudo_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the four metrics on each corpus, reuse the unchanged reference CSVs in the
+Pass 8 naming scheme, then summarize:
+
+```bash
+python examples/eval_emotion.py --input output/pass8_cv500_pl_meta_eval --out results/eval_emotion_pass8_cv500_pl_meta.csv
+python examples/eval_novelty.py --manifest output/pass8_cv500_pl_meta_eval/generation_manifest.jsonl --out results/eval_novelty_pass8_cv500_pl_meta.csv
+python examples/eval_wer.py     --input output/pass8_cv500_pl_meta_eval --out results/eval_wer_pass8_cv500_pl_meta.csv
+python examples/eval_mos.py     --input output/pass8_cv500_pl_meta_eval --out results/eval_mos_pass8_cv500_pl_meta.csv
+python scripts/summarize_commonvoice_partial_label.py
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- none of the weak-label variants improves recall beyond `16.7%`
+- `cv500_pl_meta` is the best novelty result of the new variants (`0.0570`), but it still trails `cv500_ft_short_low_lr` (`0.0692`) and `cv500_rich_free_anchor` (`0.0646`)
+- `cv500_pl_pseudo_style` and `cv500_pl_meta_plus_pseudo` produce the best WER of any CommonVoice variants tested so far (`0.0263` and `0.0285`), but they do so by collapsing toward baseline identity (`85-90` identity-collapse rows)
+- the next CommonVoice work should focus on better pseudo-label quality, stronger teacher/prototype targets during CommonVoice pretraining, or curriculum strategies rather than simply adding these weak labels at the current validation scale

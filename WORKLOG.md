@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-04-29
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -37,8 +37,11 @@ Priority tags:
 - [x] `[SOON]` Test layer-granular freezing or loss-weight schedules instead of full encoder/decoder freezes; Pass 6 result: simple CommonVoice loss reweighting (`label2`, `label4`, label-ramp, reduced-reconstruction) still leaves recall flat at `16.7%` and does not beat `cv500_ft_short_low_lr`
 - [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Passes 6-7 suggest finetune-time reweighting and teacher/anchor finetuning are still too weak when the CommonVoice stage itself remains purely reconstruction-driven
 - [x] `[SOON]` Test richer CommonVoice adaptation objectives (teacher or latent anchoring, curriculum label emphasis, or partial-label pretraining) because Pass 6 shows simple loss-weight ramps do not restore recall or beat the best Pass 5 novelty recovery. **Pass 7 result:** teacher-style distillation and free-dim anchoring preserve WER/MOS better than some earlier variants, but recall stays flat at `16.7%` and none beats `cv500_ft_short_low_lr` on novelty or identity collapse
-- [ ] `[SOON]` Test richer CommonVoice adaptation objectives that use partial labels, pseudo-labels, or a better pretraining objective on CommonVoice itself; Pass 7 suggests teacher/anchor losses applied only during combined finetuning still do not restore broad style control
+- [x] `[SOON]` Test richer CommonVoice adaptation objectives that use partial labels, pseudo-labels, or a better pretraining objective on CommonVoice itself; Pass 8 result: metadata-only weak supervision gives modest novelty recovery (`0.0570`) but no recall gain, while pseudo-style supervision drives WER down sharply (`0.0263-0.0285`) at the cost of even lower novelty (`0.0190-0.0181`) and much higher identity collapse (`85-90`)
 - [ ] `[SOON]` Compare teacher-style distillation against prototype-style or curriculum supervision in the labeled style subspace, because Pass 7's latent teacher/anchor losses improved stability more than control
+- [ ] `[SOON]` Improve CommonVoice pseudo-label quality and calibration (better teacher, confidence filtering, or class-balanced acceptance), because Pass 8 suggests the current pseudo-style labels over-regularize the model into a conservative neutral / baseline-identity basin
+- [ ] `[SOON]` Test prototype-style or teacher-embedding targets during CommonVoice pretraining itself, not just combined finetuning, because Pass 8's label-space pseudo supervision preserved intelligibility much more than controllability
+- [ ] `[SOON]` Compare metadata-only weak supervision against stronger free-dim supervision (for example: age/gender/accent + auxiliary speaker-structure constraints), because Pass 8 suggests metadata shapes novelty a little but does not recover recall
 - [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune and objective variants; Passes 5-7 suggest novelty returns first for a few conservative styles, not as broad emotion recovery
 - [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
@@ -471,6 +474,107 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 7 with a new paper-facing result: richer teacher/anchor supervision during combined finetuning still does not recover recall after CommonVoice pretraining, which suggests the remaining bottleneck is deeper than finetune-time scalar tuning or the first richer-objective family tried here.
+
+### 0.13 Pass 8 Closeout (April 29, branch `research/commonvoice-partial-label-pretrain`)
+
+- Extended `examples/openvoice_extract_commonvoice.py` so saved CommonVoice embedding artifacts now include a `metadata_report` summarizing field coverage and categorical distributions
+- Extended `dpvc/utils.py` with CommonVoice weak-supervision helpers:
+  - metadata coverage summarization utilities
+  - `train_commonvoice_pretrain(...)` for reconstruction + masked metadata + pseudo-style losses
+  - inverse-frequency balancing for metadata classes and pseudo-style rows
+- Extended `examples/openvoice_pretrain_vae_commonvoice.py` with weak-label CLI support:
+  - `--metadata-targets`
+  - `--metadata-weight`
+  - `--metadata-min-count`
+  - `--pseudo-style-weight`
+  - `--pseudo-style-threshold`
+  - `--style-dims`
+  - `--free-dims`
+- Added `scripts/annotate_commonvoice_pseudolabels.py`
+  - reads a CommonVoice embedding artifact
+  - adds `pseudo_style`, `pseudo_style_confidence`, `pseudo_style_raw_label`, `pseudo_style_report`
+  - keeps all pseudo labels in the artifact and uses thresholds only at training/report time so later threshold sweeps do not require relabeling
+- Extended `scripts/run_ablation_inference.py` with three Pass 8 weak-supervision conditions:
+  - `cv500_pl_meta`
+  - `cv500_pl_pseudo_style`
+  - `cv500_pl_meta_plus_pseudo`
+- Added `scripts/summarize_commonvoice_partial_label.py`
+  - reads `results/eval_*_pass8_*.csv`
+  - writes `results/eval_commonvoice_partial_label_summary_pass8.csv`
+  - writes `results/eval_commonvoice_partial_label_collapse_pass8.csv`
+- Recorded CommonVoice metadata sparsity on the `cv500` subset artifact:
+  - age known on `193/1202` clips
+  - gender known on `184/1202`
+  - accent known on `190/1202`
+  - only two age buckets (`young`, `adult`) had enough support for the metadata-weighted run at the default minimum-count filter
+- Generated a pseudo-labeled CommonVoice artifact:
+  - `embeddings/openvoice_commonvoice_cv500_pseudo.pt`
+  - accepted pseudo-style counts at threshold `0.60`: `neutral=640`, `sad=336`, `happy=51`, `disgust=46`, `anger=11`, `fear=5`
+  - this class imbalance is why Pass 8 used inverse-frequency row weighting for pseudo-style supervision
+- Trained the three new CommonVoice pretraining variants:
+  - `embeddings/openvoice_vae_commonvoice_cv500_pl_meta.pt`
+  - `embeddings/openvoice_vae_commonvoice_cv500_pl_pseudo_style.pt`
+  - `embeddings/openvoice_vae_commonvoice_cv500_pl_meta_plus_pseudo.pt`
+- Finetuned each one on the unchanged combined labeled embeddings:
+  - `embeddings/openvoice_vae_combined_cv500_pl_meta.pt`
+  - `embeddings/openvoice_vae_combined_cv500_pl_pseudo_style.pt`
+  - `embeddings/openvoice_vae_combined_cv500_pl_meta_plus_pseudo.pt`
+- Generated the three matched Pass 8 evaluation corpora:
+  - `output/pass8_cv500_pl_meta_eval/`
+  - `output/pass8_cv500_pl_pseudo_style_eval/`
+  - `output/pass8_cv500_pl_meta_plus_pseudo_eval/`
+- Reused the already validated `combined`, `commonvoice_cv500_init`, `cv500_ft_short_low_lr`, and `cv500_rich_free_anchor` CSVs by copying them into the Pass 8 naming scheme, so the changed variable stayed strictly on weak supervision during CommonVoice pretraining
+
+**Pass 8 condition matrix**
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short_low_lr`
+- `cv500_rich_free_anchor`
+- `cv500_pl_meta`
+- `cv500_pl_pseudo_style`
+- `cv500_pl_meta_plus_pseudo`
+
+**Top-line result (`results/eval_commonvoice_partial_label_summary_pass8.csv`)**
+- `combined`: recall `25.8%`, novelty gain `0.2599`, mean WER `0.2353`, mean MOS delta `-0.0792`
+- `commonvoice_cv500_init`: recall `16.7%`, novelty gain `0.0369`, mean WER `0.0844`, mean MOS delta `-0.0123`
+- `cv500_ft_short_low_lr`: recall `16.7%`, novelty gain `0.0692`, mean WER `0.0791`, mean MOS delta `-0.0441`
+- `cv500_rich_free_anchor`: recall `16.7%`, novelty gain `0.0646`, mean WER `0.0724`, mean MOS delta `-0.0079`
+- `cv500_pl_meta`: recall `16.7%`, novelty gain `0.0570`, mean WER `0.0918`, mean MOS delta `-0.0505`
+- `cv500_pl_pseudo_style`: recall `16.7%`, novelty gain `0.0190`, mean WER `0.0263`, mean MOS delta `-0.0229`
+- `cv500_pl_meta_plus_pseudo`: recall `16.7%`, novelty gain `0.0181`, mean WER `0.0285`, mean MOS delta `-0.0148`
+
+**Interpretation**
+- None of the three weak-label variants improved recall beyond `16.7%`.
+- `cv500_pl_meta` was the best novelty result of the new variants, but it still trailed both `cv500_ft_short_low_lr` and `cv500_rich_free_anchor`, and it did so with worse WER and MOS than those stronger earlier CommonVoice baselines.
+- `cv500_pl_pseudo_style` and `cv500_pl_meta_plus_pseudo` dramatically improved WER, but only by collapsing much harder toward baseline speaker identity: identity-collapse rows jumped to `85` and `90`.
+- The pseudo-label path therefore looks conservative rather than expressive on this validation-scale setup: it preserves content and naturalness, but not controllability or speaker shift.
+- The CommonVoice bottleneck now looks deeper than finetune-policy tuning (Pass 5), scalar weight schedules (Pass 6), finetune-time teacher/anchor supervision (Pass 7), and this first weak-label pretraining family (Pass 8).
+
+**Validation**
+- [x] CommonVoice metadata coverage is measured and reported from the checked-in extraction interface
+  - validated through the `metadata_report` saved by `examples/openvoice_extract_commonvoice.py`
+  - confirmed sparse coverage on the checked-in `cv500` subset artifact, which now informs how we interpret the metadata-only run
+- [x] Partial-label CommonVoice pretraining is reproducible from the checked-in training interface
+  - validated through `examples/openvoice_pretrain_vae_commonvoice.py --metadata-* / --pseudo-style-*`
+  - smoke-tested with short runs and then used for the three full Pass 8 pretraining checkpoints
+- [x] Every Pass 8 condition has a named pretrain checkpoint, finetuned checkpoint, and matched evaluation corpus
+  - three CommonVoice pretrain checkpoints under `embeddings/`
+  - three combined finetune checkpoints under `embeddings/`
+  - three 110-row corpora + manifests under `output/pass8_*`
+- [x] The comparison explicitly answers whether weak supervision during CommonVoice pretraining beats raw `cv500`, the best Pass 5 recipe, and the best Pass 7 recipe
+  - answer: **not on this validation-scale setup**
+  - metadata-only supervision improves novelty over raw `cv500`, but not enough to beat the best earlier CommonVoice variants
+  - pseudo-style supervision improves WER sharply, but collapses identity shift even harder
+- [x] The pass isolates pretraining supervision as the changed variable
+  - same `cv500` CommonVoice subset scale
+  - same combined finetune data
+  - same 11-speaker evaluation corpus format
+  - same four-metric evaluation stack
+- [x] The pass yields a clear next-step decision
+  - the next CommonVoice work should focus on pseudo-label quality, prototype/teacher-space targets during CommonVoice pretraining, or stronger curricula rather than simply adding the current weak labels at this scale
+
+**FINDINGS.md review**
+- Updated after Pass 8 with a new paper-facing result: validation-scale weak supervision during CommonVoice pretraining still does not recover recall, and the pseudo-style variants appear to trade controllability/novelty for stronger intelligibility rather than solving the underlying collapse.
 
 ---
 

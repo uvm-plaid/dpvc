@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-29 (Pass 7 CommonVoice rich-objective ablation added as Finding 15; paper framing and open questions updated)
+**Last updated:** 2026-04-29 (Pass 8 CommonVoice partial-label pretraining added as Finding 16; paper framing and open questions updated)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -767,18 +767,126 @@ Finding 14 alone.
 
 ---
 
+## Finding 16: Validation-Scale Weak-Label CommonVoice Pretraining Still Does Not Recover Recall
+
+### Methodology
+
+Pass 8 moved the supervision earlier in the pipeline.
+
+After Finding 15, the strongest remaining hypothesis was:
+
+**Maybe the CommonVoice collapse is already being baked in during the
+reconstruction-only CommonVoice stage, so the right intervention is to add weak
+labels during CommonVoice pretraining itself rather than only during combined
+finetuning.**
+
+To test that, we kept the validation-scale `cv500` setup, the combined
+finetuning data, the 11-speaker evaluation corpus, and the same four-metric
+stack fixed. The changed variable was the CommonVoice pretraining objective.
+
+We started from the same local CommonVoice artifact and measured how much real
+metadata support it actually had:
+
+- age known on `193/1202` clips
+- gender known on `184/1202`
+- accent known on `190/1202`
+
+That meant the metadata-only condition was genuinely weak supervision, not a
+dense relabeling of the corpus.
+
+We also generated pseudo-style labels from audio using a frozen emotion model.
+At the reporting/training threshold `0.60`, the accepted pseudo-style counts
+were:
+
+- `neutral = 640`
+- `sad = 336`
+- `happy = 51`
+- `disgust = 46`
+- `anger = 11`
+- `fear = 5`
+
+So the pseudo-style supervision was also weak in two ways:
+
+1. it was teacher-generated rather than ground truth
+2. it was heavily imbalanced toward the conservative classes
+
+We therefore used inverse-frequency balancing for both metadata classes and
+pseudo-style rows during CommonVoice pretraining.
+
+We compared four reference points:
+
+1. **combined** — the main paper checkpoint
+2. **CommonVoice `cv500` init** — the raw reconstruction-only CommonVoice result
+3. **`cv500_ft_short_low_lr`** — the best Pass 5 finetune-only recovery recipe
+4. **`cv500_rich_free_anchor`** — the strongest Pass 7 richer-objective reference
+
+against three new CommonVoice pretraining variants:
+
+1. **`cv500_pl_meta`** — metadata-only weak supervision on the free dims
+2. **`cv500_pl_pseudo_style`** — pseudo-style-only weak supervision on the style dims
+3. **`cv500_pl_meta_plus_pseudo`** — both weak signals together
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|----------|
+| combined | 25.8% | 0.2599 | 0.2353 | -0.0792 | Still the only condition with both meaningful control and meaningful speaker shift |
+| CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Conservative CommonVoice collapse reference |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best Pass 5 partial-recovery reference |
+| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best Pass 7 richer-objective reference |
+| `cv500_pl_meta` | 16.7% | 0.0570 | 0.0918 | -0.0505 | Metadata-only supervision nudges novelty, but not enough to beat the stronger earlier CommonVoice variants |
+| `cv500_pl_pseudo_style` | 16.7% | 0.0190 | 0.0263 | -0.0229 | Pseudo-style supervision greatly improves intelligibility, but collapses novelty and identity shift |
+| `cv500_pl_meta_plus_pseudo` | 16.7% | 0.0181 | 0.0285 | -0.0148 | Hybrid weak supervision mostly follows the pseudo-style conservative basin |
+
+### Collapse behavior
+
+The collapse summary is especially informative here because it shows that the
+weak-label variants do not fail in the same way.
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
+|-----------|---------------------------|-------------------------------|----------------|----------|
+| CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse reference |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
+| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best Pass 7 richer-objective reference |
+| `cv500_pl_meta` | 54 | 59 | 33 | Metadata-only supervision reduces identity collapse somewhat vs raw `cv500`, but not enough to beat the best earlier CommonVoice variants |
+| `cv500_pl_pseudo_style` | 55 | 85 | 47 | Pseudo-style supervision preserves content, but collapses identity much harder |
+| `cv500_pl_meta_plus_pseudo` | 55 | 90 | 49 | Adding metadata does not rescue the pseudo-style collapse pattern |
+
+### Interpretation
+
+Pass 8 narrows the CommonVoice story again:
+
+1. **Weak labels during CommonVoice pretraining still do not recover recall.** All three new variants stay flat at `16.7%`.
+2. **Metadata-only supervision helps novelty a little, but not enough.** `cv500_pl_meta` improves novelty over raw `cv500` (`0.0570` vs. `0.0369`), but still trails both the best Pass 5 and best Pass 7 references.
+3. **Pseudo-style supervision helps intelligibility much more than control.** Both pseudo-style variants drive WER down sharply (`0.0263` and `0.0285`), but they do so by collapsing toward baseline identity: identity-collapse counts rise to `85-90`.
+4. **The current pseudo labels likely reinforce the conservative basin instead of escaping it.** The label distribution is dominated by `neutral` and `sad`, and even with balancing the resulting models remain highly conservative on speaker shift.
+5. **The remaining CommonVoice bottleneck now looks deeper than this first weak-label family.** After Pass 5 (gentler finetuning), Pass 6 (scalar reweighting), Pass 7 (teacher/anchor finetuning), and Pass 8 (weak-label pretraining), we still have no recall recovery and no CommonVoice variant that matches the combined model's tradeoff.
+
+### Implication
+
+Pass 8 changes the paper position again, in a useful way:
+
+- We should **not** claim that weak metadata or pseudo-label supervision on this validation-scale CommonVoice setup already solves the collapse.
+- We **can** say that the CommonVoice failure has now survived four increasingly informed fixes: gentler finetuning (Finding 13), scalar reweighting (Finding 14), richer finetune-time supervision (Finding 15), and weak-label pretraining (Finding 16).
+- The next CommonVoice experiments should focus on better pseudo-label quality, prototype- or teacher-space targets during CommonVoice pretraining, stronger curricula, or larger-scale runs once a better supervision recipe survives on the validation corpus.
+
+That is a stronger and more honest research position than we had after Finding
+15 alone.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, and Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat. The open question is now whether a larger subset plus richer pretraining supervision or a better objective on CommonVoice itself can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and Pass 8 showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. The open question is now whether better pseudo-label quality, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, Pass 6 shows that simple scalar loss-weight schedules are not enough, and Pass 7 shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern. Can we use stronger pretraining objectives, partial-label CommonVoice supervision, better latent constraints, or detect/reject bad combinations?
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, Pass 6 shows that simple scalar loss-weight schedules are not enough, Pass 7 shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and Pass 8 shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 
 ---
@@ -815,6 +923,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 13. Pass 5 shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
 14. Pass 6 shows that simple objective reweighting during CommonVoice finetuning also does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision, partial-label objectives, or larger-scale training rather than more scalar weight sweeps.
 15. Pass 7 shows that the first richer teacher/anchor supervision family during combined finetuning still does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision earlier in the pipeline, stronger pretraining objectives, partial-label CommonVoice training, or larger-scale follow-up once a stronger objective survives on the validation corpus.
+16. Pass 8 shows that validation-scale weak metadata / pseudo-label supervision during CommonVoice pretraining still does not recover recall. Metadata-only supervision nudges novelty but not enough to beat the best earlier CommonVoice variants, while pseudo-style supervision greatly improves WER at the cost of much stronger identity collapse. The next CommonVoice gains likely require better pseudo-label quality, prototype- or teacher-space targets, or stronger pretraining curricula rather than the current weak-label recipe alone.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 import zipfile
 import contextlib
+from collections import Counter
 from typing import List, Optional, Sequence
 
 
@@ -46,6 +47,40 @@ def _slice_or_none(tensor: torch.Tensor, dims: Optional[Sequence[int]]):
     if not dims:
         return tensor.new_zeros((tensor.shape[0], 0))
     return tensor[:, list(dims)]
+
+
+def is_missing_metadata(value):
+    if value is None:
+        return True
+    if isinstance(value, float) and np.isnan(value):
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    return False
+
+
+def summarize_categorical_values(values, top_n=10):
+    total = len(values)
+    normalized = [str(value) for value in values if not is_missing_metadata(value)]
+    counts = Counter(normalized)
+    return {
+        'total': total,
+        'known': len(normalized),
+        'missing': total - len(normalized),
+        'unique_known': len(counts),
+        'top_values': [
+            {'value': value, 'count': count}
+            for value, count in counts.most_common(top_n)
+        ],
+    }
+
+
+def build_commonvoice_metadata_report(age_values, gender_values, accent_values):
+    return {
+        'age': summarize_categorical_values(age_values),
+        'gender': summarize_categorical_values(gender_values),
+        'accent': summarize_categorical_values(accent_values),
+    }
 
 
 def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
@@ -169,6 +204,111 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
                 f'label: {label_loss.item():.2f} (w={current_label_weight:.2f})  '
                 f'teacher: {teacher_style_loss.item():.2f} (w={current_style_teacher_weight:.2f})  '
                 f'anchor: {free_anchor_loss.item():.2f} (w={current_free_anchor_weight:.2f})'
+            )
+
+    print('Ending loss:', loss.item())
+
+
+def train_commonvoice_pretrain(model, embeddings, epochs=1000, lr=1e-5,
+                               recon_weight=1.0, kl_weight=1.0,
+                               metadata_specs=None, metadata_weight=0.0,
+                               pseudo_style_targets=None,
+                               pseudo_style_mask=None,
+                               pseudo_style_row_weights=None,
+                               pseudo_style_weight=0.0,
+                               style_dims=None, free_dims=None):
+    BATCH_SIZE = min(256, len(embeddings))
+    trainable_params = [param for param in model.parameters() if param.requires_grad]
+    if not trainable_params:
+        raise ValueError("No trainable parameters remain in the model")
+
+    metadata_specs = metadata_specs or []
+    head_params = []
+    for spec in metadata_specs:
+        head_params.extend(spec['head'].parameters())
+
+    optimizer = torch.optim.Adam(trainable_params + head_params, lr=lr)
+
+    print('CommonVoice pretraining loss weights:')
+    print(f'  recon        : {recon_weight}')
+    print(f'  kl           : {kl_weight}')
+    print(f'  metadata     : {metadata_weight}')
+    print(f'  pseudo-style : {pseudo_style_weight}')
+    if style_dims is not None:
+        print(f'  style dims   : {list(style_dims)}')
+    if free_dims is not None:
+        print(f'  free dims    : {list(free_dims)}')
+    for spec in metadata_specs:
+        print(
+            f"  metadata target {spec['name']}: "
+            f"{spec['known_count']} labeled rows across {len(spec['classes'])} classes"
+        )
+    if pseudo_style_mask is not None:
+        print(f'  pseudo-style labeled rows: {int(pseudo_style_mask.sum().item())}')
+
+    print(f'Training CommonVoice pretrain model for {epochs} epochs...')
+    for epoch in tqdm(range(epochs)):
+        with torch.no_grad():
+            indexes = torch.randperm(embeddings.shape[0], device=embeddings.device)
+            index_batches = torch.split(indexes, BATCH_SIZE)
+
+        for batch_indexes in index_batches:
+            embeddings_b = embeddings[batch_indexes]
+            optimizer.zero_grad()
+
+            reconstructed = model(embeddings_b)
+            recon_loss = ((embeddings_b - reconstructed)**2).sum()
+            kl_loss = model.kl
+
+            metadata_loss = embeddings_b.new_tensor(0.0)
+            if metadata_specs and free_dims:
+                free_repr = _slice_or_none(model.last_mu, free_dims)
+                for spec in metadata_specs:
+                    target_indices = spec['indices'][batch_indexes]
+                    mask = target_indices >= 0
+                    if mask.any():
+                        logits = spec['head'](free_repr[mask])
+                        metadata_loss = metadata_loss + torch.nn.functional.cross_entropy(
+                            logits,
+                            target_indices[mask],
+                            reduction='sum',
+                            weight=spec.get('class_weights'),
+                        )
+
+            pseudo_style_loss = embeddings_b.new_tensor(0.0)
+            if (
+                pseudo_style_targets is not None
+                and pseudo_style_mask is not None
+                and style_dims
+            ):
+                batch_mask = pseudo_style_mask[batch_indexes]
+                if batch_mask.any():
+                    style_target = pseudo_style_targets[batch_indexes][batch_mask]
+                    student_style = _slice_or_none(model.last_mu[batch_mask], style_dims)
+                    row_loss = ((student_style - style_target[:, list(style_dims)]) ** 2).sum(dim=1)
+                    if pseudo_style_row_weights is not None:
+                        row_weights = pseudo_style_row_weights[batch_indexes][batch_mask]
+                        pseudo_style_loss = (row_loss * row_weights).sum()
+                    else:
+                        pseudo_style_loss = row_loss.sum()
+
+            loss = (
+                recon_weight * recon_loss
+                + kl_weight * kl_loss
+                + metadata_weight * metadata_loss
+                + pseudo_style_weight * pseudo_style_loss
+            )
+
+            loss.backward()
+            optimizer.step()
+
+        if epoch % 10 == 0:
+            print(
+                f'loss: {loss.item():.2f}  '
+                f'recon: {recon_loss.item():.2f} (w={recon_weight:.2f})  '
+                f'kl: {kl_loss.item():.2f} (w={kl_weight:.2f})  '
+                f'metadata: {metadata_loss.item():.2f} (w={metadata_weight:.2f})  '
+                f'pseudo-style: {pseudo_style_loss.item():.2f} (w={pseudo_style_weight:.2f})'
             )
 
     print('Ending loss:', loss.item())

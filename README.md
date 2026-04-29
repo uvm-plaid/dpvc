@@ -6,10 +6,10 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current paper-strengthening branch: **`research/commonvoice-rich-objectives`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current paper-strengthening branch: **`research/commonvoice-partial-label-pretrain`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
-- **[`FINDINGS.md`](FINDINGS.md)** — 15 paper-facing findings with methodology and per-row takeaways.
+- **[`FINDINGS.md`](FINDINGS.md)** — 16 paper-facing findings with methodology and per-row takeaways.
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
@@ -19,15 +19,17 @@ recommended path for style control.
 
 Current best checked-in result: the **combined** OpenVoice model remains the
 best tradeoff across controllability, speaker novelty, intelligibility, and
-naturalness. Passes 5-7 sharpened that conclusion by showing that neither
+naturalness. Passes 5-8 sharpened that conclusion by showing that neither
 simple gentler CommonVoice finetuning, nor simple scalar objective
-reweighting, nor the first richer teacher/anchor CommonVoice objectives
-recover the combined model's tradeoff. The main summary artifacts are:
+reweighting, nor the first richer teacher/anchor CommonVoice objectives, nor
+validation-scale weak-label CommonVoice pretraining recover the combined
+model's tradeoff. The main summary artifacts are:
 
 - [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)
 - [`results/eval_commonvoice_objective_summary_pass6.csv`](results/eval_commonvoice_objective_summary_pass6.csv)
 - [`results/eval_commonvoice_rich_objectives_summary_pass7.csv`](results/eval_commonvoice_rich_objectives_summary_pass7.csv)
+- [`results/eval_commonvoice_partial_label_summary_pass8.csv`](results/eval_commonvoice_partial_label_summary_pass8.csv)
 
 ## Installation
 
@@ -81,14 +83,16 @@ See also:
 - `examples/openvoice_inference.py` — basic anonymization (no style control).
 - `examples/openvoice_train_vae.py` — train a custom DP-VAE for the anonymizer.
 - `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
-- `examples/openvoice_extract_commonvoice.py` + `examples/openvoice_pretrain_vae_commonvoice.py` — Common Voice pretraining path for improving style generalization.
+- `examples/openvoice_extract_commonvoice.py` + `examples/openvoice_pretrain_vae_commonvoice.py` — Common Voice pretraining path, including validation-scale weak supervision from metadata and pseudo labels.
 - `scripts/prepare_commonvoice_subset.py` — helper for turning downloaded Common Voice shards into a filtered local `validated.tsv` + `clips/` subset.
+- `scripts/annotate_commonvoice_pseudolabels.py` — adds confidence-scored pseudo-style labels to a Common Voice embedding artifact.
 - `scripts/prepare_ablation_embeddings.py` — builds the `cremad_only` and `expresso_only` Pass 4 ablation datasets in the unified label format.
 - `scripts/run_ablation_inference.py` — generates the Pass 4 corpora, including the naive unlabeled-latent baseline.
 - `scripts/summarize_ablation_results.py` — builds the condition summary table and collapse taxonomy for the paper.
 - `scripts/summarize_commonvoice_finetune_ablation.py` — compares the Pass 5 CommonVoice finetune variants against `combined` and the original `cv500` init.
 - `scripts/summarize_commonvoice_objective_ablation.py` — compares the Pass 6 CommonVoice objective variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
 - `scripts/summarize_commonvoice_rich_objectives.py` — compares the Pass 7 teacher/anchor CommonVoice variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
+- `scripts/summarize_commonvoice_partial_label.py` — compares the Pass 8 metadata / pseudo-label CommonVoice variants against `combined`, the raw `cv500` init, the best Pass 5 finetune recipe, and the best Pass 7 rich-objective recipe.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation
@@ -110,6 +114,7 @@ For the current paper matrix, start with:
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)
 - [`results/eval_commonvoice_objective_summary_pass6.csv`](results/eval_commonvoice_objective_summary_pass6.csv)
 - [`results/eval_commonvoice_rich_objectives_summary_pass7.csv`](results/eval_commonvoice_rich_objectives_summary_pass7.csv)
+- [`results/eval_commonvoice_partial_label_summary_pass8.csv`](results/eval_commonvoice_partial_label_summary_pass8.csv)
 
 ## Building Documentation
 

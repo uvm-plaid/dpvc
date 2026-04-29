@@ -105,6 +105,24 @@ CONDITION_CONFIGS = {
         "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
         "control_mode": "labeled",
     },
+    "cv500_pl_meta": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_pl_meta.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_pl_pseudo_style": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_pl_pseudo_style.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_pl_meta_plus_pseudo": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_pl_meta_plus_pseudo.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
     "cv500_ft_freeze_decoder": {
         "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt",
         "styles": FULL_STYLES,
