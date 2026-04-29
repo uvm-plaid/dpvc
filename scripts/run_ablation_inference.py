@@ -87,6 +87,24 @@ CONDITION_CONFIGS = {
         "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
         "control_mode": "labeled",
     },
+    "cv500_rich_teacher_style": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_rich_teacher_style.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_rich_free_anchor": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_rich_free_anchor.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "cv500_rich_teacher_plus_anchor": {
+        "checkpoint": "embeddings/openvoice_vae_combined_cv500_rich_teacher_plus_anchor.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
     "cv500_ft_freeze_decoder": {
         "checkpoint": "embeddings/openvoice_vae_combined_cv500_ft_freeze_decoder.pt",
         "styles": FULL_STYLES,

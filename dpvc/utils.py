@@ -7,7 +7,7 @@ from pathlib import Path
 import requests
 import zipfile
 import contextlib
-from typing import List
+from typing import List, Optional, Sequence
 
 
 def set_seed(seed):
@@ -40,10 +40,23 @@ def _interpolate_weight(start, end, epoch, schedule_epochs):
     return start + (end - start) * progress
 
 
+def _slice_or_none(tensor: torch.Tensor, dims: Optional[Sequence[int]]):
+    if dims is None:
+        return None
+    if not dims:
+        return tensor.new_zeros((tensor.shape[0], 0))
+    return tensor[:, list(dims)]
+
+
 def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
                       recon_weight=1.0, kl_weight=1.0, label_weight=1.0,
                       recon_weight_final=None, kl_weight_final=None,
-                      label_weight_final=None, schedule_epochs=0):
+                      label_weight_final=None, schedule_epochs=0,
+                      style_teacher_model=None, style_teacher_weight=0.0,
+                      style_teacher_weight_final=None,
+                      free_anchor_model=None, free_anchor_weight=0.0,
+                      free_anchor_weight_final=None,
+                      style_dims=None, free_dims=None):
     BATCH_SIZE = min(256, len(embeddings))
     trainable_params = [param for param in model.parameters() if param.requires_grad]
     if not trainable_params:
@@ -69,8 +82,16 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
           + (f' -> {kl_weight_final}' if kl_weight_final is not None else ''))
     print(f'  label: {label_weight}'
           + (f' -> {label_weight_final}' if label_weight_final is not None else ''))
+    print(f'  teacher-style: {style_teacher_weight}'
+          + (f' -> {style_teacher_weight_final}' if style_teacher_weight_final is not None else ''))
+    print(f'  free-anchor : {free_anchor_weight}'
+          + (f' -> {free_anchor_weight_final}' if free_anchor_weight_final is not None else ''))
     if schedule_epochs:
         print(f'  schedule epochs: {schedule_epochs}')
+    if style_teacher_model is not None:
+        print(f'  style dims for teacher loss: {list(style_dims or [])}')
+    if free_anchor_model is not None:
+        print(f'  free dims for anchor loss: {list(free_dims or [])}')
 
     print(f'Training autoencoder for {epochs} epochs...')
     for epoch in tqdm(range(epochs)):
@@ -80,6 +101,10 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
             kl_weight, kl_weight_final, epoch, schedule_epochs)
         current_label_weight = _interpolate_weight(
             label_weight, label_weight_final, epoch, schedule_epochs)
+        current_style_teacher_weight = _interpolate_weight(
+            style_teacher_weight, style_teacher_weight_final, epoch, schedule_epochs)
+        current_free_anchor_weight = _interpolate_weight(
+            free_anchor_weight, free_anchor_weight_final, epoch, schedule_epochs)
 
         with torch.no_grad():
             indexes = torch.randperm(embeddings.shape[0])
@@ -95,16 +120,43 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
             reconstructed = model(embeddings_b)
             recon_loss = ((embeddings_b - reconstructed)**2).sum()
             kl_loss = model.kl
+            student_mu = model.last_mu
 
             if labels_b is not None:
                 label_loss = ((model.last_z[:, :num_labels] - labels_b)**2).sum()
             else:
                 label_loss = embeddings_b.new_tensor(0.0)
 
+            if style_teacher_model is not None and style_dims:
+                with torch.no_grad():
+                    teacher_mu, _ = style_teacher_model.encoder(embeddings_b)
+                teacher_style_loss = (
+                    (_slice_or_none(student_mu, style_dims) - _slice_or_none(teacher_mu, style_dims)) ** 2
+                ).sum()
+            else:
+                teacher_style_loss = embeddings_b.new_tensor(0.0)
+
+            if free_anchor_model is not None and free_dims:
+                with torch.no_grad():
+                    anchor_mu, _ = free_anchor_model.encoder(embeddings_b)
+                free_anchor_loss = (
+                    (_slice_or_none(student_mu, free_dims) - _slice_or_none(anchor_mu, free_dims)) ** 2
+                ).sum()
+            else:
+                free_anchor_loss = embeddings_b.new_tensor(0.0)
+
             weighted_recon = current_recon_weight * recon_loss
             weighted_kl = current_kl_weight * kl_loss
             weighted_label = current_label_weight * label_loss
-            loss = weighted_recon + weighted_kl + weighted_label
+            weighted_teacher_style = current_style_teacher_weight * teacher_style_loss
+            weighted_free_anchor = current_free_anchor_weight * free_anchor_loss
+            loss = (
+                weighted_recon
+                + weighted_kl
+                + weighted_label
+                + weighted_teacher_style
+                + weighted_free_anchor
+            )
 
             loss.backward()
             optimizer.step()
@@ -114,7 +166,9 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
                 f'loss: {loss.item():.2f}  '
                 f'recon: {recon_loss.item():.2f} (w={current_recon_weight:.2f})  '
                 f'kl: {kl_loss.item():.2f} (w={current_kl_weight:.2f})  '
-                f'label: {label_loss.item():.2f} (w={current_label_weight:.2f})'
+                f'label: {label_loss.item():.2f} (w={current_label_weight:.2f})  '
+                f'teacher: {teacher_style_loss.item():.2f} (w={current_style_teacher_weight:.2f})  '
+                f'anchor: {free_anchor_loss.item():.2f} (w={current_free_anchor_weight:.2f})'
             )
 
     print('Ending loss:', loss.item())

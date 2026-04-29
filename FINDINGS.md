@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-28 (Pass 6 CommonVoice objective-ablation added as Finding 14; paper framing and open questions updated)
+**Last updated:** 2026-04-29 (Pass 7 CommonVoice rich-objective ablation added as Finding 15; paper framing and open questions updated)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -677,18 +677,108 @@ That is a stronger and more honest research position than we had after Finding
 
 ---
 
+## Finding 15: Richer Teacher/Anchor Objectives Still Do Not Recover Recall After CommonVoice Pretraining
+
+### Methodology
+
+Pass 7 asked the next sharper follow-up question after Finding 14:
+
+**Was the CommonVoice `cv500` collapse mainly a problem of missing structural
+supervision during combined finetuning, such that teacher guidance on the style
+latent dims or anchoring of the non-style dims could preserve the CommonVoice
+prior while restoring control?**
+
+To test that, we kept the data, the validation corpus, and the four-metric
+stack fixed again. We still started from the same CommonVoice-pretrained init
+checkpoint and the same combined labeled embeddings. The only change was that
+combined finetuning now included richer auxiliary losses that explicitly target
+different parts of the latent space:
+
+- **style dims (`0-8`)**: the labeled emotion/style subspace
+- **free dims (`9-14`)**: the unlabeled remainder of the latent code
+
+We kept these pieces unchanged:
+
+- CommonVoice init checkpoint: `embeddings/openvoice_vae_commonvoice_cv500.pt`
+- combined finetuning embeddings: `embeddings/openvoice_combined_emb.pt`
+- 11-speaker validation corpus format
+- same evaluation stack from Findings 10-14
+- same best Pass 5 training schedule foundation: `1000` epochs at `3e-7`
+
+We compared three references:
+
+1. **combined** — the current paper checkpoint
+2. **CommonVoice `cv500` init** — the original conservative CommonVoice result
+3. **`cv500_ft_short_low_lr`** — the best partial-recovery finetune recipe from Finding 13
+
+against three new rich-objective variants:
+
+1. **`cv500_rich_teacher_style`** — style-teacher distillation on dims `0-8` using the combined checkpoint as the teacher
+2. **`cv500_rich_free_anchor`** — free-dim anchoring on dims `9-14` using the CommonVoice-initialized checkpoint as the frozen anchor
+3. **`cv500_rich_teacher_plus_anchor`** — both losses together
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|----------|
+| combined | 25.8% | 0.2599 | 0.2353 | -0.0792 | Still the only condition with both meaningful control and meaningful identity shift |
+| CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Conservative collapse reference point |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best CommonVoice partial-recovery reference from Finding 13 |
+| `cv500_rich_teacher_style` | 16.7% | 0.0574 | 0.0851 | -0.0200 | Style teacher loss preserves quality fairly well, but still does not recover control |
+| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best Pass 7 variant for WER/MOS, but still below `cv500_ft_short_low_lr` on novelty |
+| `cv500_rich_teacher_plus_anchor` | 16.7% | 0.0566 | 0.0809 | -0.0161 | Combining both losses does not create a better tradeoff than the simpler variants |
+
+### Collapse behavior
+
+The collapse summary shows that richer supervision as implemented here still
+does not escape the same conservative failure shape.
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
+|-----------|---------------------------|-------------------------------|----------------|----------|
+| CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse pattern |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
+| `cv500_rich_teacher_style` | 55 | 51 | 28 | Teacher guidance recovers some identity shift over raw `cv500`, but still trails the best Pass 5 recipe |
+| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best Pass 7 stability tradeoff, but style collapse remains unchanged and identity collapse still exceeds the best Pass 5 result |
+| `cv500_rich_teacher_plus_anchor` | 54 | 53 | 27 | Combining the two losses does not materially reduce the collapse counts |
+
+### Interpretation
+
+Pass 7 narrows the CommonVoice story again:
+
+1. **This first richer-objective family still does not recover recall.** All three variants stay flat at `16.7%`.
+2. **Latent teacher/anchor supervision helps stability more than controllability.** The best Pass 7 variant (`cv500_rich_free_anchor`) improves WER and MOS over `cv500_ft_short_low_lr`, but not novelty enough to beat it, and not recall at all.
+3. **The style-teacher loss did not rescue the style subspace.** If teacher guidance on the style dims alone were enough, `cv500_rich_teacher_style` should have improved recall or reduced neutral collapse. It did neither.
+4. **The combined teacher+anchor objective also stayed conservative.** Adding both losses together still leaves the model in roughly the same basin of flat recall and high identity collapse.
+5. **The remaining bottleneck likely sits earlier than this finetuning stage.** After Pass 5 (gentler finetuning), Pass 6 (scalar reweighting), and Pass 7 (teacher/anchor supervision), the strongest remaining hypotheses are:
+   - the CommonVoice stage needs richer supervision or partial labels itself
+   - the current reconstruction-only pretraining objective over-shapes the latent space before labeled finetuning begins
+   - or a larger-scale setup is needed, but only once a stronger objective survives on this validation-scale corpus
+
+### Implication
+
+Pass 7 changes the paper position again, in a useful way:
+
+- We should **not** claim that richer finetune-time supervision already solves the CommonVoice collapse.
+- We **can** say that the failure has been narrowed further: it survives gentler finetuning (Finding 13), scalar loss reweighting (Finding 14), and the first richer teacher/anchor objective family (Finding 15).
+- The next CommonVoice experiments should focus on richer pretraining supervision, partial-label or pseudo-label objectives on CommonVoice itself, or larger-scale training once a better objective is identified.
+
+That is a stronger and more defensible research position than we had after
+Finding 14 alone.
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, and Pass 6 shows that simple scalar loss reweighting is not enough either. The open question is now whether a larger subset plus richer supervision or a better objective can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, and Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat. The open question is now whether a larger subset plus richer pretraining supervision or a better objective on CommonVoice itself can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, and Pass 6 shows that simple scalar loss-weight schedules are not enough either. Can we use richer objectives, finer-grained latent constraints, teacher alignment, or detect/reject bad combinations?
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, Pass 6 shows that simple scalar loss-weight schedules are not enough, and Pass 7 shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern. Can we use stronger pretraining objectives, partial-label CommonVoice supervision, better latent constraints, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 
 ---
@@ -724,6 +814,7 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 12. The Pass 4 ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
 13. Pass 5 shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
 14. Pass 6 shows that simple objective reweighting during CommonVoice finetuning also does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision, partial-label objectives, or larger-scale training rather than more scalar weight sweeps.
+15. Pass 7 shows that the first richer teacher/anchor supervision family during combined finetuning still does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision earlier in the pipeline, stronger pretraining objectives, partial-label CommonVoice training, or larger-scale follow-up once a stronger objective survives on the validation corpus.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

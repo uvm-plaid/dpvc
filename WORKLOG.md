@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-04-28
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`
+**Last updated:** 2026-04-29
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -35,9 +35,11 @@ Priority tags:
 - [x] `[SOON]` Test gentler finetuning from the CommonVoice init checkpoint (fewer finetune epochs, lower LR, or partial-freeze) to see whether the `cv500` neutral-collapse failure is an over-regularization problem rather than a dead-end. **Pass 5 result:** simple recipe changes recover only small novelty gains (`0.0369 -> 0.0692` best case) and do not recover the combined model's recall/novelty tradeoff
 - [ ] `[SOON]` Scale the best Pass 5 recipe (`cv500_ft_short_low_lr`) to a larger local CommonVoice slice and test whether its partial novelty recovery survives at higher speaker counts
 - [x] `[SOON]` Test layer-granular freezing or loss-weight schedules instead of full encoder/decoder freezes; Pass 6 result: simple CommonVoice loss reweighting (`label2`, `label4`, label-ramp, reduced-reconstruction) still leaves recall flat at `16.7%` and does not beat `cv500_ft_short_low_lr`
-- [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Pass 6 suggests finetune-time scalar reweighting is still too weak and the next objective work likely needs richer supervision than reweighted reconstruction/label loss alone
-- [ ] `[SOON]` Test richer CommonVoice adaptation objectives (teacher or latent anchoring, curriculum label emphasis, or partial-label pretraining) because Pass 6 shows simple loss-weight ramps do not restore recall or beat the best Pass 5 novelty recovery
-- [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune and objective variants; Passes 5-6 suggest novelty returns first for a few conservative styles, not as broad emotion recovery
+- [ ] `[SOON]` Compare reconstruction-only CommonVoice pretraining against partially labeled or multi-objective pretraining, because Passes 6-7 suggest finetune-time reweighting and teacher/anchor finetuning are still too weak when the CommonVoice stage itself remains purely reconstruction-driven
+- [x] `[SOON]` Test richer CommonVoice adaptation objectives (teacher or latent anchoring, curriculum label emphasis, or partial-label pretraining) because Pass 6 shows simple loss-weight ramps do not restore recall or beat the best Pass 5 novelty recovery. **Pass 7 result:** teacher-style distillation and free-dim anchoring preserve WER/MOS better than some earlier variants, but recall stays flat at `16.7%` and none beats `cv500_ft_short_low_lr` on novelty or identity collapse
+- [ ] `[SOON]` Test richer CommonVoice adaptation objectives that use partial labels, pseudo-labels, or a better pretraining objective on CommonVoice itself; Pass 7 suggests teacher/anchor losses applied only during combined finetuning still do not restore broad style control
+- [ ] `[SOON]` Compare teacher-style distillation against prototype-style or curriculum supervision in the labeled style subspace, because Pass 7's latent teacher/anchor losses improved stability more than control
+- [ ] `[SOON]` Add per-style recovery plots for the CommonVoice finetune and objective variants; Passes 5-7 suggest novelty returns first for a few conservative styles, not as broad emotion recovery
 - [ ] `[SOON]` Add age/gender control dims using CommonVoice metadata (dims 9-10)
 - [ ] `[SOON]` Test orthogonality: does pushing emotion dims shift perceived age/gender?
 - [ ] `[SOON]` Test whether CommonVoice-broad pretraining preserves age/gender control more easily than emotion control; Pass 5 suggests different attribute families may survive broad speaker priors differently
@@ -83,7 +85,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
 - [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
-- [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune and objective sweeps are less manual than Passes 5-6
+- [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune and objective sweeps are less manual than Passes 5-7
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
 - [ ] `[SOON]` Add an automated smoke test for `openvoice_infer_controllable.py --source-dir` + manifest generation against cached local checkpoints
 
@@ -393,6 +395,82 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 6 with a new paper-facing result: simple loss reweighting and label-weight schedules do not fix the CommonVoice collapse either, which narrows the next research step further toward richer objectives or larger-scale supervision rather than more scalar tuning.
+
+### 0.12 Pass 7 Closeout (April 29, branch `research/commonvoice-rich-objectives`)
+
+- Extended `dpvc/model_embedding_vae.py` so the VAE caches `last_mu` and `last_logvar` during `forward`, which lets training-time auxiliary losses supervise the latent geometry directly instead of only the decoded embedding or sampled latent
+- Extended `dpvc/utils.py::train_autoencoder` with richer CommonVoice adaptation controls:
+  - frozen style-teacher loss on style dims (`0-8`)
+  - frozen free-anchor loss on non-style dims (`9-14`)
+  - scheduled weights for both auxiliary terms
+- Extended `examples/openvoice_train_vae_combined.py` with the matching CLI flags:
+  - `--style-teacher-checkpoint`
+  - `--style-teacher-weight`
+  - `--style-teacher-weight-final`
+  - `--free-anchor-checkpoint`
+  - `--free-anchor-weight`
+  - `--free-anchor-weight-final`
+- Extended `scripts/run_ablation_inference.py` with three Pass 7 rich-objective conditions:
+  - `cv500_rich_teacher_style`
+  - `cv500_rich_free_anchor`
+  - `cv500_rich_teacher_plus_anchor`
+- Added `scripts/summarize_commonvoice_rich_objectives.py`
+  - reads `results/eval_*_pass7_*.csv`
+  - writes `results/eval_commonvoice_rich_objectives_summary_pass7.csv`
+  - writes `results/eval_commonvoice_rich_objectives_collapse_pass7.csv`
+- Trained the three new rich-objective variants from the unchanged CommonVoice init checkpoint `embeddings/openvoice_vae_commonvoice_cv500.pt`:
+  - `embeddings/openvoice_vae_combined_cv500_rich_teacher_style.pt`
+  - `embeddings/openvoice_vae_combined_cv500_rich_free_anchor.pt`
+  - `embeddings/openvoice_vae_combined_cv500_rich_teacher_plus_anchor.pt`
+- Generated the three matched Pass 7 evaluation corpora:
+  - `output/pass7_cv500_rich_teacher_style_eval/`
+  - `output/pass7_cv500_rich_free_anchor_eval/`
+  - `output/pass7_cv500_rich_teacher_plus_anchor_eval/`
+- Reused the already validated `combined`, `commonvoice_cv500_init`, and `cv500_ft_short_low_lr` CSVs by copying them into the Pass 7 naming scheme, so the changed variable stayed strictly on rich supervision during CommonVoice adaptation
+
+**Pass 7 condition matrix**
+- `combined`
+- `commonvoice_cv500_init`
+- `cv500_ft_short_low_lr`
+- `cv500_rich_teacher_style`
+- `cv500_rich_free_anchor`
+- `cv500_rich_teacher_plus_anchor`
+
+**Top-line result (`results/eval_commonvoice_rich_objectives_summary_pass7.csv`)**
+- `combined`: recall `25.8%`, novelty gain `0.2599`, mean WER `0.2353`, mean MOS delta `-0.0792`
+- `commonvoice_cv500_init`: recall `16.7%`, novelty gain `0.0369`, mean WER `0.0844`, mean MOS delta `-0.0123`
+- `cv500_ft_short_low_lr`: recall `16.7%`, novelty gain `0.0692`, mean WER `0.0791`, mean MOS delta `-0.0441`
+- `cv500_rich_teacher_style`: recall `16.7%`, novelty gain `0.0574`, mean WER `0.0851`, mean MOS delta `-0.0200`
+- `cv500_rich_free_anchor`: recall `16.7%`, novelty gain `0.0646`, mean WER `0.0724`, mean MOS delta `-0.0079`
+- `cv500_rich_teacher_plus_anchor`: recall `16.7%`, novelty gain `0.0566`, mean WER `0.0809`, mean MOS delta `-0.0161`
+
+**Interpretation**
+- None of the three rich-objective variants improved recall beyond `16.7%`.
+- None beat the best Pass 5 recipe (`cv500_ft_short_low_lr`) on novelty or identity collapse.
+- `cv500_rich_free_anchor` was the strongest of the new variants: it improved WER and MOS beyond `cv500_ft_short_low_lr`, but novelty still trailed slightly (`0.0646` vs. `0.0692`) and identity collapse stayed worse (`50` vs. `44`).
+- The style-teacher and teacher-plus-anchor variants also stayed in the same conservative failure shape: recall flat, style collapse near `54-55`, and identity collapse still well above the combined model.
+- The CommonVoice bottleneck now looks deeper than simple finetune-policy changes (Pass 5), scalar loss reweighting (Pass 6), and the first richer-teacher/anchor objective family (Pass 7).
+
+**Validation**
+- [x] Rich-objective controls are reproducible from the checked-in training interface
+  - validated via `examples/openvoice_train_vae_combined.py --style-teacher-* / --free-anchor-*`
+  - smoke-tested with short runs and then used for the three full Pass 7 checkpoints
+- [x] Every rich-objective variant has a named checkpoint and matched evaluation corpus
+  - three checkpoints under `embeddings/`
+  - three 110-row corpora + manifests under `output/pass7_*`
+- [x] The comparison explicitly answers whether richer supervision beats raw `cv500` and the best Pass 5 recipe
+  - answer: **not with these teacher/anchor losses**
+  - all three variants stay flat at `16.7%` recall and none beats `cv500_ft_short_low_lr` on novelty or identity collapse
+- [x] The pass isolates supervision/objective design as the changed variable
+  - same CommonVoice init checkpoint
+  - same combined fine-tuning embeddings
+  - same 11-speaker evaluation corpus format
+  - same four-metric evaluation stack
+- [x] The pass yields a clear next-step decision
+  - the next CommonVoice work should move either to richer pretraining supervision on CommonVoice itself, partial-label / pseudo-label objectives, or a larger-scale follow-up once a stronger objective survives on this validation-scale setup
+
+**FINDINGS.md review**
+- Updated after Pass 7 with a new paper-facing result: richer teacher/anchor supervision during combined finetuning still does not recover recall after CommonVoice pretraining, which suggests the remaining bottleneck is deeper than finetune-time scalar tuning or the first richer-objective family tried here.
 
 ---
 

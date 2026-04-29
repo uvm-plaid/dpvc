@@ -61,6 +61,19 @@ Pass 6 CommonVoice objective-ablation artifacts from 2026-04-28:
 | `eval_commonvoice_objective_summary_pass6.csv` | 7 conditions | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 top-line matrix |
 | `eval_commonvoice_objective_collapse_pass6.csv` | per generated file | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 collapse taxonomy |
 
+Pass 7 CommonVoice rich-objective artifacts from 2026-04-29:
+
+| Bundle | Rows | Scripts | Backs |
+|--------|------|---------|-------|
+| `pass7_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 combined reference condition |
+| `pass7_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 raw `cv500` reference condition |
+| `pass7_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 best Pass 5 finetune reference |
+| `pass7_cv500_rich_teacher_style` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 style-teacher distillation condition |
+| `pass7_cv500_rich_free_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 free-dim anchor condition |
+| `pass7_cv500_rich_teacher_plus_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 combined teacher+anchor condition |
+| `eval_commonvoice_rich_objectives_summary_pass7.csv` | 6 conditions | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 top-line matrix |
+| `eval_commonvoice_rich_objectives_collapse_pass7.csv` | per generated file | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 collapse taxonomy |
+
 ## Schema
 
 ### `eval_emotion_full.csv`
@@ -133,6 +146,19 @@ Pass 6 CommonVoice objective-ablation artifacts from 2026-04-28:
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
 
 - same taxonomy as Passes 4-5, but applied to the CommonVoice objective matrix
+
+### `eval_commonvoice_rich_objectives_summary_pass7.csv`
+`condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_best_ft, delta_novelty_vs_best_ft, delta_wer_vs_best_ft, delta_mos_delta_vs_best_ft, delta_recall_vs_combined, delta_novelty_vs_combined`
+
+- same core fields as `eval_ablation_summary_pass4.csv`
+- `delta_*_vs_cv500`: direct comparison against the original `commonvoice_cv500_init` condition
+- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best Pass 5 finetune recipe
+- `delta_*_vs_combined`: direct comparison against the main paper checkpoint
+
+### `eval_commonvoice_rich_objectives_collapse_pass7.csv`
+`condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
+
+- same taxonomy as Passes 4-6, but applied to the CommonVoice rich-objective matrix
 
 ## Reproducing
 
@@ -465,3 +491,76 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500_obj_label2` is the strongest of the new objective variants, but it still trails `cv500_ft_short_low_lr` on novelty and identity collapse
 - `cv500_obj_label_ramp` preserves MOS closest to the raw `cv500` init, but only by staying near the same conservative collapse basin
 - the next CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar loss-weight sweeps
+
+## Pass 7 Reproduction (CommonVoice rich objectives)
+
+This is the richer-supervision follow-up to Pass 6. It keeps the CommonVoice
+init checkpoint, the combined embeddings, and the evaluation corpus fixed, and
+changes only the finetune-time supervision by adding style-teacher and
+free-anchor losses in latent space.
+
+Train the three new rich-objective variants:
+
+```bash
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_rich_teacher_style.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --style-teacher-checkpoint embeddings/openvoice_vae_combined.pt \
+    --style-teacher-weight 2.0 \
+    --epochs 1000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_rich_free_anchor.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --free-anchor-weight 2.0 \
+    --epochs 1000 --lr 3e-7
+
+python examples/openvoice_train_vae_combined.py \
+    --embeddings embeddings/openvoice_combined_emb.pt \
+    --output embeddings/openvoice_vae_combined_cv500_rich_teacher_plus_anchor.pt \
+    --init-checkpoint embeddings/openvoice_vae_commonvoice_cv500.pt \
+    --style-teacher-checkpoint embeddings/openvoice_vae_combined.pt \
+    --style-teacher-weight 2.0 \
+    --free-anchor-weight 1.0 \
+    --epochs 1000 --lr 3e-7
+```
+
+Generate the three evaluation corpora:
+
+```bash
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_rich_teacher_style --out output/pass7_cv500_rich_teacher_style_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_rich_free_anchor --out output/pass7_cv500_rich_free_anchor_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ --condition cv500_rich_teacher_plus_anchor --out output/pass7_cv500_rich_teacher_plus_anchor_eval --style-strength 5.0 --noise-level 0.0 --seed 42
+```
+
+Run the metrics for each corpus:
+
+```bash
+python examples/eval_emotion.py --input output/pass7_cv500_rich_teacher_style_eval --out results/eval_emotion_pass7_cv500_rich_teacher_style.csv
+python examples/eval_novelty.py --manifest output/pass7_cv500_rich_teacher_style_eval/generation_manifest.jsonl --out results/eval_novelty_pass7_cv500_rich_teacher_style.csv
+python examples/eval_wer.py     --input output/pass7_cv500_rich_teacher_style_eval --out results/eval_wer_pass7_cv500_rich_teacher_style.csv
+python examples/eval_mos.py     --input output/pass7_cv500_rich_teacher_style_eval --out results/eval_mos_pass7_cv500_rich_teacher_style.csv
+```
+
+Repeat that four-metric block for:
+
+- `cv500_rich_free_anchor`
+- `cv500_rich_teacher_plus_anchor`
+
+Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
+`cv500_ft_short_low_lr` references by copying their existing metric CSVs into
+the Pass 7 naming scheme, then summarize:
+
+```bash
+python scripts/summarize_commonvoice_rich_objectives.py
+```
+
+Expected qualitative outcome from the checked-in CSVs:
+
+- none of the richer teacher/anchor variants recovers the **combined** model's controllability/novelty tradeoff
+- none of the three new variants improves recall beyond `16.7%`
+- `cv500_rich_free_anchor` is the strongest Pass 7 variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty and identity collapse
+- `cv500_rich_teacher_style` and `cv500_rich_teacher_plus_anchor` stay in the same conservative neutral-collapse basin
+- the next CommonVoice experiments should focus on richer supervision earlier in the pipeline, partial-label/pseudo-label CommonVoice objectives, or larger-scale training once a stronger objective survives on the validation corpus

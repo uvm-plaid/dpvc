@@ -77,6 +77,8 @@ class VariationalAutoencoder(nn.Module):
 
     def forward(self, x, seed=None, control_features=None):
         mu, logvar = self.encoder(x)
+        self.last_mu = mu
+        self.last_logvar = logvar
         z = self.reparameterize(mu, logvar)
         self.last_z = z
 

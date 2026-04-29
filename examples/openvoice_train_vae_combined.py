@@ -61,12 +61,26 @@ def format_param_count(model):
     return trainable, total
 
 
+def load_frozen_reference(checkpoint_path, latent_dims, input_dim, device):
+    model = dpvc.VariationalAutoencoder(
+        latent_dims=latent_dims, input_dim=input_dim).to(device)
+    model.load_state_dict(
+        torch.load(checkpoint_path, weights_only=True, map_location=device)
+    )
+    model.eval()
+    for param in model.parameters():
+        param.requires_grad = False
+    return model
+
+
 def has_schedule(args):
     return any(
         value is not None for value in (
             args.recon_weight_final,
             args.kl_weight_final,
             args.label_weight_final,
+            args.style_teacher_weight_final,
+            args.free_anchor_weight_final,
         )
     )
 
@@ -102,6 +116,18 @@ def main():
                     help="Optional final KL-loss weight for a linear schedule")
     ap.add_argument("--label-weight-final", type=float, default=None,
                     help="Optional final style-label loss weight for a linear schedule")
+    ap.add_argument("--style-teacher-checkpoint", default=None,
+                    help="Optional teacher checkpoint for style-dimension distillation")
+    ap.add_argument("--style-teacher-weight", type=float, default=0.0,
+                    help="Initial weight for teacher style-dim distillation loss (default: 0.0)")
+    ap.add_argument("--style-teacher-weight-final", type=float, default=None,
+                    help="Optional final teacher style-dim loss weight for a linear schedule")
+    ap.add_argument("--free-anchor-checkpoint", default=None,
+                    help="Optional checkpoint used to anchor free latent dims. Defaults to --init-checkpoint when free-anchor loss is enabled.")
+    ap.add_argument("--free-anchor-weight", type=float, default=0.0,
+                    help="Initial weight for anchoring free latent dims to a frozen reference (default: 0.0)")
+    ap.add_argument("--free-anchor-weight-final", type=float, default=None,
+                    help="Optional final free-anchor loss weight for a linear schedule")
     ap.add_argument("--schedule-epochs", type=int, default=0,
                     help="Number of epochs over which *_final weights are reached (default: full training run if any *_final is set)")
     ap.add_argument("--seed", type=int, default=42,
@@ -112,6 +138,8 @@ def main():
         ap.error("Refusing to freeze both encoder and decoder; nothing would remain trainable")
     if args.schedule_epochs < 0:
         ap.error("--schedule-epochs must be non-negative")
+    if args.style_teacher_weight < 0 or args.free_anchor_weight < 0:
+        ap.error("Auxiliary objective weights must be non-negative")
     if has_schedule(args) and args.schedule_epochs == 0:
         args.schedule_epochs = args.epochs
 
@@ -139,6 +167,8 @@ def main():
     print(f"Training with {len(labels)} style labels: {list(labels.keys())}")
     print(f"Latent dims: {args.latent_dims} ({len(labels)} for styles, "
           f"{args.latent_dims - len(labels)} free)")
+    style_dims = list(range(len(labels)))
+    free_dims = list(range(len(labels), args.latent_dims))
 
     # Train
     AE = dpvc.VariationalAutoencoder(
@@ -154,17 +184,52 @@ def main():
     if args.freeze_decoder:
         set_module_requires_grad(AE.decoder, trainable=False)
 
+    style_teacher_model = None
+    if args.style_teacher_weight > 0 or args.style_teacher_weight_final is not None:
+        if not args.style_teacher_checkpoint:
+            ap.error("--style-teacher-checkpoint is required when teacher-style loss is enabled")
+        print(f"Loading style teacher checkpoint from {args.style_teacher_checkpoint}")
+        style_teacher_model = load_frozen_reference(
+            args.style_teacher_checkpoint,
+            latent_dims=args.latent_dims,
+            input_dim=embeddings.shape[-1],
+            device=device,
+        )
+
+    free_anchor_model = None
+    needs_free_anchor = args.free_anchor_weight > 0 or args.free_anchor_weight_final is not None
+    if needs_free_anchor:
+        free_anchor_checkpoint = args.free_anchor_checkpoint or args.init_checkpoint
+        if not free_anchor_checkpoint:
+            ap.error("Free-anchor loss requires --free-anchor-checkpoint or --init-checkpoint")
+        print(f"Loading free-anchor checkpoint from {free_anchor_checkpoint}")
+        free_anchor_model = load_frozen_reference(
+            free_anchor_checkpoint,
+            latent_dims=args.latent_dims,
+            input_dim=embeddings.shape[-1],
+            device=device,
+        )
+
     trainable_params, total_params = format_param_count(AE)
     print(f"Freeze encoder: {args.freeze_encoder}")
     print(f"Freeze decoder: {args.freeze_decoder}")
     print(f"Trainable parameters: {trainable_params}/{total_params}")
     print(f"Loss weights: recon={args.recon_weight}, kl={args.kl_weight}, "
-          f"label={args.label_weight}")
+          f"label={args.label_weight}, teacher={args.style_teacher_weight}, "
+          f"free_anchor={args.free_anchor_weight}")
+    if style_teacher_model is not None:
+        print(f"Style teacher checkpoint: {args.style_teacher_checkpoint}")
+        print(f"Style dims: {style_dims}")
+    if free_anchor_model is not None:
+        print(f"Free-anchor checkpoint: {args.free_anchor_checkpoint or args.init_checkpoint}")
+        print(f"Free dims: {free_dims}")
     if has_schedule(args):
         print("Loss-weight schedule: "
               f"recon->{args.recon_weight_final if args.recon_weight_final is not None else args.recon_weight}, "
               f"kl->{args.kl_weight_final if args.kl_weight_final is not None else args.kl_weight}, "
-              f"label->{args.label_weight_final if args.label_weight_final is not None else args.label_weight} "
+              f"label->{args.label_weight_final if args.label_weight_final is not None else args.label_weight}, "
+              f"teacher->{args.style_teacher_weight_final if args.style_teacher_weight_final is not None else args.style_teacher_weight}, "
+              f"free_anchor->{args.free_anchor_weight_final if args.free_anchor_weight_final is not None else args.free_anchor_weight} "
               f"over {args.schedule_epochs} epochs")
 
     dpvc.utils.train_autoencoder(
@@ -180,6 +245,14 @@ def main():
         kl_weight_final=args.kl_weight_final,
         label_weight_final=args.label_weight_final,
         schedule_epochs=args.schedule_epochs,
+        style_teacher_model=style_teacher_model,
+        style_teacher_weight=args.style_teacher_weight,
+        style_teacher_weight_final=args.style_teacher_weight_final,
+        free_anchor_model=free_anchor_model,
+        free_anchor_weight=args.free_anchor_weight,
+        free_anchor_weight_final=args.free_anchor_weight_final,
+        style_dims=style_dims,
+        free_dims=free_dims,
     )
 
     torch.save(AE.state_dict(), args.output)
