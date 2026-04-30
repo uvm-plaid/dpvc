@@ -92,10 +92,8 @@ Expected inputs:
 - `embeddings/openvoice_cremad_emb.pt`
 - `embeddings/openvoice_expresso_emb.pt`
 
-Expected outputs:
-- `embeddings/openvoice_mixed_static_balanced.pt`
-- `embeddings/openvoice_mixed_cv_warmup.pt`
-- `embeddings/openvoice_mixed_labeled_finish.pt`
+Expected output:
+- `embeddings/openvoice_mixed_base.pt`
 
 Artifact schema should preserve:
 - `data`
@@ -134,9 +132,9 @@ Add mixture controls such as:
 - and per-dataset weighting metadata in the saved artifact.
 
 At minimum, the first run family should include:
-- one **static balanced mix**,
-- one **CommonVoice-heavy warmup** artifact or schedule,
-- one **labeled-data-heavy finish** artifact or schedule.
+- one **static balanced mix** schedule,
+- one **CommonVoice-heavy warmup** schedule,
+- one **labeled-data-heavy finish** schedule.
 
 ### Step 4. Improve pseudo-label quality enough for the first mixed run
 
@@ -176,8 +174,9 @@ Possible checkpoint names:
 - `embeddings/openvoice_vae_mixed_cv_warmup.pt`
 - `embeddings/openvoice_vae_mixed_labeled_finish.pt`
 
-If the schedule is implemented inside training rather than the artifact, then
-preserve the exact schedule in logs and in the result summary.
+The current implementation uses a **single mixed artifact plus schedule-aware
+training**, so the exact schedule must be preserved in logs and in the result
+summary.
 
 ### Step 7. Generate matched evaluation corpora
 
@@ -230,6 +229,118 @@ Recommended small additional experiment:
 This does not need to become the main branch output, but it should update user
 facing guidance if the results hold.
 
+## 7A. Current implementation status
+
+The branch now has a validated scaffold in code:
+
+- `scripts/build_mixed_training_set.py`
+- `examples/openvoice_train_vae_mixed.py`
+- `dpvc.utils.train_mixed_autoencoder()`
+- `scripts/summarize_mixed_data_results.py`
+- mixed-condition support in `scripts/run_ablation_inference.py`
+
+Validated so far:
+
+- syntax checks passed for the new training / builder / summary scripts
+- the builder was smoke-tested successfully on a small artifact
+- all three schedule families ran end to end on that smoke artifact
+- mixed-condition inference was smoke-tested with a one-file source run
+- the first real mixed artifact was built locally:
+  - `embeddings/openvoice_mixed_base.pt`
+  - current composition: `1325` rows = `500` CommonVoice + `546` CREMA-D + `279` Expresso
+  - labeled rows: `1287/1325`
+
+What is still missing is the **first real Pass 9 result family**.
+
+## 7B. Immediate execution order for the next work phase
+
+This is the concrete run order we should follow next on this branch.
+
+### Task 1. Train the three real mixed-data checkpoints
+
+Train from:
+- `embeddings/openvoice_mixed_base.pt`
+
+Produce:
+- `embeddings/openvoice_vae_mixed_static_balanced.pt`
+- `embeddings/openvoice_vae_mixed_cv_warmup.pt`
+- `embeddings/openvoice_vae_mixed_labeled_finish.pt`
+
+Recommended first commands:
+
+```bash
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_static_balanced.pt \
+    --schedule static_balanced
+
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_cv_warmup.pt \
+    --schedule cv_warmup \
+    --schedule-epochs 1000
+
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_labeled_finish.pt \
+    --schedule labeled_finish \
+    --schedule-epochs 1000
+```
+
+### Task 2. Generate the Pass 9 evaluation corpora
+
+Produce:
+- `output/pass9_mixed_static_balanced_eval/`
+- `output/pass9_mixed_cv_warmup_eval/`
+- `output/pass9_mixed_labeled_finish_eval/`
+
+Use:
+- `scripts/run_ablation_inference.py`
+
+### Task 3. Run the full metric stack on each Pass 9 corpus
+
+Run:
+- `examples/eval_emotion.py`
+- `examples/eval_novelty.py`
+- `examples/eval_wer.py`
+- `examples/eval_mos.py`
+
+Expected result artifacts:
+- `results/eval_emotion_pass9_<condition>.csv`
+- `results/eval_novelty_pass9_<condition>.csv`
+- `results/eval_wer_pass9_<condition>.csv`
+- `results/eval_mos_pass9_<condition>.csv`
+
+### Task 4. Summarize the Pass 9 matrix
+
+Run:
+- `scripts/summarize_mixed_data_results.py`
+
+Expected outputs:
+- `results/eval_mixed_data_summary_pass9.csv`
+- `results/eval_mixed_data_collapse_pass9.csv`
+
+### Task 5. Update the paper-facing docs only if the results are verified
+
+If the full Pass 9 run completes:
+- update `WORKLOG.md`
+- update `FINDINGS.md`
+- update `results/README.md`
+- update `examples/README.md` if workflow guidance changes
+
+If the run is partial or blocked:
+- update `WORKLOG.md`
+- do **not** add a new finding yet
+
+### Task 6. Run a small style-strength sweep on the best Pass 9 condition
+
+After the three conditions are scored, pick the best checkpoint and test a
+small non-Trump strength sweep, especially for:
+- `whisper`
+- one strong emotional style such as `happy` or `sad`
+
+This is a branch follow-up, not a prerequisite for the first Pass 9 matrix.
+
 ## 8. Validation criteria
 
 These should be recorded explicitly in `WORKLOG.md` before the branch closes.
@@ -238,6 +349,10 @@ These should be recorded explicitly in `WORKLOG.md` before the branch closes.
   documents dataset composition, speaker counts, and pseudo-label coverage.
 - `Validation`: The branch compares at least three explicit mixture strategies,
   not just one naive combined run.
+- `Validation`: The three real mixed-data checkpoints train successfully from
+  `embeddings/openvoice_mixed_base.pt`.
+- `Validation`: Each Pass 9 checkpoint has a matched evaluation corpus and
+  complete metric bundle (emotion, novelty, WER, MOS).
 - `Validation`: The CommonVoice sampling policy is speaker-breadth aware and
   documented.
 - `Validation`: The mixed-data result explicitly answers whether combining
@@ -279,10 +394,20 @@ These should stay in `WORKLOG.md` even if this branch does not reach them.
 
 ### After the first mixed-data run
 - scale the best mixed-data recipe to a larger CommonVoice slice,
+- compare one-clip-per-speaker and two-clips-per-speaker CommonVoice sampling
+  inside the mixed-data setup, because the current real artifact uses one clip
+  per speaker and Joe's heuristic still needs a direct empirical check,
+- archive one saved `mixture_report` snapshot per Pass 9 condition next to the
+  result bundle so later runs can be compared without reconstructing builder
+  arguments from memory,
 - try prototype- or teacher-space CommonVoice pretraining targets,
 - add per-style recovery plots for mixed-data conditions,
 - add repeated-seed uncertainty for the best mixed-data recipe,
 - add stronger pseudo-label calibration and agreement filters,
+- add per-class CommonVoice pseudo-label thresholds or caps, because the first
+  real `openvoice_mixed_base.pt` artifact is still heavily skewed toward
+  `neutral` (`207`) and `sad` (`170`) among the accepted pseudo-labeled
+  CommonVoice rows,
 - revisit architecture only after the mixed-data story is clear.
 
 ## 12. Expected next update points
