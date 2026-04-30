@@ -209,6 +209,138 @@ def train_autoencoder(model, embeddings, epochs=1000, labels=None, lr=1e-5,
     print('Ending loss:', loss.item())
 
 
+def _normalize_dataset_masses(raw_masses, present_datasets):
+    filtered = {
+        dataset: max(float(raw_masses.get(dataset, 0.0)), 0.0)
+        for dataset in present_datasets
+    }
+    total = sum(filtered.values())
+    if total <= 0:
+        uniform = 1.0 / max(len(present_datasets), 1)
+        return {dataset: uniform for dataset in present_datasets}
+    return {dataset: value / total for dataset, value in filtered.items()}
+
+
+def _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets):
+    if schedule == "static_balanced":
+        return _normalize_dataset_masses(
+            {"CommonVoice": 1.0, "CREMA-D": 1.0, "Expresso": 1.0},
+            present_datasets,
+        )
+
+    if schedule_epochs <= 0:
+        schedule_epochs = 1
+    progress = min(max(epoch, 0), schedule_epochs) / schedule_epochs
+
+    if schedule == "cv_warmup":
+        start = {"CommonVoice": 0.70, "CREMA-D": 0.15, "Expresso": 0.15}
+        end = {"CommonVoice": 1.0, "CREMA-D": 1.0, "Expresso": 1.0}
+    elif schedule == "labeled_finish":
+        start = {"CommonVoice": 1.0, "CREMA-D": 1.0, "Expresso": 1.0}
+        end = {"CommonVoice": 0.20, "CREMA-D": 0.40, "Expresso": 0.40}
+    else:
+        raise ValueError(f"Unsupported mixed-data schedule: {schedule}")
+
+    raw = {
+        dataset: start.get(dataset, 0.0) + (end.get(dataset, 0.0) - start.get(dataset, 0.0)) * progress
+        for dataset in present_datasets
+    }
+    return _normalize_dataset_masses(raw, present_datasets)
+
+
+def train_mixed_autoencoder(model, embeddings, style_targets, style_label_mask,
+                            source_datasets, epochs=1000, lr=1e-5,
+                            recon_weight=1.0, kl_weight=1.0,
+                            label_weight=1.0, schedule="static_balanced",
+                            schedule_epochs=0, style_label_row_weights=None):
+    BATCH_SIZE = min(256, len(embeddings))
+    trainable_params = [param for param in model.parameters() if param.requires_grad]
+    if not trainable_params:
+        raise ValueError("No trainable parameters remain in the model")
+    optimizer = torch.optim.Adam(trainable_params, lr=lr)
+
+    if schedule_epochs <= 0 and schedule != "static_balanced":
+        schedule_epochs = epochs
+
+    source_datasets = [str(dataset) for dataset in source_datasets]
+    dataset_counts = Counter(source_datasets)
+    present_datasets = [dataset for dataset in ["CommonVoice", "CREMA-D", "Expresso"] if dataset_counts.get(dataset)]
+    if not present_datasets:
+        raise ValueError("No source datasets found for mixed-data training")
+
+    print("Mixed-data training config:")
+    print(f"  recon weight : {recon_weight}")
+    print(f"  kl weight    : {kl_weight}")
+    print(f"  label weight : {label_weight}")
+    print(f"  schedule     : {schedule}")
+    if schedule != "static_balanced":
+        print(f"  schedule epochs: {schedule_epochs}")
+    print(f"  styles       : {style_targets.shape[1]}")
+    for dataset in present_datasets:
+        print(f"  dataset rows {dataset:11s}: {dataset_counts[dataset]}")
+    labeled_rows = int((style_label_mask.view(-1) > 0).sum().item())
+    print(f"  labeled rows : {labeled_rows}/{len(embeddings)}")
+
+    print(f"Training mixed-data autoencoder for {epochs} epochs...")
+    for epoch in tqdm(range(epochs)):
+        dataset_masses = _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets)
+        per_row_probs = torch.tensor(
+            [dataset_masses[dataset] / dataset_counts[dataset] for dataset in source_datasets],
+            dtype=torch.float32,
+            device=embeddings.device,
+        )
+        per_row_probs = per_row_probs / per_row_probs.sum()
+        sampled_indexes = torch.multinomial(
+            per_row_probs,
+            num_samples=embeddings.shape[0],
+            replacement=True,
+        )
+        index_batches = torch.split(sampled_indexes, BATCH_SIZE)
+
+        for batch_indexes in index_batches:
+            embeddings_b = embeddings[batch_indexes]
+            optimizer.zero_grad()
+
+            reconstructed = model(embeddings_b)
+            recon_loss = ((embeddings_b - reconstructed)**2).sum()
+            kl_loss = model.kl
+
+            batch_mask = style_label_mask[batch_indexes].view(-1) > 0
+            if batch_mask.any():
+                target_b = style_targets[batch_indexes][batch_mask]
+                student_b = model.last_z[batch_mask, :style_targets.shape[1]]
+                row_loss = ((student_b - target_b)**2).sum(dim=1)
+                if style_label_row_weights is not None:
+                    weights_b = style_label_row_weights[batch_indexes].view(-1)[batch_mask]
+                    label_loss = (row_loss * weights_b).sum()
+                else:
+                    label_loss = row_loss.sum()
+            else:
+                label_loss = embeddings_b.new_tensor(0.0)
+
+            loss = (
+                recon_weight * recon_loss
+                + kl_weight * kl_loss
+                + label_weight * label_loss
+            )
+            loss.backward()
+            optimizer.step()
+
+        if epoch % 10 == 0:
+            masses_str = ", ".join(
+                f"{dataset}={dataset_masses[dataset]:.2f}" for dataset in present_datasets
+            )
+            print(
+                f"loss: {loss.item():.2f}  "
+                f"recon: {recon_loss.item():.2f} (w={recon_weight:.2f})  "
+                f"kl: {kl_loss.item():.2f} (w={kl_weight:.2f})  "
+                f"label: {label_loss.item():.2f} (w={label_weight:.2f})  "
+                f"mix: {masses_str}"
+            )
+
+    print('Ending loss:', loss.item())
+
+
 def train_commonvoice_pretrain(model, embeddings, epochs=1000, lr=1e-5,
                                recon_weight=1.0, kl_weight=1.0,
                                metadata_specs=None, metadata_weight=0.0,

@@ -765,6 +765,93 @@ Current Pass 8 conclusion from the checked-in artifacts:
 - the pseudo-label path appears to over-regularize the model into a conservative basin: style recall stays flat, identity collapse jumps to `85-90`, and novelty gain drops to `0.0190-0.0181`
 - the next CommonVoice experiments should focus on pseudo-label quality, prototype- or teacher-space targets applied during CommonVoice pretraining itself, or a stronger curriculum rather than simply adding weak labels at this scale
 
+### 4h. Pass 9 mixed-data bootstrap implementation
+
+Pass 9 starts the first real **CommonVoice + CREMA-D + Expresso** mixed-data
+training line Joe prioritized on April 30.
+
+The goal is narrower than "solve the whole paper in one run":
+
+- build a reproducible mixed-data artifact that preserves **speaker breadth**
+  from CommonVoice while protecting the smaller labeled datasets
+- train the first three schedule variants from the same artifact
+- keep the entire setup interpretable enough that later full runs can be read
+  back against the earlier CommonVoice-only passes
+
+Build the mixed artifact:
+
+```bash
+python scripts/build_mixed_training_set.py \
+    --commonvoice embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --cremad embeddings/openvoice_cremad_emb.pt \
+    --expresso embeddings/openvoice_expresso_emb.pt \
+    --output embeddings/openvoice_mixed_base.pt \
+    --commonvoice-max-speakers 500 \
+    --commonvoice-max-clips-per-speaker 1 \
+    --commonvoice-prefer-pseudo \
+    --commonvoice-style-caps neutral=150,sad=120,happy=80,disgust=60,anger=40,fear=40 \
+    --expresso-only-cap 90 \
+    --pseudo-confidence-scale
+```
+
+What the builder writes:
+
+- `data`: the stacked mixed embeddings
+- `label_*`: the unified 9-style targets
+- `style_label_mask`: which rows should contribute label loss
+- `style_label_row_weight`: inverse-frequency style weights, with optional
+  pseudo-label confidence scaling
+- `source_dataset`: `CommonVoice`, `CREMA-D`, or `Expresso` per row
+- `mixture_report`: dataset counts, labeled counts, pseudo-label counts, and
+  the exact CommonVoice sampling config used to build the artifact
+
+Train the first three schedule variants:
+
+```bash
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_static_balanced.pt \
+    --schedule static_balanced
+
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_cv_warmup.pt \
+    --schedule cv_warmup \
+    --schedule-epochs 1000
+
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_base.pt \
+    --output embeddings/openvoice_vae_mixed_labeled_finish.pt \
+    --schedule labeled_finish \
+    --schedule-epochs 1000
+```
+
+Schedule meanings:
+
+- `static_balanced`: equal dataset mass each epoch
+- `cv_warmup`: starts CommonVoice-heavy, then interpolates toward an equal mix
+- `labeled_finish`: starts equal, then finishes with higher CREMA-D/Expresso mass
+
+Once a mixed checkpoint exists, use the shared inference helper to generate the
+Pass 9 evaluation corpus:
+
+```bash
+python scripts/run_ablation_inference.py \
+    --condition mixed_static_balanced \
+    --source-dir examples/source_speakers/ \
+    --out output/pass9_mixed_static_balanced_eval/
+```
+
+Current validation status for Pass 9:
+
+- the mixed-data builder was smoke-tested successfully on a small artifact with
+  `20` CommonVoice speakers and `627` total rows
+- all three training schedules ran end to end on that smoke artifact
+- **full Pass 9 scientific results are not checked in yet**
+
+So at this point the branch has a validated **implementation scaffold**, not a
+paper-facing new finding yet.
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -959,8 +1046,10 @@ scores more interpretable.
 | 4g | `openvoice_train_vae_combined.py --freeze-* ...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_cv500_ft_*.pt` |
 | 4h | `openvoice_train_vae_combined.py --label-weight/...` | Step 3 output + Step 4c checkpoint | `openvoice_vae_combined_cv500_obj_*.pt` |
 | 4i | `openvoice_train_vae_combined.py --style-teacher-* / --free-anchor-*` | Step 3 output + Step 4c checkpoint (+ optional teacher checkpoint) | `openvoice_vae_combined_cv500_rich_*.pt` |
+| 4j | `../scripts/build_mixed_training_set.py` | Step 1 + 2 + 4c/10e outputs | `openvoice_mixed_base.pt` |
+| 4k | `openvoice_train_vae_mixed.py` | Step 4j output | `openvoice_vae_mixed_*.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
-| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g / 4h / 4i output + audio | Pass 4, Pass 5, Pass 6, or Pass 7 evaluation corpora + manifest |
+| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g / 4h / 4i / 4k output + audio | Pass 4, Pass 5, Pass 6, Pass 7, Pass 8, or Pass 9 evaluation corpora + manifest |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
 | 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
@@ -971,22 +1060,26 @@ scores more interpretable.
 | 10d | `../scripts/summarize_commonvoice_rich_objectives.py` | Pass 7 eval CSVs | `eval_commonvoice_rich_objectives_summary_pass7.csv` + `eval_commonvoice_rich_objectives_collapse_pass7.csv` |
 | 10e | `../scripts/annotate_commonvoice_pseudolabels.py` | CommonVoice embedding artifact | enriched artifact with `pseudo_style`, `pseudo_style_confidence`, and `pseudo_style_report` |
 | 10f | `../scripts/summarize_commonvoice_partial_label.py` | Pass 8 eval CSVs | `eval_commonvoice_partial_label_summary_pass8.csv` + `eval_commonvoice_partial_label_collapse_pass8.csv` |
+| 10g | `../scripts/summarize_mixed_data_results.py` | Pass 9 eval CSVs | `eval_mixed_data_summary_pass9.csv` + `eval_mixed_data_collapse_pass9.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
 - `openvoice_inference.py` — Basic DP inference without style control.
 - `openvoice_extract_commonvoice.py` — Local Common Voice extraction for pretraining.
 - `openvoice_pretrain_vae_commonvoice.py` — Reconstruction-only VAE pretraining on Common Voice.
+- `openvoice_train_vae_mixed.py` — Schedule-aware mixed-data VAE training on a sampled CommonVoice + CREMA-D + Expresso artifact.
 - `eval_novelty.py` — Measures source-vs-generated speaker novelty in OpenVoice embedding space.
 - `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
+- `../scripts/build_mixed_training_set.py` — Builds the first mixed-data bootstrap artifact with CommonVoice speaker-first sampling, pseudo-label filtering, style caps, and a saved mixture report.
 - `../scripts/prepare_ablation_embeddings.py` — Builds the Pass 4 `cremad_only` / `expresso_only` embedding sets.
-- `../scripts/run_ablation_inference.py` — Generates the Pass 4 ablation corpora, the Pass 5 CommonVoice finetune corpora, the Pass 6 CommonVoice objective corpora, the Pass 7 rich-objective corpora, and the Pass 8 partial-label corpora.
+- `../scripts/run_ablation_inference.py` — Generates the Pass 4 ablation corpora, the Pass 5 CommonVoice finetune corpora, the Pass 6 CommonVoice objective corpora, the Pass 7 rich-objective corpora, the Pass 8 partial-label corpora, and the upcoming Pass 9 mixed-data corpora.
 - `../scripts/annotate_commonvoice_pseudolabels.py` — Adds confidence-scored pseudo-style labels to a CommonVoice embedding artifact so weak-label pretraining can be reproduced without rerunning the teacher every time.
 - `../scripts/summarize_ablation_results.py` — Aggregates Pass 4 metrics into a condition table and a collapse taxonomy.
 - `../scripts/summarize_commonvoice_finetune_ablation.py` — Aggregates Pass 5 CommonVoice finetune metrics into a condition table and a collapse taxonomy.
 - `../scripts/summarize_commonvoice_objective_ablation.py` — Aggregates Pass 6 CommonVoice objective metrics into a condition table and a collapse taxonomy.
 - `../scripts/summarize_commonvoice_rich_objectives.py` — Aggregates Pass 7 CommonVoice rich-objective metrics into a condition table and a collapse taxonomy.
 - `../scripts/summarize_commonvoice_partial_label.py` — Aggregates Pass 8 CommonVoice partial-label metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_mixed_data_results.py` — Aggregates the planned Pass 9 mixed-data metrics into a condition table and a collapse taxonomy.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
 

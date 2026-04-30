@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-04-30
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -600,6 +600,58 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 - Joe said the branch stack is getting hard to interpret directly and asked for a **single document** that summarizes findings and how to read the metrics, which reinforces keeping `FINDINGS.md` as the async review hub
 - Joe confirmed the current **12GB GPU machine is sufficient for these VAE experiments**, while larger cluster access may be possible later but should not be assumed for the next branch
 - **Planned next branch:** `research/combined-data-pseudolabel-mix`
+
+### 0.15 Pass 9 Bootstrap Implementation (April 30, branch `research/combined-data-pseudolabel-mix`)
+
+- Added `scripts/build_mixed_training_set.py`
+  - builds the first sampled **CommonVoice + CREMA-D + Expresso** training artifact
+  - preserves `source_dataset`, `style_label_mask`, `style_label_row_weight`, pseudo-label confidence, and a saved `mixture_report`
+  - prioritizes CommonVoice **speaker breadth first**, with optional pseudo-label preference and per-style caps
+- Added `examples/openvoice_train_vae_mixed.py`
+  - trains directly from the mixed artifact
+  - supports the first three schedule families Joe called out:
+    - `static_balanced`
+    - `cv_warmup`
+    - `labeled_finish`
+- Added `dpvc.utils.train_mixed_autoencoder()`
+  - samples rows each epoch according to dataset-mass schedules rather than treating the merged artifact as a flat dataset
+  - keeps the labeled-row loss masked so unlabeled CommonVoice rows do not act like fake negatives
+- Added `scripts/summarize_mixed_data_results.py`
+  - reserved for the upcoming Pass 9 result matrix so the mixed-data branch has a checked-in summary format before the full run
+
+**Smoke validation**
+- [x] Mixed-data artifact builder compiles and runs
+  - validated with a small smoke artifact at `/private/tmp/openvoice_mixed_smoke.pt`
+  - smoke artifact summary: `627` total rows = `36` CommonVoice + `546` CREMA-D + `45` Expresso
+  - labeled rows: `622/627`
+- [x] First real mixed-data artifact built for the branch
+  - wrote `embeddings/openvoice_mixed_base.pt`
+  - current branch artifact summary: `1,325` total rows = `500` CommonVoice + `546` CREMA-D + `279` Expresso
+  - labeled rows: `1,287/1,325`
+  - current CommonVoice pseudo-label mix in the artifact: `neutral=207`, `sad=170`, `happy=37`, `disgust=34`, `anger=10`, `fear=4`
+- [x] CommonVoice speaker-first sampling, pseudo-label filtering, and mixture reporting execute end to end
+  - validated with `20` CommonVoice speakers, `max 2` clips per speaker, pseudo-label preference on, and explicit style caps
+- [x] All three mixed-data schedules execute end to end on the smoke artifact
+  - `static_balanced`
+  - `cv_warmup`
+  - `labeled_finish`
+- [x] The shared evaluation-corpus generator now accepts the first mixed-data conditions
+  - smoke-validated with `mixed_static_balanced` plus a one-file source run that wrote 10 outputs and a manifest to `/private/tmp/pass9_mixed_infer_smoke/`
+- [x] New scripts pass syntax validation
+  - `py_compile` passed for `dpvc/utils.py`, `examples/openvoice_train_vae_mixed.py`, `scripts/build_mixed_training_set.py`, `scripts/run_ablation_inference.py`, and `scripts/summarize_mixed_data_results.py`
+
+**What is still not done**
+- The first **full Pass 9 scientific run** is still pending
+- No new paper-facing result belongs in `FINDINGS.md` yet from this branch
+- Phase 1.6 roadmap items stay open until we train the real mixed-data checkpoints, generate matched corpora, and run the full metric stack
+
+**Immediate next execution target**
+- Build the first real `embeddings/openvoice_mixed_base.pt`
+- Train:
+  - `embeddings/openvoice_vae_mixed_static_balanced.pt`
+  - `embeddings/openvoice_vae_mixed_cv_warmup.pt`
+  - `embeddings/openvoice_vae_mixed_labeled_finish.pt`
+- Then generate the Pass 9 corpora and evaluate them against the strongest earlier CommonVoice references
 
 ---
 

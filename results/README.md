@@ -88,6 +88,17 @@ Pass 8 CommonVoice partial-label artifacts from 2026-04-29:
 | `eval_commonvoice_partial_label_summary_pass8.csv` | 7 conditions | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 top-line matrix |
 | `eval_commonvoice_partial_label_collapse_pass8.csv` | per generated file | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 collapse taxonomy |
 
+Pass 9 mixed-data bootstrap status from 2026-04-30:
+
+- The mixed-data implementation scaffold now exists:
+  - [`scripts/build_mixed_training_set.py`](../scripts/build_mixed_training_set.py)
+  - [`examples/openvoice_train_vae_mixed.py`](../examples/openvoice_train_vae_mixed.py)
+  - [`scripts/summarize_mixed_data_results.py`](../scripts/summarize_mixed_data_results.py)
+- The builder and all three schedule modes (`static_balanced`, `cv_warmup`,
+  `labeled_finish`) passed smoke validation on a small mixed artifact.
+- **No full Pass 9 evaluation CSVs are checked in yet**, so there is no new
+  paper-facing result here yet.
+
 ## Schema
 
 ### `eval_emotion_full.csv`

@@ -6,7 +6,7 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current paper-strengthening branch: **`research/commonvoice-partial-label-pretrain`**. Planned next branch after the April 30 meeting with Joe: **`research/combined-data-pseudolabel-mix`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current implementation branch: **`research/combined-data-pseudolabel-mix`**. The current paper-strengthening baseline still comes from Passes 4-8, but this branch starts the first sampled **CommonVoice + CREMA-D + Expresso** mixed-data training line Joe prioritized on April 30. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
 - **[`FINDINGS.md`](FINDINGS.md)** — 16 paper-facing findings with methodology and per-row takeaways.
@@ -84,6 +84,7 @@ See also:
 - `examples/openvoice_train_vae.py` — train a custom DP-VAE for the anonymizer.
 - `examples/openvoice_infer_controllable.py` — **controllable** style-aware inference (the current headline flow; see [`examples/README.md`](examples/README.md) for the full pipeline).
 - `examples/openvoice_extract_commonvoice.py` + `examples/openvoice_pretrain_vae_commonvoice.py` — Common Voice pretraining path, including validation-scale weak supervision from metadata and pseudo labels.
+- `scripts/build_mixed_training_set.py` + `examples/openvoice_train_vae_mixed.py` — first mixed-data bootstrap path that combines pseudo-labeled CommonVoice with labeled CREMA-D and Expresso under schedule-controlled sampling.
 - `scripts/prepare_commonvoice_subset.py` — helper for turning downloaded Common Voice shards into a filtered local `validated.tsv` + `clips/` subset.
 - `scripts/annotate_commonvoice_pseudolabels.py` — adds confidence-scored pseudo-style labels to a Common Voice embedding artifact.
 - `scripts/prepare_ablation_embeddings.py` — builds the `cremad_only` and `expresso_only` Pass 4 ablation datasets in the unified label format.
@@ -93,6 +94,7 @@ See also:
 - `scripts/summarize_commonvoice_objective_ablation.py` — compares the Pass 6 CommonVoice objective variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
 - `scripts/summarize_commonvoice_rich_objectives.py` — compares the Pass 7 teacher/anchor CommonVoice variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
 - `scripts/summarize_commonvoice_partial_label.py` — compares the Pass 8 metadata / pseudo-label CommonVoice variants against `combined`, the raw `cv500` init, the best Pass 5 finetune recipe, and the best Pass 7 rich-objective recipe.
+- `scripts/summarize_mixed_data_results.py` — summarizes the upcoming Pass 9 mixed-data matrix against the strongest earlier CommonVoice references.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation

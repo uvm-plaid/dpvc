@@ -1,11 +1,12 @@
 """
-Generate ablation corpora for Pass 4 evaluation.
+Generate evaluation corpora for the paper-strengthening branches.
 
 This script keeps the main `examples/openvoice_infer_controllable.py` interface
 stable and adds the extra research logic needed for the ablation matrix:
 
 - condition-specific style maps for single-dataset checkpoints
 - a deterministic naive baseline using unlabeled latent dimensions
+- pass-specific checkpoint aliases for the CommonVoice and mixed-data branches
 - manifest rows that record the ablation condition and control mode
 """
 
@@ -119,6 +120,24 @@ CONDITION_CONFIGS = {
     },
     "cv500_pl_meta_plus_pseudo": {
         "checkpoint": "embeddings/openvoice_vae_combined_cv500_pl_meta_plus_pseudo.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "mixed_static_balanced": {
+        "checkpoint": "embeddings/openvoice_vae_mixed_static_balanced.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "mixed_cv_warmup": {
+        "checkpoint": "embeddings/openvoice_vae_mixed_cv_warmup.pt",
+        "styles": FULL_STYLES,
+        "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
+        "control_mode": "labeled",
+    },
+    "mixed_labeled_finish": {
+        "checkpoint": "embeddings/openvoice_vae_mixed_labeled_finish.pt",
         "styles": FULL_STYLES,
         "style_to_index": {style: idx for idx, style in enumerate(FULL_STYLES)},
         "control_mode": "labeled",
