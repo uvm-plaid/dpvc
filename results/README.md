@@ -14,14 +14,14 @@ Validation-scale CommonVoice pretraining comparison artifacts from 2026-04-28:
 
 | File | Rows | Script | Backs |
 |------|------|--------|-------|
-| `eval_emotion_pass2_combined.csv` | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | Pass 2 combined-only baseline for Finding 10 |
-| `eval_wer_pass2_combined.csv`     | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Pass 2 combined-only baseline for Finding 10 |
+| `eval_emotion_pass2_combined.csv` | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | CommonVoice pretraining pipeline combined-only baseline for Finding 10 |
+| `eval_wer_pass2_combined.csv`     | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | CommonVoice pretraining pipeline combined-only baseline for Finding 10 |
 | `eval_emotion_pass2_cv500.csv`    | 110 | [`examples/eval_emotion.py`](../examples/eval_emotion.py) | Finding 10 (`cv500` CommonVoice init candidate) |
 | `eval_wer_pass2_cv500.csv`        | 110 | [`examples/eval_wer.py`](../examples/eval_wer.py)         | Finding 10 (`cv500` CommonVoice init candidate) |
-| `eval_novelty_pass2_combined.csv` | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Pass 3 novelty baseline for Finding 11 |
+| `eval_novelty_pass2_combined.csv` | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | speaker novelty metric work novelty baseline for Finding 11 |
 | `eval_novelty_pass2_cv500.csv`    | 110 | [`examples/eval_novelty.py`](../examples/eval_novelty.py) | Finding 11 (`cv500` novelty candidate) |
 
-Pass 4 ablation-matrix artifacts from 2026-04-28:
+Evaluation ablation matrix artifacts from 2026-04-28:
 
 | Bundle | Rows | Scripts | Backs |
 |--------|------|---------|-------|
@@ -33,7 +33,7 @@ Pass 4 ablation-matrix artifacts from 2026-04-28:
 | `eval_ablation_summary_pass4.csv` | 5 conditions | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 top-line matrix |
 | `eval_ablation_collapse_pass4.csv` | per generated file | [`scripts/summarize_ablation_results.py`](../scripts/summarize_ablation_results.py) | Finding 12 collapse taxonomy |
 
-Pass 5 CommonVoice finetune-ablation artifacts from 2026-04-28:
+CommonVoice finetune ablation artifacts from 2026-04-28:
 
 | Bundle | Rows | Scripts | Backs |
 |--------|------|---------|-------|
@@ -47,13 +47,13 @@ Pass 5 CommonVoice finetune-ablation artifacts from 2026-04-28:
 | `eval_commonvoice_finetune_summary_pass5.csv` | 7 conditions | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 top-line matrix |
 | `eval_commonvoice_finetune_collapse_pass5.csv` | per generated file | [`scripts/summarize_commonvoice_finetune_ablation.py`](../scripts/summarize_commonvoice_finetune_ablation.py) | Finding 13 collapse taxonomy |
 
-Pass 6 CommonVoice objective-ablation artifacts from 2026-04-28:
+CommonVoice objective ablation artifacts from 2026-04-28:
 
 | Bundle | Rows | Scripts | Backs |
 |--------|------|---------|-------|
 | `pass6_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 combined reference condition |
 | `pass6_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 raw `cv500` reference condition |
-| `pass6_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 best Pass 5 finetune reference |
+| `pass6_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 best CommonVoice finetune reference |
 | `pass6_cv500_obj_label2` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 label-upweight condition |
 | `pass6_cv500_obj_label4` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 high-label-weight condition |
 | `pass6_cv500_obj_label_ramp` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 14 label-ramp condition |
@@ -61,43 +61,53 @@ Pass 6 CommonVoice objective-ablation artifacts from 2026-04-28:
 | `eval_commonvoice_objective_summary_pass6.csv` | 7 conditions | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 top-line matrix |
 | `eval_commonvoice_objective_collapse_pass6.csv` | per generated file | [`scripts/summarize_commonvoice_objective_ablation.py`](../scripts/summarize_commonvoice_objective_ablation.py) | Finding 14 collapse taxonomy |
 
-Pass 7 CommonVoice rich-objective artifacts from 2026-04-29:
+CommonVoice rich-objective ablation artifacts from 2026-04-29:
 
 | Bundle | Rows | Scripts | Backs |
 |--------|------|---------|-------|
 | `pass7_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 combined reference condition |
 | `pass7_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 raw `cv500` reference condition |
-| `pass7_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 best Pass 5 finetune reference |
+| `pass7_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 best CommonVoice finetune reference |
 | `pass7_cv500_rich_teacher_style` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 style-teacher distillation condition |
 | `pass7_cv500_rich_free_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 free-dim anchor condition |
 | `pass7_cv500_rich_teacher_plus_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 15 combined teacher+anchor condition |
 | `eval_commonvoice_rich_objectives_summary_pass7.csv` | 6 conditions | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 top-line matrix |
 | `eval_commonvoice_rich_objectives_collapse_pass7.csv` | per generated file | [`scripts/summarize_commonvoice_rich_objectives.py`](../scripts/summarize_commonvoice_rich_objectives.py) | Finding 15 collapse taxonomy |
 
-Pass 8 CommonVoice partial-label artifacts from 2026-04-29:
+CommonVoice partial-label pretraining artifacts from 2026-04-29:
 
 | Bundle | Rows | Scripts | Backs |
 |--------|------|---------|-------|
 | `pass8_combined` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 combined reference condition |
 | `pass8_commonvoice_cv500_init` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 raw `cv500` reference condition |
-| `pass8_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best Pass 5 finetune reference |
-| `pass8_cv500_rich_free_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best Pass 7 rich-objective reference |
+| `pass8_cv500_ft_short_low_lr` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best CommonVoice finetune reference |
+| `pass8_cv500_rich_free_anchor` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 best CommonVoice rich-objective reference |
 | `pass8_cv500_pl_meta` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 metadata-only weak-label condition |
 | `pass8_cv500_pl_pseudo_style` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 pseudo-style weak-label condition |
 | `pass8_cv500_pl_meta_plus_pseudo` | 110 | `eval_emotion.py`, `eval_novelty.py`, `eval_wer.py`, `eval_mos.py` | Finding 16 hybrid weak-label condition |
 | `eval_commonvoice_partial_label_summary_pass8.csv` | 7 conditions | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 top-line matrix |
 | `eval_commonvoice_partial_label_collapse_pass8.csv` | per generated file | [`scripts/summarize_commonvoice_partial_label.py`](../scripts/summarize_commonvoice_partial_label.py) | Finding 16 collapse taxonomy |
 
-Pass 9 mixed-data bootstrap status from 2026-04-30:
+Mixed-data pseudolabel mix schedule matrix from 2026-04-30:
 
-- The mixed-data implementation scaffold now exists:
-  - [`scripts/build_mixed_training_set.py`](../scripts/build_mixed_training_set.py)
-  - [`examples/openvoice_train_vae_mixed.py`](../examples/openvoice_train_vae_mixed.py)
-  - [`scripts/summarize_mixed_data_results.py`](../scripts/summarize_mixed_data_results.py)
-- The builder and all three schedule modes (`static_balanced`, `cv_warmup`,
-  `labeled_finish`) passed smoke validation on a small mixed artifact.
-- **No full Pass 9 evaluation CSVs are checked in yet**, so there is no new
-  paper-facing result here yet.
+- The full mixed-data result bundle is now checked in for the three new schedule conditions:
+  - `pass9_mixed_static_balanced`
+  - `pass9_mixed_cv_warmup`
+  - `pass9_mixed_labeled_finish`
+- The mixed-data summary also reuses copied reference CSVs for:
+  - `combined`
+  - `commonvoice_cv500_init`
+  - `cv500_ft_short_low_lr`
+  - `cv500_rich_free_anchor`
+  - `cv500_pl_meta`
+- Top-line matrix:
+  - `mixed_static_balanced`: recall `16.7%`, novelty `0.0865`, mean WER `0.0825`, MOS delta `-0.1316`
+  - `mixed_cv_warmup`: recall `16.7%`, novelty `0.0738`, mean WER `0.0700`, MOS delta `-0.1341`
+  - `mixed_labeled_finish`: recall `16.7%`, novelty `0.0828`, mean WER `0.0606`, MOS delta `-0.1425`
+- Current conclusion:
+  - schedule choice changes the WER/novelty tradeoff modestly
+  - none of the three schedules improves recall beyond `16.7%`
+  - mixed-data training helps the CommonVoice line more on intelligibility than on controllability
 
 ## Schema
 
@@ -137,7 +147,7 @@ Pass 9 mixed-data bootstrap status from 2026-04-30:
 - `emotion_recall`: fraction of emotional rows whose predicted label matches target
 - `mean_novelty_gain_vs_baseline`: average `baseline_similarity - similarity`
 - `mean_mos_delta_vs_baseline`: average style-row MOS minus same-speaker baseline MOS
-- collapse counts use the Pass 4 taxonomy implemented in `scripts/summarize_ablation_results.py`
+- collapse counts use the evaluation ablation matrix taxonomy implemented in `scripts/summarize_ablation_results.py`
 
 ### `eval_ablation_collapse_pass4.csv`
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
@@ -157,14 +167,14 @@ Pass 9 mixed-data bootstrap status from 2026-04-30:
 ### `eval_commonvoice_finetune_collapse_pass5.csv`
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
 
-- same taxonomy as Pass 4, but applied to the CommonVoice finetune matrix
+- same taxonomy as evaluation ablation matrix, but applied to the CommonVoice finetune matrix
 
 ### `eval_commonvoice_objective_summary_pass6.csv`
 `condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_best_ft, delta_novelty_vs_best_ft, delta_wer_vs_best_ft, delta_mos_delta_vs_best_ft, delta_recall_vs_combined, delta_novelty_vs_combined`
 
 - same core fields as `eval_ablation_summary_pass4.csv`
 - `delta_*_vs_cv500`: direct comparison against the original `commonvoice_cv500_init` condition
-- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best Pass 5 finetune recipe
+- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best CommonVoice finetune recipe
 - `delta_*_vs_combined`: direct comparison against the main paper checkpoint
 
 ### `eval_commonvoice_objective_collapse_pass6.csv`
@@ -177,7 +187,7 @@ Pass 9 mixed-data bootstrap status from 2026-04-30:
 
 - same core fields as `eval_ablation_summary_pass4.csv`
 - `delta_*_vs_cv500`: direct comparison against the original `commonvoice_cv500_init` condition
-- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best Pass 5 finetune recipe
+- `delta_*_vs_best_ft`: direct comparison against `cv500_ft_short_low_lr`, the best CommonVoice finetune recipe
 - `delta_*_vs_combined`: direct comparison against the main paper checkpoint
 
 ### `eval_commonvoice_rich_objectives_collapse_pass7.csv`
@@ -188,10 +198,10 @@ Pass 9 mixed-data bootstrap status from 2026-04-30:
 ### `eval_commonvoice_partial_label_summary_pass8.csv`
 `condition, styles_present, styles_count, sources_count, rows_total, emotion_rows_scored, emotion_recall, mean_emo_sim, mean_wer, mean_mos, mean_mos_delta_vs_baseline, mean_novelty_gain_vs_baseline, content_collapse_count, style_collapse_to_neutral_count, identity_collapse_to_baseline_count, mixed_collapse_count, files_with_any_collapse, delta_recall_vs_cv500, delta_novelty_vs_cv500, delta_wer_vs_cv500, delta_mos_delta_vs_cv500, delta_recall_vs_best_ft, delta_novelty_vs_best_ft, delta_wer_vs_best_ft, delta_mos_delta_vs_best_ft, delta_recall_vs_best_rich, delta_novelty_vs_best_rich, delta_wer_vs_best_rich, delta_mos_delta_vs_best_rich, delta_recall_vs_combined, delta_novelty_vs_combined, delta_wer_vs_combined, delta_mos_delta_vs_combined`
 
-- same core fields as Passes 5-7
+- same core fields as the CommonVoice finetune, objective, and rich-objective ablation result bundles
 - `best_ft` is `cv500_ft_short_low_lr`
 - `best_rich` is `cv500_rich_free_anchor`
-- deltas make the Pass 8 weak-label conditions directly comparable to the strongest earlier CommonVoice baselines
+- deltas make the CommonVoice partial-label pretraining weak-label conditions directly comparable to the strongest earlier CommonVoice baselines
 
 ### `eval_commonvoice_partial_label_collapse_pass8.csv`
 `condition, file, speaker, style, content_collapse, style_collapse_to_neutral, identity_collapse_to_baseline, mixed_collapse`
@@ -226,7 +236,7 @@ corpus.
 
 Numbers should reproduce within rounding.
 
-## Pass 2 Reproduction (`cv500`)
+## CommonVoice pretraining pipeline Reproduction (`cv500`)
 
 This is the validation-scale CommonVoice pretraining comparison used in
 Finding 10. It compares the current combined-only checkpoint against a
@@ -278,7 +288,7 @@ Expected qualitative outcome from the checked-in CSVs:
 That makes the `cv500` run a useful negative result: better content
 preservation, weaker style controllability.
 
-## Pass 4 Reproduction (ablation matrix)
+## evaluation ablation matrix Reproduction (ablation matrix)
 
 This is the paper-strengthening ablation pass used in Finding 12. The matrix
 compares:
@@ -334,7 +344,7 @@ python scripts/run_ablation_inference.py \
 ```
 
 The unchanged `combined` and `commonvoice_cv500_init` conditions reuse the
-already generated Pass 2 corpora:
+already generated CommonVoice pretraining pipeline corpora:
 
 - `output/pass2_combined_eval/`
 - `output/pass2_cv500_eval/`
@@ -370,7 +380,7 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500`, `cremad_only`, and `expresso_only` are all stability-biased failures that collapse back toward neutral emotion and/or baseline identity
 - the naive baseline produces **more novelty** than the combined model, but with worse recall and a much worse MOS delta
 
-## Pass 5 Reproduction (CommonVoice finetune ablation)
+## CommonVoice finetune ablation Reproduction (CommonVoice finetune ablation)
 
 This is the narrow follow-up to Finding 10. It keeps the CommonVoice-pretrained
 checkpoint fixed and varies only the finetuning recipe.
@@ -436,7 +446,7 @@ Repeat that four-metric block for:
 - `cv500_ft_freeze_encoder`
 
 Reuse the unchanged `combined` and `commonvoice_cv500_init` references by
-copying their Pass 4 CSVs into the Pass 5 naming scheme, then summarize:
+copying their evaluation ablation matrix CSVs into the CommonVoice finetune ablation naming scheme, then summarize:
 
 ```bash
 python scripts/summarize_commonvoice_finetune_ablation.py
@@ -449,9 +459,9 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500_ft_freeze_encoder` gives the only recall bump, but it loses too much naturalness
 - `cv500_ft_freeze_decoder` is a strong negative result and should not be treated as the path forward
 
-## Pass 6 Reproduction (CommonVoice objective ablation)
+## CommonVoice objective ablation Reproduction (CommonVoice objective ablation)
 
-This is the objective-design follow-up to Pass 5. It keeps the CommonVoice
+This is the objective-design follow-up to CommonVoice finetune ablation. It keeps the CommonVoice
 pretrained checkpoint, the combined embeddings, and the evaluation corpus fixed,
 and changes only the loss weighting during finetuning.
 
@@ -516,7 +526,7 @@ Repeat that four-metric block for:
 
 Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
 `cv500_ft_short_low_lr` references by copying their existing metric CSVs into
-the Pass 6 naming scheme, then summarize:
+the CommonVoice objective ablation naming scheme, then summarize:
 
 ```bash
 python scripts/summarize_commonvoice_objective_ablation.py
@@ -530,9 +540,9 @@ Expected qualitative outcome from the checked-in CSVs:
 - `cv500_obj_label_ramp` preserves MOS closest to the raw `cv500` init, but only by staying near the same conservative collapse basin
 - the next CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar loss-weight sweeps
 
-## Pass 7 Reproduction (CommonVoice rich objectives)
+## CommonVoice rich-objective ablation Reproduction (CommonVoice rich objectives)
 
-This is the richer-supervision follow-up to Pass 6. It keeps the CommonVoice
+This is the richer-supervision follow-up to CommonVoice objective ablation. It keeps the CommonVoice
 init checkpoint, the combined embeddings, and the evaluation corpus fixed, and
 changes only the finetune-time supervision by adding style-teacher and
 free-anchor losses in latent space.
@@ -589,7 +599,7 @@ Repeat that four-metric block for:
 
 Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
 `cv500_ft_short_low_lr` references by copying their existing metric CSVs into
-the Pass 7 naming scheme, then summarize:
+the CommonVoice rich-objective ablation naming scheme, then summarize:
 
 ```bash
 python scripts/summarize_commonvoice_rich_objectives.py
@@ -599,15 +609,15 @@ Expected qualitative outcome from the checked-in CSVs:
 
 - none of the richer teacher/anchor variants recovers the **combined** model's controllability/novelty tradeoff
 - none of the three new variants improves recall beyond `16.7%`
-- `cv500_rich_free_anchor` is the strongest Pass 7 variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty and identity collapse
+- `cv500_rich_free_anchor` is the strongest CommonVoice rich-objective ablation variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty and identity collapse
 - `cv500_rich_teacher_style` and `cv500_rich_teacher_plus_anchor` stay in the same conservative neutral-collapse basin
 - the next CommonVoice experiments should focus on richer supervision earlier in the pipeline, partial-label/pseudo-label CommonVoice objectives, or larger-scale training once a stronger objective survives on the validation corpus
 
 ---
 
-## Pass 8 Reproduction (CommonVoice partial-label / pseudo-label pretraining)
+## CommonVoice partial-label pretraining Reproduction (CommonVoice partial-label / pseudo-label pretraining)
 
-Pass 8 tests whether adding weak supervision during the CommonVoice stage
+CommonVoice partial-label pretraining tests whether adding weak supervision during the CommonVoice stage
 itself helps before combined finetuning begins.
 
 First annotate the CommonVoice embedding artifact with pseudo labels:
@@ -663,7 +673,7 @@ python scripts/run_ablation_inference.py --source-dir examples/source_speakers/ 
 ```
 
 Run the four metrics on each corpus, reuse the unchanged reference CSVs in the
-Pass 8 naming scheme, then summarize:
+CommonVoice partial-label pretraining naming scheme, then summarize:
 
 ```bash
 python examples/eval_emotion.py --input output/pass8_cv500_pl_meta_eval --out results/eval_emotion_pass8_cv500_pl_meta.csv

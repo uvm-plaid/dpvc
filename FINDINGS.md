@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-30 (Pass 8 CommonVoice partial-label pretraining remains Finding 16; April 30 meeting alignment and next-step framing added)
+**Last updated:** 2026-04-30 (Finding 17 from the mixed-data pseudolabel mix experiment added; descriptive experiment titles now replace internal pass numbering)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -381,7 +381,7 @@ The key quantity is **novelty gain vs baseline**. It answers the paper question 
 
 This is a **proof-of-novelty** metric in our framing, not yet a full privacy metric. It uses the system's native embedding space and is intended to answer "did we generate a genuinely shifted speaker identity?" before we add an independent speaker-verification/EER pipeline.
 
-We ran it on the same two 110-file validation corpora used in Pass 2:
+We ran it on the same two 110-file validation corpora used in CommonVoice pretraining pipeline:
 
 1. combined-only checkpoint: `results/eval_novelty_pass2_combined.csv`
 2. CommonVoice `cv500` init checkpoint: `results/eval_novelty_pass2_cv500.csv`
@@ -414,7 +414,7 @@ The raw similarity values also line up with intuition from the earlier findings:
 This finding is useful for two reasons:
 
 1. **It validates the main model on a new axis.** The combined-only controllable model is not just changing classifier labels or acoustic surface features; it is producing speaker embeddings that move substantially away from the source relative to baseline conversion.
-2. **It independently confirms the `cv500` failure mode.** The CommonVoice-pretrained model does not just collapse in emotion2vec space; it also stops producing meaningfully novel speaker identities for most styles. That makes the Pass 2 negative result much harder to dismiss as a quirk of one evaluator.
+2. **It independently confirms the `cv500` failure mode.** The CommonVoice-pretrained model does not just collapse in emotion2vec space; it also stops producing meaningfully novel speaker identities for most styles. That makes the CommonVoice pretraining pipeline negative result much harder to dismiss as a quirk of one evaluator.
 
 In other words, the novelty metric and the emotion metric tell the same story from different angles:
 
@@ -450,7 +450,7 @@ We ran a **five-condition ablation matrix** on the same 11-speaker validation co
 The five conditions were:
 
 1. **combined** — the main 9-style CREMA-D + Expresso checkpoint
-2. **CommonVoice `cv500` init** — the Pass 2 finetuned checkpoint
+2. **CommonVoice `cv500` init** — the CommonVoice pretraining pipeline finetuned checkpoint
 3. **CREMA-D only** — a speaker-diverse 6-style checkpoint trained only on CREMA-D labels
 4. **Expresso only** — a 6-style checkpoint trained only on the balanced Expresso subset
 5. **naive baseline** — the combined checkpoint, but with deterministic random control vectors applied only to the six *unlabeled* latent dims (9-14), L2-matched to the style-control strength
@@ -499,7 +499,7 @@ This ablation answers several paper-critical questions at once:
 
 ### Implication
 
-Pass 4 turns the repo from "we have a working system" into "we have a defensible comparison story":
+evaluation ablation matrix turns the repo from "we have a working system" into "we have a defensible comparison story":
 
 - **combined** is the paper's current headline model
 - **CommonVoice `cv500` init** is a real negative result and a focused follow-up agenda
@@ -514,7 +514,7 @@ That is the comparison structure the paper needs.
 
 ### Methodology
 
-Pass 5 kept the **CommonVoice `cv500` pretrained checkpoint fixed** and asked a
+CommonVoice finetune ablation kept the **CommonVoice `cv500` pretrained checkpoint fixed** and asked a
 much narrower question than Finding 10:
 
 **Was the conservative `cv500` collapse mainly caused by an overly aggressive finetuning policy?**
@@ -526,7 +526,7 @@ the combined CREMA-D + Expresso labels.
 We compared the existing references:
 
 1. **combined** — the main paper checkpoint
-2. **CommonVoice `cv500` init** — the original Pass 2 finetune
+2. **CommonVoice `cv500` init** — the original CommonVoice pretraining pipeline finetune
 
 against five new finetuning variants:
 
@@ -580,7 +580,7 @@ This pass narrows the CommonVoice agenda in an important way:
 
 ### Implication
 
-Pass 5 changes the next-step recommendation for the paper:
+CommonVoice finetune ablation changes the next-step recommendation for the paper:
 
 - We should **not** frame the CommonVoice issue as something that simple “gentler finetuning” already solved.
 - We **can** say that modest identity recovery is possible without giving back all the intelligibility gain.
@@ -597,7 +597,7 @@ That is a much sharper research position than the repo had after Finding 10 alon
 
 ### Methodology
 
-Pass 6 asked a narrower follow-up question than Finding 13:
+CommonVoice objective ablation asked a narrower follow-up question than Finding 13:
 
 **Was the CommonVoice `cv500` collapse mainly an objective-balance problem that we
 could fix by reweighting the existing reconstruction, KL, and label losses
@@ -613,7 +613,7 @@ We kept these pieces unchanged:
 - combined finetuning embeddings: `embeddings/openvoice_combined_emb.pt`
 - 11-speaker validation corpus format
 - same evaluation stack from Findings 10-13
-- same best Pass 5 training schedule foundation: `1000` epochs at `3e-7`
+- same best CommonVoice finetune ablation training schedule foundation: `1000` epochs at `3e-7`
 
 We compared three references:
 
@@ -648,25 +648,25 @@ same underlying failure mode.
 | Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
 |-----------|---------------------------|-------------------------------|----------------|----------|
 | CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse pattern |
-| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
-| `cv500_obj_label2` | 55 | 53 | 28 | Some identity recovery over raw `cv500`, still worse than best Pass 5 recipe |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best CommonVoice finetune ablation identity-recovery reference |
+| `cv500_obj_label2` | 55 | 53 | 28 | Some identity recovery over raw `cv500`, still worse than best CommonVoice finetune ablation recipe |
 | `cv500_obj_label4` | 55 | 55 | 32 | Stronger label weight worsens WER and does not reduce style collapse |
 | `cv500_obj_label_ramp` | 55 | 57 | 35 | Label ramp behaves almost like the original conservative collapse |
 | `cv500_obj_recon_half_label2` | 55 | 56 | 32 | Reduced reconstruction pressure still does not recover control |
 
 ### Interpretation
 
-Pass 6 sharpens the CommonVoice story again:
+CommonVoice objective ablation sharpens the CommonVoice story again:
 
 1. **Simple scalar objective reweighting is not enough.** None of the four variants improves recall beyond `16.7%`.
-2. **Objective tuning helps less than the best Pass 5 finetune recipe.** Even the best new variant (`cv500_obj_label2`) trails `cv500_ft_short_low_lr` on novelty and identity collapse.
+2. **Objective tuning helps less than the best CommonVoice finetune recipe.** Even the best new variant (`cv500_obj_label2`) trails `cv500_ft_short_low_lr` on novelty and identity collapse.
 3. **The label-ramp result is particularly informative.** It preserves MOS close to the original `cv500` run, but only by staying near the same conservative identity/style collapse basin.
-4. **The CommonVoice failure is now unlikely to be just a basic weight-balance issue.** Pass 5 ruled out simple finetune-policy changes; Pass 6 rules out simple scalar reweighting of the existing losses.
+4. **The CommonVoice failure is now unlikely to be just a basic weight-balance issue.** CommonVoice finetune ablation ruled out simple finetune-policy changes; CommonVoice objective ablation rules out simple scalar reweighting of the existing losses.
 5. **The next objective work needs to be richer than rebalancing the current losses.** The more promising directions are now partial-label pretraining, teacher or latent anchoring, curriculum objectives, or larger-scale data with stronger supervision.
 
 ### Implication
 
-Pass 6 changes how we should describe the CommonVoice line in the paper:
+CommonVoice objective ablation changes how we should describe the CommonVoice line in the paper:
 
 - We should **not** claim that simple objective tuning already solves the CommonVoice collapse.
 - We **can** say that the failure has been narrowed substantially: it survives both gentler finetuning (Finding 13) and simple loss reweighting (Finding 14).
@@ -681,7 +681,7 @@ That is a stronger and more honest research position than we had after Finding
 
 ### Methodology
 
-Pass 7 asked the next sharper follow-up question after Finding 14:
+CommonVoice rich-objective ablation asked the next sharper follow-up question after Finding 14:
 
 **Was the CommonVoice `cv500` collapse mainly a problem of missing structural
 supervision during combined finetuning, such that teacher guidance on the style
@@ -703,7 +703,7 @@ We kept these pieces unchanged:
 - combined finetuning embeddings: `embeddings/openvoice_combined_emb.pt`
 - 11-speaker validation corpus format
 - same evaluation stack from Findings 10-14
-- same best Pass 5 training schedule foundation: `1000` epochs at `3e-7`
+- same best CommonVoice finetune ablation training schedule foundation: `1000` epochs at `3e-7`
 
 We compared three references:
 
@@ -725,7 +725,7 @@ against three new rich-objective variants:
 | CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Conservative collapse reference point |
 | `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best CommonVoice partial-recovery reference from Finding 13 |
 | `cv500_rich_teacher_style` | 16.7% | 0.0574 | 0.0851 | -0.0200 | Style teacher loss preserves quality fairly well, but still does not recover control |
-| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best Pass 7 variant for WER/MOS, but still below `cv500_ft_short_low_lr` on novelty |
+| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best CommonVoice rich-objective ablation variant for WER/MOS, but still below `cv500_ft_short_low_lr` on novelty |
 | `cv500_rich_teacher_plus_anchor` | 16.7% | 0.0566 | 0.0809 | -0.0161 | Combining both losses does not create a better tradeoff than the simpler variants |
 
 ### Collapse behavior
@@ -736,27 +736,27 @@ does not escape the same conservative failure shape.
 | Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
 |-----------|---------------------------|-------------------------------|----------------|----------|
 | CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse pattern |
-| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
-| `cv500_rich_teacher_style` | 55 | 51 | 28 | Teacher guidance recovers some identity shift over raw `cv500`, but still trails the best Pass 5 recipe |
-| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best Pass 7 stability tradeoff, but style collapse remains unchanged and identity collapse still exceeds the best Pass 5 result |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best CommonVoice finetune ablation identity-recovery reference |
+| `cv500_rich_teacher_style` | 55 | 51 | 28 | Teacher guidance recovers some identity shift over raw `cv500`, but still trails the best CommonVoice finetune ablation recipe |
+| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best CommonVoice rich-objective ablation stability tradeoff, but style collapse remains unchanged and identity collapse still exceeds the best CommonVoice finetune ablation result |
 | `cv500_rich_teacher_plus_anchor` | 54 | 53 | 27 | Combining the two losses does not materially reduce the collapse counts |
 
 ### Interpretation
 
-Pass 7 narrows the CommonVoice story again:
+CommonVoice rich-objective ablation narrows the CommonVoice story again:
 
 1. **This first richer-objective family still does not recover recall.** All three variants stay flat at `16.7%`.
-2. **Latent teacher/anchor supervision helps stability more than controllability.** The best Pass 7 variant (`cv500_rich_free_anchor`) improves WER and MOS over `cv500_ft_short_low_lr`, but not novelty enough to beat it, and not recall at all.
+2. **Latent teacher/anchor supervision helps stability more than controllability.** The best CommonVoice rich-objective ablation variant (`cv500_rich_free_anchor`) improves WER and MOS over `cv500_ft_short_low_lr`, but not novelty enough to beat it, and not recall at all.
 3. **The style-teacher loss did not rescue the style subspace.** If teacher guidance on the style dims alone were enough, `cv500_rich_teacher_style` should have improved recall or reduced neutral collapse. It did neither.
 4. **The combined teacher+anchor objective also stayed conservative.** Adding both losses together still leaves the model in roughly the same basin of flat recall and high identity collapse.
-5. **The remaining bottleneck likely sits earlier than this finetuning stage.** After Pass 5 (gentler finetuning), Pass 6 (scalar reweighting), and Pass 7 (teacher/anchor supervision), the strongest remaining hypotheses are:
+5. **The remaining bottleneck likely sits earlier than this finetuning stage.** After CommonVoice finetune ablation (gentler finetuning), CommonVoice objective ablation (scalar reweighting), and CommonVoice rich-objective ablation (teacher/anchor supervision), the strongest remaining hypotheses are:
    - the CommonVoice stage needs richer supervision or partial labels itself
    - the current reconstruction-only pretraining objective over-shapes the latent space before labeled finetuning begins
    - or a larger-scale setup is needed, but only once a stronger objective survives on this validation-scale corpus
 
 ### Implication
 
-Pass 7 changes the paper position again, in a useful way:
+CommonVoice rich-objective ablation changes the paper position again, in a useful way:
 
 - We should **not** claim that richer finetune-time supervision already solves the CommonVoice collapse.
 - We **can** say that the failure has been narrowed further: it survives gentler finetuning (Finding 13), scalar loss reweighting (Finding 14), and the first richer teacher/anchor objective family (Finding 15).
@@ -771,7 +771,7 @@ Finding 14 alone.
 
 ### Methodology
 
-Pass 8 moved the supervision earlier in the pipeline.
+CommonVoice partial-label pretraining moved the supervision earlier in the pipeline.
 
 After Finding 15, the strongest remaining hypothesis was:
 
@@ -817,8 +817,8 @@ We compared four reference points:
 
 1. **combined** — the main paper checkpoint
 2. **CommonVoice `cv500` init** — the raw reconstruction-only CommonVoice result
-3. **`cv500_ft_short_low_lr`** — the best Pass 5 finetune-only recovery recipe
-4. **`cv500_rich_free_anchor`** — the strongest Pass 7 richer-objective reference
+3. **`cv500_ft_short_low_lr`** — the best CommonVoice finetune-only recovery recipe
+4. **`cv500_rich_free_anchor`** — the strongest CommonVoice rich-objective ablation richer-objective reference
 
 against three new CommonVoice pretraining variants:
 
@@ -832,8 +832,8 @@ against three new CommonVoice pretraining variants:
 |-----------|--------|--------------------------|----------|----------------|----------|
 | combined | 25.8% | 0.2599 | 0.2353 | -0.0792 | Still the only condition with both meaningful control and meaningful speaker shift |
 | CommonVoice `cv500` init | 16.7% | 0.0369 | 0.0844 | -0.0123 | Conservative CommonVoice collapse reference |
-| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best Pass 5 partial-recovery reference |
-| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best Pass 7 richer-objective reference |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | Best CommonVoice finetune ablation partial-recovery reference |
+| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | Best CommonVoice rich-objective ablation richer-objective reference |
 | `cv500_pl_meta` | 16.7% | 0.0570 | 0.0918 | -0.0505 | Metadata-only supervision nudges novelty, but not enough to beat the stronger earlier CommonVoice variants |
 | `cv500_pl_pseudo_style` | 16.7% | 0.0190 | 0.0263 | -0.0229 | Pseudo-style supervision greatly improves intelligibility, but collapses novelty and identity shift |
 | `cv500_pl_meta_plus_pseudo` | 16.7% | 0.0181 | 0.0285 | -0.0148 | Hybrid weak supervision mostly follows the pseudo-style conservative basin |
@@ -846,25 +846,25 @@ weak-label variants do not fail in the same way.
 | Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Takeaway |
 |-----------|---------------------------|-------------------------------|----------------|----------|
 | CommonVoice `cv500` init | 54 | 72 | 34 | Original conservative collapse reference |
-| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best Pass 5 identity-recovery reference |
-| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best Pass 7 richer-objective reference |
+| `cv500_ft_short_low_lr` | 55 | 44 | 22 | Best CommonVoice finetune ablation identity-recovery reference |
+| `cv500_rich_free_anchor` | 55 | 50 | 25 | Best CommonVoice rich-objective ablation richer-objective reference |
 | `cv500_pl_meta` | 54 | 59 | 33 | Metadata-only supervision reduces identity collapse somewhat vs raw `cv500`, but not enough to beat the best earlier CommonVoice variants |
 | `cv500_pl_pseudo_style` | 55 | 85 | 47 | Pseudo-style supervision preserves content, but collapses identity much harder |
 | `cv500_pl_meta_plus_pseudo` | 55 | 90 | 49 | Adding metadata does not rescue the pseudo-style collapse pattern |
 
 ### Interpretation
 
-Pass 8 narrows the CommonVoice story again:
+CommonVoice partial-label pretraining narrows the CommonVoice story again:
 
 1. **Weak labels during CommonVoice pretraining still do not recover recall.** All three new variants stay flat at `16.7%`.
-2. **Metadata-only supervision helps novelty a little, but not enough.** `cv500_pl_meta` improves novelty over raw `cv500` (`0.0570` vs. `0.0369`), but still trails both the best Pass 5 and best Pass 7 references.
+2. **Metadata-only supervision helps novelty a little, but not enough.** `cv500_pl_meta` improves novelty over raw `cv500` (`0.0570` vs. `0.0369`), but still trails both the best CommonVoice finetune ablation and best CommonVoice rich-objective ablation references.
 3. **Pseudo-style supervision helps intelligibility much more than control.** Both pseudo-style variants drive WER down sharply (`0.0263` and `0.0285`), but they do so by collapsing toward baseline identity: identity-collapse counts rise to `85-90`.
 4. **The current pseudo labels likely reinforce the conservative basin instead of escaping it.** The label distribution is dominated by `neutral` and `sad`, and even with balancing the resulting models remain highly conservative on speaker shift.
-5. **The remaining CommonVoice bottleneck now looks deeper than this first weak-label family.** After Pass 5 (gentler finetuning), Pass 6 (scalar reweighting), Pass 7 (teacher/anchor finetuning), and Pass 8 (weak-label pretraining), we still have no recall recovery and no CommonVoice variant that matches the combined model's tradeoff.
+5. **The remaining CommonVoice bottleneck now looks deeper than this first weak-label family.** After CommonVoice finetune ablation (gentler finetuning), CommonVoice objective ablation (scalar reweighting), CommonVoice rich-objective ablation (teacher/anchor finetuning), and CommonVoice partial-label pretraining (weak-label pretraining), we still have no recall recovery and no CommonVoice variant that matches the combined model's tradeoff.
 
 ### Implication
 
-Pass 8 changes the paper position again, in a useful way:
+CommonVoice partial-label pretraining changes the paper position again, in a useful way:
 
 - We should **not** claim that weak metadata or pseudo-label supervision on this validation-scale CommonVoice setup already solves the collapse.
 - We **can** say that the CommonVoice failure has now survived four increasingly informed fixes: gentler finetuning (Finding 13), scalar reweighting (Finding 14), richer finetune-time supervision (Finding 15), and weak-label pretraining (Finding 16).
@@ -872,6 +872,102 @@ Pass 8 changes the paper position again, in a useful way:
 
 That is a stronger and more honest research position than we had after Finding
 15 alone.
+
+---
+
+## Finding 17: Mixed-Data Schedule Changes Improve WER More Than They Improve Control
+
+### Methodology
+
+The mixed-data pseudolabel mix experiment answered Joe's April 30 question
+directly: what happens if we stop treating CommonVoice as a separate pretraining
+stage and instead train one mixed artifact from:
+
+- pseudo-labeled CommonVoice
+- CREMA-D
+- Expresso
+
+We fixed the mixed artifact itself first:
+
+- `500` CommonVoice speakers with one clip per speaker
+- `546` CREMA-D rows
+- `279` Expresso rows
+- `1,325` total rows
+- `1,287/1,325` labeled rows
+
+The accepted CommonVoice pseudo-label mix in that artifact remained heavily
+skewed:
+
+- `neutral = 207`
+- `sad = 170`
+- `happy = 37`
+- `disgust = 34`
+- `anger = 10`
+- `fear = 4`
+
+We then trained three schedule variants from the same mixed artifact:
+
+1. **`mixed_static_balanced`** — equal dataset mass every epoch
+2. **`mixed_cv_warmup`** — CommonVoice-heavy early, then balanced
+3. **`mixed_labeled_finish`** — balanced early, then CREMA-D/Expresso-heavy late
+
+Everything else stayed fixed:
+
+- same 11-speaker evaluation corpus
+- same four-metric stack: emotion, novelty, WER, MOS
+- same inference style strength (`5.0`) and noise level (`0.0`)
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Identity collapse | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|-------------------|----------|
+| `combined` | 25.8% | 0.2599 | 0.2353 | -0.0792 | 7 | Still the only condition with clearly stronger control and novelty together |
+| `cv500_ft_short_low_lr` | 16.7% | 0.0692 | 0.0791 | -0.0441 | 44 | Best earlier CommonVoice finetune reference |
+| `cv500_rich_free_anchor` | 16.7% | 0.0646 | 0.0724 | -0.0079 | 50 | Best earlier richer-objective CommonVoice reference |
+| `cv500_pl_meta` | 16.7% | 0.0570 | 0.0918 | -0.0505 | 59 | Best earlier weak-label metadata-only reference |
+| `mixed_static_balanced` | 16.7% | 0.0865 | 0.0825 | -0.1316 | 58 | Best novelty of the mixed schedules, but no recall gain and worse naturalness |
+| `mixed_cv_warmup` | 16.7% | 0.0738 | 0.0700 | -0.1341 | 60 | Better WER than static, but worse novelty and still no recall gain |
+| `mixed_labeled_finish` | 16.7% | 0.0828 | 0.0606 | -0.1425 | 64 | Best WER of the mixed schedules, but still no recall gain and the worst identity collapse of the three |
+
+### Collapse behavior
+
+The schedule comparison is useful because it shows that the branch is not
+failing on content collapse. It is failing on style and identity collapse.
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Files with any collapse |
+|-----------|---------------------------|-------------------------------|----------------|-------------------------|
+| `mixed_static_balanced` | 55 | 58 | 47 | 66 |
+| `mixed_cv_warmup` | 54 | 60 | 49 | 65 |
+| `mixed_labeled_finish` | 55 | 64 | 49 | 70 |
+
+### Interpretation
+
+The mixed-data pseudolabel mix result changes the story in an important but
+measured way:
+
+1. **Changing the dataset schedule alone does not recover recall.** All three mixed-data schedules stay flat at `16.7%`.
+2. **Mixed-data training helps WER more than it helps control.** `mixed_labeled_finish` reaches the best WER of the three (`0.0606`), and `mixed_cv_warmup` also beats the best earlier CommonVoice finetune reference on WER (`0.0700` vs. `0.0791`).
+3. **Mixed-data training helps novelty somewhat, but not nearly enough.** `mixed_static_balanced` (`0.0865`) and `mixed_labeled_finish` (`0.0828`) beat the best earlier CommonVoice references on novelty, but remain far below the `combined` model (`0.2599`).
+4. **The three schedules stay in the same conservative basin.** Style-collapse counts remain `54-55`, identity-collapse counts remain `58-64`, and none of the schedules shows a credible escape from the neutral / baseline-identity pattern.
+5. **The schedule question is now narrower.** `mixed_cv_warmup` is not better than the other two overall, and `mixed_labeled_finish` mainly buys intelligibility rather than control. The next mixed-data gains likely require better pseudo-label quality, per-class filtering/caps, or stronger labeled-data protection rather than more schedule variants alone.
+
+### Implication
+
+The first mixed-data run does **not** justify claiming that simple
+CommonVoice+CREMA-D+Expresso mixing solves the controllability gap.
+
+It **does** justify a more precise claim:
+
+- mixing data helps the CommonVoice line keep or improve its intelligibility story
+- schedule choice modestly changes novelty vs. WER tradeoffs
+- but the core controllability bottleneck survives the first real combined-data run
+
+That is still a useful paper result because it tells us that:
+
+- the April 30 data-mixing idea was worth testing
+- it did not fail trivially
+- and the remaining blocker is likely supervision quality or representation,
+  not just the absence of a mixed-data schedule
 
 ---
 
@@ -890,7 +986,7 @@ The most important alignment points were:
 2. **Pseudo-labeled CommonVoice remains the most promising bootstrap path.**
    Joe explicitly endorsed the idea of using pretrained emotion models to add
    labels to CommonVoice and then combining that data with the smaller labeled
-   datasets. The current Pass 8 result does not prove that this works yet, but
+   datasets. The current CommonVoice partial-label pretraining result does not prove that this works yet, but
    it does support treating this direction as the best next bet.
 3. **Data mixing matters more than another small finetuning tweak.**
    Joe warned that a naive combined run could simply behave like CommonVoice if
@@ -926,15 +1022,15 @@ to:
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall once we actually mix the datasets together?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and Pass 8 showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. After the April 30 meeting, the biggest remaining untried experiment is the first sampled mixed-data run that combines CommonVoice + CREMA-D + Expresso together. The open question is now whether better pseudo-label quality, explicit dataset mixing, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall once we actually mix the datasets together?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. CommonVoice finetune ablation showed that simple gentler finetuning is not enough to fix that on its own, CommonVoice objective ablation showed that simple scalar loss reweighting is not enough either, CommonVoice rich-objective ablation showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and CommonVoice partial-label pretraining showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. After the April 30 meeting, the biggest remaining untried experiment is the first sampled mixed-data run that combines CommonVoice + CREMA-D + Expresso together. The open question is now whether better pseudo-label quality, explicit dataset mixing, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
 8. **What is the minimum speaker count for style learning?** We jumped from 3 to 91. Where's the threshold?
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
-10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, Pass 6 shows that simple scalar loss-weight schedules are not enough, Pass 7 shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and Pass 8 shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
-11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
-12. **What mixture schedule should the first combined-data run use?** Joe explicitly flagged this on April 30: if CommonVoice dominates the mixture, the model may simply behave like CommonVoice again. We need to compare at least a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish.
+10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. CommonVoice finetune ablation shows that coarse whole-module freezing is not enough, CommonVoice objective ablation shows that simple scalar loss-weight schedules are not enough, CommonVoice rich-objective ablation shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and CommonVoice partial-label pretraining shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
+11. **How stable are the ablation conclusions across seeds?** evaluation ablation matrix used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
+12. **What stronger mixed-data intervention, beyond schedule choice, can recover recall?** The first mixed-data pseudolabel mix experiment compared a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish. None improved recall beyond `16.7%`. `mixed_labeled_finish` gave the best WER (`0.0606`), `mixed_static_balanced` gave the best novelty (`0.0865`), and all three retained heavy style/identity collapse. The next open question is whether better pseudo-label quality, per-class pseudo-label caps, stronger labeled-data protection, or architecture changes can move recall without giving back the mixed-data intelligibility gains.
 13. **How high can style strength go before useful control turns into collapse?** Joe's qualitative tests suggest that values above `5.0` can still work well, especially for whisper on non-Trump examples. We need a broader non-Trump sweep before treating `5.0` as a practical default ceiling.
 
 ---
@@ -967,11 +1063,12 @@ Privacy / DP noise is **one application** of use cases (3) and (4), not the pape
 9. Predicted MOS confirms naturalness preservation for 6 of 9 styles; emo_sim + WER + MOS converge on the same three hardest styles (whisper, confused, anger) — cross-metric triangulation validates the signal
 10. Validation-scale CommonVoice pre-training (`cv500`) is a mixed result: WER improves sharply, but emotion recall drops and the model collapses toward neutral. The CommonVoice direction remains promising, but the naive recipe is not paper-ready yet.
 11. Native OpenVoice novelty evaluation confirms that the combined-only model produces genuinely shifted speaker identities relative to the source, while the `cv500` CommonVoice checkpoint largely collapses that shift back toward baseline voice identity.
-12. The Pass 4 ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
-13. Pass 5 shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
-14. Pass 6 shows that simple objective reweighting during CommonVoice finetuning also does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision, partial-label objectives, or larger-scale training rather than more scalar weight sweeps.
-15. Pass 7 shows that the first richer teacher/anchor supervision family during combined finetuning still does not recover recall or beat the best Pass 5 novelty recovery. The next CommonVoice gains likely require richer supervision earlier in the pipeline, stronger pretraining objectives, partial-label CommonVoice training, or larger-scale follow-up once a stronger objective survives on the validation corpus.
-16. Pass 8 shows that validation-scale weak metadata / pseudo-label supervision during CommonVoice pretraining still does not recover recall. Metadata-only supervision nudges novelty but not enough to beat the best earlier CommonVoice variants, while pseudo-style supervision greatly improves WER at the cost of much stronger identity collapse. The next CommonVoice gains likely require better pseudo-label quality, prototype- or teacher-space targets, or stronger pretraining curricula rather than the current weak-label recipe alone.
+12. The evaluation ablation matrix ablation matrix shows that the combined model remains the best overall tradeoff. Single-dataset and `cv500` conditions are more stable but collapse toward baseline identity and/or neutral emotion, while the naive random-latent baseline proves that raw novelty without target alignment is not the paper objective.
+13. CommonVoice finetune ablation shows that simple gentler finetuning from the CommonVoice `cv500` init only partially recovers novelty and does not recover the combined model's controllability. The CommonVoice direction remains open, but the next gains likely require better objectives or larger-scale adaptation rather than just lighter finetuning.
+14. CommonVoice objective ablation shows that simple objective reweighting during CommonVoice finetuning also does not recover recall or beat the best CommonVoice finetune ablation novelty recovery. The next CommonVoice gains likely require richer supervision, partial-label objectives, or larger-scale training rather than more scalar weight sweeps.
+15. CommonVoice rich-objective ablation shows that the first richer teacher/anchor supervision family during combined finetuning still does not recover recall or beat the best CommonVoice finetune ablation novelty recovery. The next CommonVoice gains likely require richer supervision earlier in the pipeline, stronger pretraining objectives, partial-label CommonVoice training, or larger-scale follow-up once a stronger objective survives on the validation corpus.
+16. CommonVoice partial-label pretraining shows that validation-scale weak metadata / pseudo-label supervision during CommonVoice pretraining still does not recover recall. Metadata-only supervision nudges novelty but not enough to beat the best earlier CommonVoice variants, while pseudo-style supervision greatly improves WER at the cost of much stronger identity collapse. The next CommonVoice gains likely require better pseudo-label quality, prototype- or teacher-space targets, or stronger pretraining curricula rather than the current weak-label recipe alone.
+17. The mixed-data pseudolabel mix experiment shows that the first real CommonVoice + CREMA-D + Expresso run improves WER more than it improves control. Static balanced, CommonVoice warmup, and labeled-data finish all remain stuck at `16.7%` recall. `mixed_labeled_finish` achieves the best WER (`0.0606`), `mixed_static_balanced` achieves the best novelty (`0.0865`), but all three retain heavy style and identity collapse and remain far below the `combined` model on controllability.
 
 **Evaluation approach (per Joe, April 16 + EmoVoice paper):**
 - **Primary:** emotion2vec Recall Rate + emo_sim (per EmoVoice pipeline) — measures whether generated outputs express the intended emotion

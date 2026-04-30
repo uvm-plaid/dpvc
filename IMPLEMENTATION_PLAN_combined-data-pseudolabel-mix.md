@@ -250,11 +250,22 @@ Validated so far:
   - current composition: `1325` rows = `500` CommonVoice + `546` CREMA-D + `279` Expresso
   - labeled rows: `1287/1325`
 
-What is still missing is the **first real Pass 9 result family**.
+What this branch established is the **first real mixed-data pseudolabel mix result family**:
 
-## 7B. Immediate execution order for the next work phase
+- `mixed_static_balanced`: recall `16.7%`, novelty `0.0865`, mean WER `0.0825`, MOS delta `-0.1316`
+- `mixed_cv_warmup`: recall `16.7%`, novelty `0.0738`, mean WER `0.0700`, MOS delta `-0.1341`
+- `mixed_labeled_finish`: recall `16.7%`, novelty `0.0828`, mean WER `0.0606`, MOS delta `-0.1425`
 
-This is the concrete run order we should follow next on this branch.
+The first mixed-data run therefore answered the schedule question narrowly:
+
+- `labeled_finish` is best for WER
+- `static_balanced` is best for novelty
+- none of the schedules improves recall beyond `16.7%`
+- schedule choice alone does not escape the CommonVoice conservative basin
+
+## 7B. Executed run order
+
+This is the concrete run order that was executed on this branch.
 
 ### Task 1. Train the three real mixed-data checkpoints
 
@@ -287,7 +298,7 @@ python examples/openvoice_train_vae_mixed.py \
     --schedule-epochs 1000
 ```
 
-### Task 2. Generate the Pass 9 evaluation corpora
+### Task 2. Generate the mixed-data pseudolabel mix evaluation corpora
 
 Produce:
 - `output/pass9_mixed_static_balanced_eval/`
@@ -297,7 +308,7 @@ Produce:
 Use:
 - `scripts/run_ablation_inference.py`
 
-### Task 3. Run the full metric stack on each Pass 9 corpus
+### Task 3. Run the full metric stack on each mixed-data pseudolabel mix corpus
 
 Run:
 - `examples/eval_emotion.py`
@@ -311,7 +322,7 @@ Expected result artifacts:
 - `results/eval_wer_pass9_<condition>.csv`
 - `results/eval_mos_pass9_<condition>.csv`
 
-### Task 4. Summarize the Pass 9 matrix
+### Task 4. Summarize the mixed-data pseudolabel mix matrix
 
 Run:
 - `scripts/summarize_mixed_data_results.py`
@@ -320,26 +331,23 @@ Expected outputs:
 - `results/eval_mixed_data_summary_pass9.csv`
 - `results/eval_mixed_data_collapse_pass9.csv`
 
-### Task 5. Update the paper-facing docs only if the results are verified
+### Task 5. Update the paper-facing docs once the results are verified
 
-If the full Pass 9 run completes:
+This branch now requires:
 - update `WORKLOG.md`
 - update `FINDINGS.md`
 - update `results/README.md`
-- update `examples/README.md` if workflow guidance changes
+- update `examples/README.md`
+- preserve the next-step recommendation for better pseudo-label filtering and stronger labeled-data protection
 
-If the run is partial or blocked:
-- update `WORKLOG.md`
-- do **not** add a new finding yet
-
-### Task 6. Run a small style-strength sweep on the best Pass 9 condition
+### Task 6. Run a small style-strength sweep on the best mixed-data pseudolabel mix condition
 
 After the three conditions are scored, pick the best checkpoint and test a
 small non-Trump strength sweep, especially for:
 - `whisper`
 - one strong emotional style such as `happy` or `sad`
 
-This is a branch follow-up, not a prerequisite for the first Pass 9 matrix.
+This is a branch follow-up, not a prerequisite for the first mixed-data pseudolabel mix matrix.
 
 ## 8. Validation criteria
 
@@ -351,7 +359,7 @@ These should be recorded explicitly in `WORKLOG.md` before the branch closes.
   not just one naive combined run.
 - `Validation`: The three real mixed-data checkpoints train successfully from
   `embeddings/openvoice_mixed_base.pt`.
-- `Validation`: Each Pass 9 checkpoint has a matched evaluation corpus and
+- `Validation`: Each mixed-data pseudolabel mix checkpoint has a matched evaluation corpus and
   complete metric bundle (emotion, novelty, WER, MOS).
 - `Validation`: The CommonVoice sampling policy is speaker-breadth aware and
   documented.
@@ -359,24 +367,23 @@ These should be recorded explicitly in `WORKLOG.md` before the branch closes.
   CommonVoice with CREMA-D and Expresso improves controllability beyond the
   CommonVoice-only line.
 - `Validation`: The branch preserves comparison against the established
-  references (`combined`, `cv500`, best Pass 5 / 7 / 8 variants).
+  references (`combined`, `cv500`, best CommonVoice finetune ablation / 7 / 8 variants).
 - `Validation`: Strength guidance is updated if the non-Trump sweep shows that
   values above `5.0` are consistently useful.
 
 ## 9. Success criteria
 
-The branch is a success if at least one mixed-data condition:
-- improves recall beyond `16.7%`,
-- improves novelty beyond the stronger CommonVoice-only variants,
-- and keeps enough of the CommonVoice intelligibility / MOS story to remain
-  attractive.
+The branch outcome is scientifically useful even though it misses the original
+recall target:
 
-The branch is still useful even if it fails, provided it tells us one of these
-clearly:
-- naive mixing collapses into CommonVoice,
-- labeled-data protection is insufficient,
-- pseudo-label quality is still the main blocker,
-- or the current architecture cannot exploit the mixed-data setup.
+- no mixed-data schedule improved recall beyond `16.7%`
+- mixed-data training did improve WER and modestly improve novelty relative to
+  the weaker CommonVoice-only baselines
+- schedule choice changed the WER/novelty tradeoff, but not the core
+  controllability outcome
+- the next mixed-data gains likely require better pseudo-label quality,
+  per-class filtering/caps, or stronger labeled-data protection rather than
+  more simple schedule variants
 
 ## 10. What not to overclaim
 
@@ -397,7 +404,7 @@ These should stay in `WORKLOG.md` even if this branch does not reach them.
 - compare one-clip-per-speaker and two-clips-per-speaker CommonVoice sampling
   inside the mixed-data setup, because the current real artifact uses one clip
   per speaker and Joe's heuristic still needs a direct empirical check,
-- archive one saved `mixture_report` snapshot per Pass 9 condition next to the
+- archive one saved `mixture_report` snapshot per mixed-data pseudolabel mix condition next to the
   result bundle so later runs can be compared without reconstructing builder
   arguments from memory,
 - try prototype- or teacher-space CommonVoice pretraining targets,

@@ -52,7 +52,7 @@ pip install -e ".[openvoice,expresso]"
 pip install -e ".[openvoice,expresso,eval]"
 ```
 
-Tested Pass 1 environment in `.venv`:
+Tested OpenVoice stabilization and reproducibility environment in `.venv`:
 
 - `torch==2.9.1`
 - `torchaudio==2.9.1`
@@ -87,14 +87,14 @@ See also:
 - `scripts/build_mixed_training_set.py` + `examples/openvoice_train_vae_mixed.py` — first mixed-data bootstrap path that combines pseudo-labeled CommonVoice with labeled CREMA-D and Expresso under schedule-controlled sampling.
 - `scripts/prepare_commonvoice_subset.py` — helper for turning downloaded Common Voice shards into a filtered local `validated.tsv` + `clips/` subset.
 - `scripts/annotate_commonvoice_pseudolabels.py` — adds confidence-scored pseudo-style labels to a Common Voice embedding artifact.
-- `scripts/prepare_ablation_embeddings.py` — builds the `cremad_only` and `expresso_only` Pass 4 ablation datasets in the unified label format.
-- `scripts/run_ablation_inference.py` — generates the Pass 4 corpora, including the naive unlabeled-latent baseline.
+- `scripts/prepare_ablation_embeddings.py` — builds the `cremad_only` and `expresso_only` evaluation ablation datasets in the unified label format.
+- `scripts/run_ablation_inference.py` — generates the evaluation ablation matrix corpora, including the naive unlabeled-latent baseline.
 - `scripts/summarize_ablation_results.py` — builds the condition summary table and collapse taxonomy for the paper.
-- `scripts/summarize_commonvoice_finetune_ablation.py` — compares the Pass 5 CommonVoice finetune variants against `combined` and the original `cv500` init.
-- `scripts/summarize_commonvoice_objective_ablation.py` — compares the Pass 6 CommonVoice objective variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
-- `scripts/summarize_commonvoice_rich_objectives.py` — compares the Pass 7 teacher/anchor CommonVoice variants against `combined`, the raw `cv500` init, and the best Pass 5 finetune recipe.
-- `scripts/summarize_commonvoice_partial_label.py` — compares the Pass 8 metadata / pseudo-label CommonVoice variants against `combined`, the raw `cv500` init, the best Pass 5 finetune recipe, and the best Pass 7 rich-objective recipe.
-- `scripts/summarize_mixed_data_results.py` — summarizes the upcoming Pass 9 mixed-data matrix against the strongest earlier CommonVoice references.
+- `scripts/summarize_commonvoice_finetune_ablation.py` — compares the CommonVoice finetune variants against `combined` and the original `cv500` init.
+- `scripts/summarize_commonvoice_objective_ablation.py` — compares the CommonVoice objective variants against `combined`, the raw `cv500` init, and the best CommonVoice finetune recipe.
+- `scripts/summarize_commonvoice_rich_objectives.py` — compares the CommonVoice rich-objective variants against `combined`, the raw `cv500` init, and the best CommonVoice finetune recipe.
+- `scripts/summarize_commonvoice_partial_label.py` — compares the CommonVoice partial-label variants against `combined`, the raw `cv500` init, the best CommonVoice finetune recipe, and the best CommonVoice rich-objective reference.
+- `scripts/summarize_mixed_data_results.py` — summarizes the mixed-data pseudolabel mix schedule matrix against the strongest earlier CommonVoice references.
 - `docs/controlvc_setup.md` — ControlVC baseline setup and smoke-test path.
 
 ## Evaluation

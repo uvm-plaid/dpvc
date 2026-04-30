@@ -65,7 +65,7 @@ pip install -e ".[eval]"
 OpenVoice model checkpoints download automatically on first use to
 `~/.cache/openvoice_checkpoint/`.
 
-Tested Pass 1 environment:
+Tested OpenVoice stabilization and reproducibility environment:
 
 - `torch==2.9.1`
 - `torchaudio==2.9.1`
@@ -167,7 +167,7 @@ python scripts/prepare_commonvoice_subset.py \
     --seed 42
 ```
 
-The validation-scale Pass 2 run used a local `cv500` subset: `500` speakers,
+The validation-scale CommonVoice pretraining pipeline run used a local `cv500` subset: `500` speakers,
 `1,202` clips, extracted from a larger local pool of `6,795` speakers.
 
 Then extract OpenVoice embeddings from a local Common Voice layout with
@@ -199,7 +199,7 @@ python examples/openvoice_train_vae_combined.py \
 This preserves the existing controllable training path while letting the model
 start from a broader speaker-distribution prior.
 
-To reproduce the validation-scale comparison from Pass 2, generate the same
+To reproduce the validation-scale comparison from CommonVoice pretraining pipeline, generate the same
 11-speaker evaluation corpus with the finetuned checkpoint:
 
 ```bash
@@ -230,9 +230,9 @@ that most style outputs no longer move much farther from the source than
 baseline conversion already does. See [`FINDINGS.md`](../FINDINGS.md)
 Findings 10 and 11 before scaling this recipe up.
 
-### 4c. Pass 4 ablation matrix
+### 4c. evaluation ablation matrix ablation matrix
 
-Pass 4 is the paper-strengthening comparison pass. It asks a sharper question
+evaluation ablation matrix is the paper-strengthening comparison pass. It asks a sharper question
 than "does the model work?":
 
 **Which training condition gives the best balance of target alignment, speaker novelty, intelligibility, and naturalness?**
@@ -265,7 +265,7 @@ python examples/openvoice_train_vae_combined.py \
     --output embeddings/openvoice_vae_expresso_ablation.pt
 ```
 
-Generate the three new Pass 4 corpora:
+Generate the three new evaluation ablation matrix corpora:
 
 ```bash
 python scripts/run_ablation_inference.py \
@@ -296,7 +296,7 @@ python scripts/run_ablation_inference.py \
 Notes:
 
 - The `combined` and `commonvoice_cv500_init` conditions reuse the already generated
-  validation corpora from Pass 2:
+  validation corpora from CommonVoice pretraining pipeline:
   - `output/pass2_combined_eval/`
   - `output/pass2_cv500_eval/`
 - The naive baseline is **not** a plain noising baseline. It applies
@@ -304,7 +304,7 @@ Notes:
   latent dims (`9-14`) of the combined checkpoint. That makes it a fair test
   of whether arbitrary latent perturbation can mimic structured style control.
 
-Run the Pass 4 metrics:
+Run the evaluation ablation matrix metrics:
 
 ```bash
 python examples/eval_emotion.py --input output/pass4_cremad_only_eval --out results/eval_emotion_pass4_cremad_only.csv
@@ -334,19 +334,19 @@ This writes:
 - `results/eval_ablation_summary_pass4.csv`
 - `results/eval_ablation_collapse_pass4.csv`
 
-Current Pass 4 conclusion from the checked-in artifacts:
+Current evaluation ablation matrix conclusion from the checked-in artifacts:
 
 - the **combined** model remains the best overall tradeoff
 - `cv500`, `cremad_only`, and `expresso_only` are all more stable but collapse toward baseline identity and/or neutral emotion
 - the naive baseline proves that **raw novelty is not enough** — it creates a larger identity shift than the combined model, but with worse target alignment and much worse naturalness
 
-### 4d. Pass 5 CommonVoice finetune ablation
+### 4d. CommonVoice Finetune Ablation
 
-Pass 5 asks a narrower question than Pass 4:
+CommonVoice finetune ablation asks a narrower question than evaluation ablation matrix:
 
 **Can we keep the WER/MOS gains of the CommonVoice `cv500` init while recovering controllability and novelty through gentler finetuning?**
 
-The Pass 5 matrix compares:
+The CommonVoice finetune ablation matrix compares:
 
 - `combined`
 - `commonvoice_cv500_init`
@@ -417,7 +417,7 @@ Repeat those four commands for:
 - `cv500_ft_freeze_encoder`
 
 The unchanged `combined` and `commonvoice_cv500_init` references can be reused
-from Pass 4 by copying their metric CSVs into the Pass 5 naming scheme.
+from evaluation ablation matrix by copying their metric CSVs into the CommonVoice finetune ablation naming scheme.
 
 Then summarize the matrix:
 
@@ -430,7 +430,7 @@ This writes:
 - `results/eval_commonvoice_finetune_summary_pass5.csv`
 - `results/eval_commonvoice_finetune_collapse_pass5.csv`
 
-Current Pass 5 conclusion from the checked-in artifacts:
+Current CommonVoice finetune ablation conclusion from the checked-in artifacts:
 
 - none of the simple gentler-finetune variants recovers the **combined** model's controllability/novelty tradeoff
 - `cv500_ft_short_low_lr` is the best partial recovery recipe: novelty improves to `0.0692` and identity-collapse count drops to `44`, but recall stays stuck at `16.7%`
@@ -438,13 +438,13 @@ Current Pass 5 conclusion from the checked-in artifacts:
 - `cv500_ft_freeze_decoder` is a strong negative result: it worsens identity collapse (`88` rows) and drops novelty below the original `cv500` init
 - the next CommonVoice experiments should focus on better objectives, finer-grained adaptation, or larger-scale data, not just lighter finetuning
 
-### 4e. Pass 6 CommonVoice objective ablation
+### 4e. CommonVoice Objective Ablation
 
-Pass 6 asks the next narrower question after Pass 5:
+CommonVoice objective ablation asks the next narrower question after CommonVoice finetune ablation:
 
 **Can we keep the CommonVoice stability gains while recovering controllability through better loss weighting or simple weight schedules, without changing the data or evaluation stack?**
 
-The Pass 6 matrix compares:
+The CommonVoice objective ablation matrix compares:
 
 - `combined`
 - `commonvoice_cv500_init`
@@ -524,7 +524,7 @@ Repeat that four-metric block for:
 - `cv500_obj_recon_half_label2`
 
 Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
-`cv500_ft_short_low_lr` references by copying their metric CSVs into the Pass 6
+`cv500_ft_short_low_lr` references by copying their metric CSVs into the CommonVoice objective ablation
 naming scheme, then summarize:
 
 ```bash
@@ -536,7 +536,7 @@ This writes:
 - `results/eval_commonvoice_objective_summary_pass6.csv`
 - `results/eval_commonvoice_objective_collapse_pass6.csv`
 
-Current Pass 6 conclusion from the checked-in artifacts:
+Current CommonVoice objective ablation conclusion from the checked-in artifacts:
 
 - none of the simple objective variants recovers the **combined** model's controllability/novelty tradeoff
 - none of the four new variants improves recall beyond `16.7%`
@@ -544,13 +544,13 @@ Current Pass 6 conclusion from the checked-in artifacts:
 - `cv500_obj_label_ramp` preserves MOS closest to the raw `cv500` init, but only by staying near the same conservative collapse basin
 - the next CommonVoice experiments should focus on richer supervision or larger-scale training, not more scalar loss-weight sweeps
 
-### 4f. Pass 7 CommonVoice rich-objective ablation
+### 4f. CommonVoice Rich-Objective Ablation
 
-Pass 7 asks the next narrower question after Pass 6:
+CommonVoice rich-objective ablation asks the next narrower question after CommonVoice objective ablation:
 
 **Can richer latent supervision during combined finetuning preserve the CommonVoice prior while restoring style control?**
 
-The Pass 7 matrix compares:
+The CommonVoice rich-objective ablation matrix compares:
 
 - `combined`
 - `commonvoice_cv500_init`
@@ -625,7 +625,7 @@ Repeat that four-metric block for:
 
 Reuse the unchanged `combined`, `commonvoice_cv500_init`, and
 `cv500_ft_short_low_lr` references by copying their existing metric CSVs into
-the Pass 7 naming scheme, then summarize:
+the CommonVoice rich-objective ablation naming scheme, then summarize:
 
 ```bash
 python scripts/summarize_commonvoice_rich_objectives.py
@@ -636,23 +636,23 @@ This writes:
 - `results/eval_commonvoice_rich_objectives_summary_pass7.csv`
 - `results/eval_commonvoice_rich_objectives_collapse_pass7.csv`
 
-Current Pass 7 conclusion from the checked-in artifacts:
+Current CommonVoice rich-objective ablation conclusion from the checked-in artifacts:
 
 - none of the richer teacher/anchor objective variants recovers the **combined** model's controllability/novelty tradeoff
 - none of the three new variants improves recall beyond `16.7%`
-- `cv500_rich_free_anchor` is the strongest Pass 7 variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty (`0.0646` vs. `0.0692`) and identity collapse (`50` vs. `44`)
+- `cv500_rich_free_anchor` is the strongest CommonVoice rich-objective ablation variant, mainly by improving WER and MOS while still trailing `cv500_ft_short_low_lr` on novelty (`0.0646` vs. `0.0692`) and identity collapse (`50` vs. `44`)
 - `cv500_rich_teacher_style` and `cv500_rich_teacher_plus_anchor` also stay in the same conservative neutral-collapse basin
 - the next CommonVoice experiments should focus on richer supervision earlier in the pipeline, partial-label/pseudo-label CommonVoice objectives, or a larger-scale follow-up once a stronger objective survives on this validation corpus
 
-### 4g. Pass 8 CommonVoice partial-label / pseudo-label pretraining
+### 4g. CommonVoice Partial-Label / Pseudo-Label Pretraining
 
-Pass 8 asks the next sharper question after Pass 7:
+CommonVoice partial-label pretraining asks the next sharper question after CommonVoice rich-objective ablation:
 
 **Can weak supervision during the CommonVoice pretraining stage itself preserve
 the WER/MOS gains of CommonVoice while preventing the style latent space from
 washing back to neutral before labeled finetuning begins?**
 
-The Pass 8 matrix compares:
+The CommonVoice partial-label pretraining matrix compares:
 
 - `combined`
 - `commonvoice_cv500_init`
@@ -746,7 +746,7 @@ Repeat that four-metric block for:
 
 Reuse the unchanged `combined`, `commonvoice_cv500_init`,
 `cv500_ft_short_low_lr`, and `cv500_rich_free_anchor` references by copying
-their existing metric CSVs into the Pass 8 naming scheme, then summarize:
+their existing metric CSVs into the CommonVoice partial-label pretraining naming scheme, then summarize:
 
 ```bash
 python scripts/summarize_commonvoice_partial_label.py
@@ -757,7 +757,7 @@ This writes:
 - `results/eval_commonvoice_partial_label_summary_pass8.csv`
 - `results/eval_commonvoice_partial_label_collapse_pass8.csv`
 
-Current Pass 8 conclusion from the checked-in artifacts:
+Current CommonVoice partial-label pretraining conclusion from the checked-in artifacts:
 
 - none of the three weak-supervision variants improves recall beyond `16.7%`
 - `cv500_pl_meta` is the best novelty result of the new variants (`0.0570`), but it still trails both `cv500_ft_short_low_lr` (`0.0692`) and `cv500_rich_free_anchor` (`0.0646`)
@@ -765,9 +765,9 @@ Current Pass 8 conclusion from the checked-in artifacts:
 - the pseudo-label path appears to over-regularize the model into a conservative basin: style recall stays flat, identity collapse jumps to `85-90`, and novelty gain drops to `0.0190-0.0181`
 - the next CommonVoice experiments should focus on pseudo-label quality, prototype- or teacher-space targets applied during CommonVoice pretraining itself, or a stronger curriculum rather than simply adding weak labels at this scale
 
-### 4h. Pass 9 mixed-data bootstrap implementation
+### 4h. Mixed-Data Pseudolabel Mix
 
-Pass 9 starts the first real **CommonVoice + CREMA-D + Expresso** mixed-data
+This branch is the first real **CommonVoice + CREMA-D + Expresso** mixed-data
 training line Joe prioritized on April 30.
 
 The goal is narrower than "solve the whole paper in one run":
@@ -776,7 +776,7 @@ The goal is narrower than "solve the whole paper in one run":
   from CommonVoice while protecting the smaller labeled datasets
 - train the first three schedule variants from the same artifact
 - keep the entire setup interpretable enough that later full runs can be read
-  back against the earlier CommonVoice-only passes
+  back against the earlier CommonVoice-only experiments
 
 Build the mixed artifact:
 
@@ -832,8 +832,7 @@ Schedule meanings:
 - `cv_warmup`: starts CommonVoice-heavy, then interpolates toward an equal mix
 - `labeled_finish`: starts equal, then finishes with higher CREMA-D/Expresso mass
 
-Once a mixed checkpoint exists, use the shared inference helper to generate the
-Pass 9 evaluation corpus:
+Use the shared inference helper to generate the evaluation corpora:
 
 ```bash
 python scripts/run_ablation_inference.py \
@@ -842,15 +841,19 @@ python scripts/run_ablation_inference.py \
     --out output/pass9_mixed_static_balanced_eval/
 ```
 
-Current validation status for Pass 9:
+Current checked-in result summary:
 
-- the mixed-data builder was smoke-tested successfully on a small artifact with
-  `20` CommonVoice speakers and `627` total rows
-- all three training schedules ran end to end on that smoke artifact
-- **full Pass 9 scientific results are not checked in yet**
+- `mixed_static_balanced`: recall `16.7%`, novelty `0.0865`, mean WER `0.0825`, MOS delta `-0.1316`
+- `mixed_cv_warmup`: recall `16.7%`, novelty `0.0738`, mean WER `0.0700`, MOS delta `-0.1341`
+- `mixed_labeled_finish`: recall `16.7%`, novelty `0.0828`, mean WER `0.0606`, MOS delta `-0.1425`
 
-So at this point the branch has a validated **implementation scaffold**, not a
-paper-facing new finding yet.
+Interpretation:
+
+- the first mixed-data run improves WER more than it improves control
+- `mixed_labeled_finish` is the most intelligible of the three schedules
+- `mixed_static_balanced` is the most novel of the three schedules
+- none of the schedules improves recall beyond `16.7%`, so schedule choice
+  alone does not escape the CommonVoice conservative basin
 
 ### 5. Run Controllable Inference
 
@@ -1049,18 +1052,18 @@ scores more interpretable.
 | 4j | `../scripts/build_mixed_training_set.py` | Step 1 + 2 + 4c/10e outputs | `openvoice_mixed_base.pt` |
 | 4k | `openvoice_train_vae_mixed.py` | Step 4j output | `openvoice_vae_mixed_*.pt` |
 | 5 | `openvoice_infer_controllable.py` | Step 4 or 4d output + audio | `.wav` files |
-| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g / 4h / 4i / 4k output + audio | Pass 4, Pass 5, Pass 6, Pass 7, Pass 8, or Pass 9 evaluation corpora + manifest |
+| 5b | `../scripts/run_ablation_inference.py` | Step 4 / 4d / 4f / 4g / 4h / 4i / 4k output + audio | evaluation ablation matrix, CommonVoice finetune ablation, CommonVoice objective ablation, CommonVoice rich-objective ablation, CommonVoice partial-label pretraining, or mixed-data pseudolabel mix evaluation corpora + manifest |
 | 6 | `eval_emotion.py` | Step 5 output directory | `eval_emotion.csv` |
 | 7 | `eval_novelty.py` | Step 5 manifest or explicit source/generated pair | `eval_novelty.csv` |
 | 8 | `eval_wer.py` | Step 5 output directory | `eval_wer.csv` |
 | 9 | `eval_mos.py` | Step 5 output directory | `eval_mos.csv` |
-| 10 | `../scripts/summarize_ablation_results.py` | Pass 4 eval CSVs | `eval_ablation_summary_pass4.csv` + `eval_ablation_collapse_pass4.csv` |
-| 10b | `../scripts/summarize_commonvoice_finetune_ablation.py` | Pass 5 eval CSVs | `eval_commonvoice_finetune_summary_pass5.csv` + `eval_commonvoice_finetune_collapse_pass5.csv` |
-| 10c | `../scripts/summarize_commonvoice_objective_ablation.py` | Pass 6 eval CSVs | `eval_commonvoice_objective_summary_pass6.csv` + `eval_commonvoice_objective_collapse_pass6.csv` |
-| 10d | `../scripts/summarize_commonvoice_rich_objectives.py` | Pass 7 eval CSVs | `eval_commonvoice_rich_objectives_summary_pass7.csv` + `eval_commonvoice_rich_objectives_collapse_pass7.csv` |
+| 10 | `../scripts/summarize_ablation_results.py` | evaluation ablation matrix eval CSVs | `eval_ablation_summary_pass4.csv` + `eval_ablation_collapse_pass4.csv` |
+| 10b | `../scripts/summarize_commonvoice_finetune_ablation.py` | CommonVoice finetune ablation eval CSVs | `eval_commonvoice_finetune_summary_pass5.csv` + `eval_commonvoice_finetune_collapse_pass5.csv` |
+| 10c | `../scripts/summarize_commonvoice_objective_ablation.py` | CommonVoice objective ablation eval CSVs | `eval_commonvoice_objective_summary_pass6.csv` + `eval_commonvoice_objective_collapse_pass6.csv` |
+| 10d | `../scripts/summarize_commonvoice_rich_objectives.py` | CommonVoice rich-objective ablation eval CSVs | `eval_commonvoice_rich_objectives_summary_pass7.csv` + `eval_commonvoice_rich_objectives_collapse_pass7.csv` |
 | 10e | `../scripts/annotate_commonvoice_pseudolabels.py` | CommonVoice embedding artifact | enriched artifact with `pseudo_style`, `pseudo_style_confidence`, and `pseudo_style_report` |
-| 10f | `../scripts/summarize_commonvoice_partial_label.py` | Pass 8 eval CSVs | `eval_commonvoice_partial_label_summary_pass8.csv` + `eval_commonvoice_partial_label_collapse_pass8.csv` |
-| 10g | `../scripts/summarize_mixed_data_results.py` | Pass 9 eval CSVs | `eval_mixed_data_summary_pass9.csv` + `eval_mixed_data_collapse_pass9.csv` |
+| 10f | `../scripts/summarize_commonvoice_partial_label.py` | CommonVoice partial-label pretraining eval CSVs | `eval_commonvoice_partial_label_summary_pass8.csv` + `eval_commonvoice_partial_label_collapse_pass8.csv` |
+| 10g | `../scripts/summarize_mixed_data_results.py` | mixed-data pseudolabel mix eval CSVs | `eval_mixed_data_summary_pass9.csv` + `eval_mixed_data_collapse_pass9.csv` |
 
 ### Other files
 - `openvoice_train_vae.py` — Trains basic (non-controllable) VAE. Not needed for style control.
@@ -1071,15 +1074,15 @@ scores more interpretable.
 - `eval_novelty.py` — Measures source-vs-generated speaker novelty in OpenVoice embedding space.
 - `../scripts/prepare_commonvoice_subset.py` — Filters a full Common Voice `validated.tsv` down to the locally available clip subset.
 - `../scripts/build_mixed_training_set.py` — Builds the first mixed-data bootstrap artifact with CommonVoice speaker-first sampling, pseudo-label filtering, style caps, and a saved mixture report.
-- `../scripts/prepare_ablation_embeddings.py` — Builds the Pass 4 `cremad_only` / `expresso_only` embedding sets.
-- `../scripts/run_ablation_inference.py` — Generates the Pass 4 ablation corpora, the Pass 5 CommonVoice finetune corpora, the Pass 6 CommonVoice objective corpora, the Pass 7 rich-objective corpora, the Pass 8 partial-label corpora, and the upcoming Pass 9 mixed-data corpora.
+- `../scripts/prepare_ablation_embeddings.py` — Builds the evaluation ablation matrix `cremad_only` / `expresso_only` embedding sets.
+- `../scripts/run_ablation_inference.py` — Generates the evaluation ablation matrix corpora, the CommonVoice finetune ablation corpora, the CommonVoice objective ablation corpora, the CommonVoice rich-objective ablation corpora, the CommonVoice partial-label pretraining corpora, and the mixed-data pseudolabel mix corpora.
 - `../scripts/annotate_commonvoice_pseudolabels.py` — Adds confidence-scored pseudo-style labels to a CommonVoice embedding artifact so weak-label pretraining can be reproduced without rerunning the teacher every time.
-- `../scripts/summarize_ablation_results.py` — Aggregates Pass 4 metrics into a condition table and a collapse taxonomy.
-- `../scripts/summarize_commonvoice_finetune_ablation.py` — Aggregates Pass 5 CommonVoice finetune metrics into a condition table and a collapse taxonomy.
-- `../scripts/summarize_commonvoice_objective_ablation.py` — Aggregates Pass 6 CommonVoice objective metrics into a condition table and a collapse taxonomy.
-- `../scripts/summarize_commonvoice_rich_objectives.py` — Aggregates Pass 7 CommonVoice rich-objective metrics into a condition table and a collapse taxonomy.
-- `../scripts/summarize_commonvoice_partial_label.py` — Aggregates Pass 8 CommonVoice partial-label metrics into a condition table and a collapse taxonomy.
-- `../scripts/summarize_mixed_data_results.py` — Aggregates the planned Pass 9 mixed-data metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_ablation_results.py` — Aggregates evaluation ablation matrix metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_finetune_ablation.py` — Aggregates CommonVoice finetune metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_objective_ablation.py` — Aggregates CommonVoice objective metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_rich_objectives.py` — Aggregates CommonVoice rich-objective metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_commonvoice_partial_label.py` — Aggregates CommonVoice partial-label metrics into a condition table and a collapse taxonomy.
+- `../scripts/summarize_mixed_data_results.py` — Aggregates the mixed-data pseudolabel mix metrics into a condition table and a collapse taxonomy.
 - `source_speakers/` — CREMA-D audio clips used for diverse speaker evaluation.
 - `trump_0.wav` — Default test source audio.
 

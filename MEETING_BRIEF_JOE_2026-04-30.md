@@ -180,8 +180,8 @@ For discussion, it is better to call these **work phases** or **experiment phase
 | Raw CommonVoice `cv500` init | `feat/commonvoice-pretrain` | `16.7%` | `0.0369` | `0.0844` | Better intelligibility, but conservative collapse |
 | Best CommonVoice recovery so far (`cv500_ft_short_low_lr`) | `research/commonvoice-finetune-ablation` | `16.7%` | `0.0692` | `0.0791` | Best partial novelty recovery on CommonVoice line |
 | Best richer-objective CommonVoice variant (`cv500_rich_free_anchor`) | `research/commonvoice-rich-objectives` | `16.7%` | `0.0646` | `0.0724` | Better stability, still no recall recovery |
-| Best Pass 8 metadata-only weak-label variant (`cv500_pl_meta`) | `research/commonvoice-partial-label-pretrain` | `16.7%` | `0.0570` | `0.0918` | Slight novelty improvement, but not enough |
-| Pass 8 pseudo-style weak-label variants | `research/commonvoice-partial-label-pretrain` | `16.7%` | `0.0181-0.0190` | `0.0263-0.0285` | Excellent WER, but much stronger identity collapse |
+| Best CommonVoice partial-label pretraining metadata-only weak-label variant (`cv500_pl_meta`) | `research/commonvoice-partial-label-pretrain` | `16.7%` | `0.0570` | `0.0918` | Slight novelty improvement, but not enough |
+| CommonVoice partial-label pretraining pseudo-style weak-label variants | `research/commonvoice-partial-label-pretrain` | `16.7%` | `0.0181-0.0190` | `0.0263-0.0285` | Excellent WER, but much stronger identity collapse |
 
 ## 9. What is especially interesting right now
 
