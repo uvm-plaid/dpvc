@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-29 (Pass 8 CommonVoice partial-label pretraining added as Finding 16; paper framing and open questions updated)
+**Last updated:** 2026-04-30 (Pass 8 CommonVoice partial-label pretraining remains Finding 16; April 30 meeting alignment and next-step framing added)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -875,12 +875,58 @@ That is a stronger and more honest research position than we had after Finding
 
 ---
 
+## April 30 Meeting Alignment with Joe
+
+The April 30 call with Joe did **not** change the scientific findings above,
+but it did sharpen what the next experiment should be.
+
+The most important alignment points were:
+
+1. **The biggest untried experiment is still the first real mixed-data run.**
+   Joe's summary was that we still have not trained one VAE on
+   **CommonVoice + CREMA-D + Expresso together** while retaining both broad
+   speaker diversity and controllable emotion. That now becomes the main next
+   check, not just another CommonVoice-only refinement.
+2. **Pseudo-labeled CommonVoice remains the most promising bootstrap path.**
+   Joe explicitly endorsed the idea of using pretrained emotion models to add
+   labels to CommonVoice and then combining that data with the smaller labeled
+   datasets. The current Pass 8 result does not prove that this works yet, but
+   it does support treating this direction as the best next bet.
+3. **Data mixing matters more than another small finetuning tweak.**
+   Joe warned that a naive combined run could simply behave like CommonVoice if
+   the smaller labeled datasets are not protected in the mixture. That means
+   the next branch should test explicit mixture schedules and quotas, not only
+   a single static merge.
+4. **Speaker breadth is now an explicit heuristic.**
+   Joe's current assumption is that for CommonVoice, getting at least one clip
+   per speaker may matter more than maximizing total clip count. This should
+   shape the next sampled mixed-data corpus.
+5. **Architecture is still secondary to data for the immediate next step.**
+   Joe agrees that the current linear latent control may not be optimal, but
+   he still put data composition and supervision quality ahead of architecture
+   changes for the next branch.
+6. **`style_strength = 5.0` should not be treated as a hard ceiling.**
+   Joe qualitatively found that higher strengths could still work well,
+   especially for whisper on non-Trump examples. Future sweeps should treat
+   strength as style- and speaker-dependent rather than fixed.
+
+This meeting therefore changes the next-step framing from:
+
+- "improve CommonVoice pseudo-label quality in isolation"
+
+to:
+
+- "**run the first sampled mixed-data experiment with pseudo-labeled CommonVoice
+  plus explicit mixture/schedule control**."
+
+---
+
 ## Open Questions
 
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall at scale?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and Pass 8 showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. The open question is now whether better pseudo-label quality, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
+4. **Can CommonVoice pre-training improve recall once we actually mix the datasets together?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. Pass 5 showed that simple gentler finetuning is not enough to fix that on its own, Pass 6 showed that simple scalar loss reweighting is not enough either, Pass 7 showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and Pass 8 showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. After the April 30 meeting, the biggest remaining untried experiment is the first sampled mixed-data run that combines CommonVoice + CREMA-D + Expresso together. The open question is now whether better pseudo-label quality, explicit dataset mixing, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
@@ -888,6 +934,8 @@ That is a stronger and more honest research position than we had after Finding
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
 10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. Pass 5 shows that coarse whole-module freezing is not enough, Pass 6 shows that simple scalar loss-weight schedules are not enough, Pass 7 shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and Pass 8 shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** Pass 4 used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
+12. **What mixture schedule should the first combined-data run use?** Joe explicitly flagged this on April 30: if CommonVoice dominates the mixture, the model may simply behave like CommonVoice again. We need to compare at least a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish.
+13. **How high can style strength go before useful control turns into collapse?** Joe's qualitative tests suggest that values above `5.0` can still work well, especially for whisper on non-Trump examples. We need a broader non-Trump sweep before treating `5.0` as a practical default ceiling.
 
 ---
 

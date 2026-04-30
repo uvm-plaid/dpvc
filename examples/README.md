@@ -801,7 +801,10 @@ python examples/openvoice_infer_controllable.py \
 
 Key parameters:
 - `--style-strength` (default 5.0): How hard to push the style. Higher = more
-  pronounced but risks output collapse on some speakers. Try 3.0 for safer results.
+  pronounced but risks output collapse on some speakers. Try 3.0 for safer
+  results, but do **not** treat `5.0` as a hard ceiling: Joe's April 30
+  qualitative tests found that higher values can still work well on some
+  speaker/style pairs, especially whisper on non-Trump sources.
 - `--noise-level` (default 0.0): DP noise. 0.1 = light privacy with good style
   preservation. 0.5+ degrades style and can make baseline unintelligible.
 - `--seed` (default 42): For reproducible outputs. Use -1 for random.

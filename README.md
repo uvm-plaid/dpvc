@@ -6,7 +6,7 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current paper-strengthening branch: **`research/commonvoice-partial-label-pretrain`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current paper-strengthening branch: **`research/commonvoice-partial-label-pretrain`**. Planned next branch after the April 30 meeting with Joe: **`research/combined-data-pseudolabel-mix`**. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
 - **[`FINDINGS.md`](FINDINGS.md)** — 16 paper-facing findings with methodology and per-row takeaways.

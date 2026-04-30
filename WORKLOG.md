@@ -1,6 +1,6 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
@@ -48,6 +48,16 @@ Priority tags:
 - [ ] `[SOON]` Test whether CommonVoice-broad pretraining preserves age/gender control more easily than emotion control; Pass 5 suggests different attribute families may survive broad speaker priors differently
 - [ ] `[SOON]` **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
 
+### Phase 1.6: Mixed-Data Bootstrap (Joe's April 30 call)
+- [ ] `[NOW]` Run the first sampled mixed-data experiment that trains on **CommonVoice + CREMA-D + Expresso together**, because Joe confirmed on April 30 that this is still the biggest untried experiment and the most important missing check after the CommonVoice-only follow-up passes
+- [ ] `[NOW]` Build the mixed-data corpus around **speaker breadth first**, not raw CommonVoice clip count, because Joe's current heuristic is that getting at least one clip per CommonVoice speaker may matter more than maximizing total volume
+- [ ] `[NOW]` Compare at least three mixture schedules for the first mixed-data run: a static balanced mix, a CommonVoice-heavy warmup followed by mixed training, and a labeled-data-heavy finish, because Joe explicitly flagged the schedule as an open empirical question
+- [ ] `[NOW]` Protect the small labeled datasets with quotas or upsampling in the mixed-data run, because Joe warned that a naive full merge may simply behave like CommonVoice training and wash out the CREMA-D / Expresso effect
+- [ ] `[SOON]` Improve CommonVoice pseudo-label quality and calibration **as part of the mixed-data setup**, not only as a CommonVoice-only refinement, because Joe endorsed pseudo-labeled CommonVoice + combined-data training as the most promising bootstrap path
+- [ ] `[SOON]` Clean up and enrich the Expresso label mapping before the mixed-data run, because Joe agreed the richer Expresso label space is one of the best ways to inject emotion structure into the broader CommonVoice speaker prior
+- [ ] `[SOON]` Run style-strength sweeps above `5.0` on representative non-Trump speakers, because Joe qualitatively found that higher strengths can work well, especially for whisper, so `5.0` should not be treated as a hard ceiling
+- [ ] `[SOON]` Add a concise "how to read the metrics" guide for Joe covering emotion recall / emo_sim, novelty, WER, and MOS, because he explicitly said the branch and metric layout is hard to interpret quickly
+
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
 - [x] **Research TTS controllability evaluation metrics** — settled on EmoVoice pipeline (arxiv 2504.12867, Joe's suggestion): emotion2vec Recall Rate + emo_sim (primary), UTMOS (naturalness), WER (intelligibility)
 - [x] Build emotion evaluation pipeline: `examples/eval_emotion.py` runs emotion2vec_plus_large on a directory of generated audio and writes a CSV with per-file Recall Rate and emo_sim vs. same-speaker baseline (April 17)
@@ -87,6 +97,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Share Expresso download instructions with Joe
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
+- [ ] `[NOW]` Keep `FINDINGS.md` as the single async review document for Joe and point branch-heavy result dumps back to it, because the April 30 meeting confirmed that direct branch-by-branch review is slowing interpretation
 - [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
 - [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up passes, so future finetune and objective sweeps are less manual than Passes 5-7
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
@@ -575,6 +586,20 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **FINDINGS.md review**
 - Updated after Pass 8 with a new paper-facing result: validation-scale weak supervision during CommonVoice pretraining still does not recover recall, and the pseudo-style variants appear to trade controllability/novelty for stronger intelligibility rather than solving the underlying collapse.
+
+---
+
+### 0.14 April 30 Meeting with Joe — Direction Update
+
+- Joe confirmed that the **biggest untried experiment** is still the first real sampled mixed-data run that combines CommonVoice, CREMA-D, and Expresso in one training setup
+- Joe explicitly endorsed **pseudo-labeled CommonVoice + mixed-data training** as the most promising current path, more than another isolated CommonVoice-only refinement
+- Joe warned that a naive combined run may just behave like CommonVoice unless we manage the mixture carefully; he called out the training schedule itself as an open empirical question
+- Joe's current sampling intuition is that **speaker breadth may matter more than raw clip count** on CommonVoice, so the next mixed-data corpus should prioritize at least one clip per speaker before adding more clips
+- Joe agrees that architecture may matter, but he put **data mixing and supervision quality ahead of architecture changes** for the immediate next step
+- Joe qualitatively found that style strengths **above `5.0` can still work well**, especially for whisper on non-Trump examples, so our docs should not treat `5.0` as a hard ceiling
+- Joe said the branch stack is getting hard to interpret directly and asked for a **single document** that summarizes findings and how to read the metrics, which reinforces keeping `FINDINGS.md` as the async review hub
+- Joe confirmed the current **12GB GPU machine is sufficient for these VAE experiments**, while larger cluster access may be possible later but should not be assumed for the next branch
+- **Planned next branch:** `research/combined-data-pseudolabel-mix`
 
 ---
 
