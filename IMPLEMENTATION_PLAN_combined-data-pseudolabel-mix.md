@@ -426,6 +426,10 @@ When this branch is eventually implemented, we should update:
 - `examples/README.md`
 - `results/README.md`
 
+This branch is now complete. The follow-up plan now lives in:
+
+- `IMPLEMENTATION_PLAN_mixed-data-pseudolabel-quality.md`
+
 ## 13. Bottom line
 
 This branch exists to test the most important remaining missing experiment from

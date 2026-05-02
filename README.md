@@ -6,10 +6,10 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current implementation branch: **`research/combined-data-pseudolabel-mix`**. The current paper-strengthening baseline still comes from Passes 4-8, but this branch starts the first sampled **CommonVoice + CREMA-D + Expresso** mixed-data training line Joe prioritized on April 30. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current implementation branch: **`research/combined-data-pseudolabel-mix`**. The current paper-strengthening baseline still comes from the evaluation ablation matrix and the CommonVoice follow-up branches, while this branch captures the first sampled **CommonVoice + CREMA-D + Expresso** mixed-data training line Joe prioritized on April 30. The planned follow-up branch is **`research/mixed-data-pseudolabel-quality`**, which will tighten pseudo-label filtering and labeled-data protection before we run the separate non-Trump strength sweep. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
-- **[`FINDINGS.md`](FINDINGS.md)** — 16 paper-facing findings with methodology and per-row takeaways.
+- **[`FINDINGS.md`](FINDINGS.md)** — 17 paper-facing findings with methodology and per-row takeaways.
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
@@ -19,11 +19,12 @@ recommended path for style control.
 
 Current best checked-in result: the **combined** OpenVoice model remains the
 best tradeoff across controllability, speaker novelty, intelligibility, and
-naturalness. Passes 5-8 sharpened that conclusion by showing that neither
-simple gentler CommonVoice finetuning, nor simple scalar objective
-reweighting, nor the first richer teacher/anchor CommonVoice objectives, nor
-validation-scale weak-label CommonVoice pretraining recover the combined
-model's tradeoff. The main summary artifacts are:
+naturalness. The later CommonVoice finetune, objective, rich-objective, and
+partial-label studies sharpened that conclusion by showing that neither simple
+gentler CommonVoice finetuning, nor simple scalar objective reweighting, nor
+the first richer teacher/anchor CommonVoice objectives, nor validation-scale
+weak-label CommonVoice pretraining recover the combined model's tradeoff. The
+main summary artifacts are:
 
 - [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)

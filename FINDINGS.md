@@ -974,29 +974,38 @@ That is still a useful paper result because it tells us that:
 ## April 30 Meeting Alignment with Joe
 
 The April 30 call with Joe did **not** change the scientific findings above,
-but it did sharpen what the next experiment should be.
+but it did sharpen what we needed to test next. That recommendation has now
+been exercised by the mixed-data branch, so this section is best read as:
+
+- what Joe pushed us to try,
+- what we completed afterward,
+- and what remains open now.
 
 The most important alignment points were:
 
-1. **The biggest untried experiment is still the first real mixed-data run.**
-   Joe's summary was that we still have not trained one VAE on
+1. **The biggest missing experiment really was the first real mixed-data run.**
+   Joe's summary was that we still had not trained one VAE on
    **CommonVoice + CREMA-D + Expresso together** while retaining both broad
-   speaker diversity and controllable emotion. That now becomes the main next
-   check, not just another CommonVoice-only refinement.
+   speaker diversity and controllable emotion. We have now completed that run,
+   and the result is Finding 17: the first mixed-data schedules improved WER
+   more than recall.
 2. **Pseudo-labeled CommonVoice remains the most promising bootstrap path.**
    Joe explicitly endorsed the idea of using pretrained emotion models to add
    labels to CommonVoice and then combining that data with the smaller labeled
-   datasets. The current CommonVoice partial-label pretraining result does not prove that this works yet, but
-   it does support treating this direction as the best next bet.
-3. **Data mixing matters more than another small finetuning tweak.**
+   datasets. The mixed-data branch did not prove that this works yet, but it
+   does keep this direction alive as the best current data-side bootstrap path.
+3. **Data mixing matters more than another small finetuning tweak, but schedule
+   choice alone is not enough.**
    Joe warned that a naive combined run could simply behave like CommonVoice if
    the smaller labeled datasets are not protected in the mixture. That means
-   the next branch should test explicit mixture schedules and quotas, not only
-   a single static merge.
+   explicit mixture control was the right thing to test first. After Finding 17,
+   the remaining data-side question is now stronger labeled-data protection and
+   better pseudo-label filtering, not just another simple schedule sweep.
 4. **Speaker breadth is now an explicit heuristic.**
    Joe's current assumption is that for CommonVoice, getting at least one clip
-   per speaker may matter more than maximizing total clip count. This should
-   shape the next sampled mixed-data corpus.
+   per speaker may matter more than maximizing total clip count. The first
+   mixed-data artifact followed that heuristic, and the next follow-up should
+   compare one clip per speaker against two clips per speaker directly.
 5. **Architecture is still secondary to data for the immediate next step.**
    Joe agrees that the current linear latent control may not be optimal, but
    he still put data composition and supervision quality ahead of architecture
@@ -1006,7 +1015,7 @@ The most important alignment points were:
    especially for whisper on non-Trump examples. Future sweeps should treat
    strength as style- and speaker-dependent rather than fixed.
 
-This meeting therefore changes the next-step framing from:
+This meeting therefore changed the next-step framing from:
 
 - "improve CommonVoice pseudo-label quality in isolation"
 
@@ -1015,6 +1024,11 @@ to:
 - "**run the first sampled mixed-data experiment with pseudo-labeled CommonVoice
   plus explicit mixture/schedule control**."
 
+That experiment is now complete, so the current follow-up framing is:
+
+- "**improve mixed-data pseudo-label quality and labeled-data protection, then
+  run the pending non-Trump style-strength sweep**."
+
 ---
 
 ## Open Questions
@@ -1022,7 +1036,7 @@ to:
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice pre-training improve recall once we actually mix the datasets together?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. CommonVoice finetune ablation showed that simple gentler finetuning is not enough to fix that on its own, CommonVoice objective ablation showed that simple scalar loss reweighting is not enough either, CommonVoice rich-objective ablation showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, and CommonVoice partial-label pretraining showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat as well. After the April 30 meeting, the biggest remaining untried experiment is the first sampled mixed-data run that combines CommonVoice + CREMA-D + Expresso together. The open question is now whether better pseudo-label quality, explicit dataset mixing, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the gain without washing out the style axes.
+4. **Can CommonVoice-style broad speaker coverage improve recall once we mix the datasets together more carefully?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. CommonVoice finetune ablation showed that simple gentler finetuning is not enough to fix that on its own, CommonVoice objective ablation showed that simple scalar loss reweighting is not enough either, CommonVoice rich-objective ablation showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, CommonVoice partial-label pretraining showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat, and the first mixed-data run (Finding 17) showed that simply combining CommonVoice + CREMA-D + Expresso under three schedule variants still leaves recall fixed at `16.7%`. The open question is now whether better pseudo-label quality, stronger labeled-data protection, per-class pseudo-label caps, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the intelligibility gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.

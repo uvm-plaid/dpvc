@@ -49,16 +49,18 @@ Priority tags:
 - [ ] `[SOON]` **Open question (Joe, April 16):** Can we train all knobs at once when labels come from different datasets? CommonVoice has age/gender, CREMA-D has emotion — each stage only trains a subset of latent dims
 
 ### Phase 1.6: Mixed-Data Bootstrap (Joe's April 30 call)
-- [ ] `[NOW]` Run the first sampled mixed-data experiment that trains on **CommonVoice + CREMA-D + Expresso together**, because Joe confirmed on April 30 that this is still the biggest untried experiment and the most important missing check after the CommonVoice-only follow-up experiments
-- [ ] `[NOW]` Build the mixed-data corpus around **speaker breadth first**, not raw CommonVoice clip count, because Joe's current heuristic is that getting at least one clip per CommonVoice speaker may matter more than maximizing total volume
-- [ ] `[NOW]` Compare at least three mixture schedules for the first mixed-data run: a static balanced mix, a CommonVoice-heavy warmup followed by mixed training, and a labeled-data-heavy finish, because Joe explicitly flagged the schedule as an open empirical question
-- [ ] `[NOW]` Protect the small labeled datasets with quotas or upsampling in the mixed-data run, because Joe warned that a naive full merge may simply behave like CommonVoice training and wash out the CREMA-D / Expresso effect
-- [ ] `[SOON]` Improve CommonVoice pseudo-label quality and calibration **as part of the mixed-data setup**, not only as a CommonVoice-only refinement, because Joe endorsed pseudo-labeled CommonVoice + combined-data training as the most promising bootstrap path
-- [ ] `[SOON]` Clean up and enrich the Expresso label mapping before the mixed-data run, because Joe agreed the richer Expresso label space is one of the best ways to inject emotion structure into the broader CommonVoice speaker prior
+- [x] `[DONE]` Run the first sampled mixed-data experiment that trains on **CommonVoice + CREMA-D + Expresso together**; completed on branch `research/combined-data-pseudolabel-mix`, with all three schedule variants improving WER more than controllability and remaining fixed at `16.7%` recall
+- [x] `[DONE]` Build the mixed-data corpus around **speaker breadth first**, not raw CommonVoice clip count; completed in `embeddings/openvoice_mixed_base.pt`, which keeps `500` CommonVoice speakers with one clip per speaker
+- [x] `[DONE]` Compare at least three mixture schedules for the first mixed-data run; completed with `mixed_static_balanced`, `mixed_cv_warmup`, and `mixed_labeled_finish`
+- [x] `[DONE]` Protect the small labeled datasets inside the first mixed-data run; completed with schedule-aware dataset masses, but the result still suggests stronger labeled-data protection is the next higher-value change
+- [ ] `[NOW]` Start `research/mixed-data-pseudolabel-quality`: improve CommonVoice pseudo-label filtering inside the mixed-data builder with per-class thresholds/caps and accepted-vs-rejected reporting, because the first mixed artifact still leans heavily toward `neutral` / `sad` and likely teaches an over-conservative basin
+- [ ] `[NOW]` Add configurable dataset-mass controls and test a more aggressively labeled-protected mixed schedule, because the first mixed-data branch showed that schedule choice alone does not recover recall and Joe specifically warned that the smaller labeled datasets could still be washed out
+- [ ] `[NOW]` Re-run the mixed-data evaluation matrix on the improved artifact and compare it against the original mixed schedules, because the next concrete question is whether better pseudo-label quality plus stronger labeled-data protection can recover recall without giving back the mixed-data WER gains
+- [ ] `[SOON]` Clean up and enrich the Expresso label mapping inside the mixed-data follow-up, because Joe agreed the richer Expresso label space is still one of the best ways to inject emotion structure into the broader CommonVoice speaker prior
 - [ ] `[SOON]` Compare one-clip-per-speaker versus two-clips-per-speaker CommonVoice sampling inside the mixed-data setup, because the current real `openvoice_mixed_base.pt` artifact uses one clip per speaker and Joe's speaker-breadth heuristic still needs a direct empirical check
-- [ ] `[SOON]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder, because the first real mixed artifact still accepts a heavily skewed pseudo-label mix (`neutral=207`, `sad=170`, `happy=37`, `disgust=34`, `anger=10`, `fear=4`) and we do not want the first mixed-data pseudolabel mix results to silently inherit that imbalance
+- [ ] `[SOON]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder, because the first real mixed artifact still accepts a heavily skewed pseudo-label mix (`neutral=207`, `sad=170`, `happy=37`, `disgust=34`, `anger=10`, `fear=4`) and we do not want the mixed-data follow-up to silently inherit that imbalance
 - [ ] `[SOON]` Save one artifact-level `mixture_report` snapshot per mixed-data pseudolabel mix condition alongside the result bundle, so later mixed-data reruns can be compared without reconstructing builder arguments from memory
-- [ ] `[SOON]` Run style-strength sweeps above `5.0` on representative non-Trump speakers, because Joe qualitatively found that higher strengths can work well, especially for whisper, so `5.0` should not be treated as a hard ceiling
+- [ ] `[SOON]` Run style-strength sweeps above `5.0` on representative non-Trump speakers on a dedicated follow-up branch `research/nontrump-style-strength-sweep`, because Joe qualitatively found that higher strengths can work well, especially for whisper, so `5.0` should not be treated as a hard ceiling
 - [ ] `[SOON]` Add a concise "how to read the metrics" guide for Joe covering emotion recall / emo_sim, novelty, WER, and MOS, because he explicitly said the branch and metric layout is hard to interpret quickly
 
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
@@ -602,7 +604,9 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 - Joe qualitatively found that style strengths **above `5.0` can still work well**, especially for whisper on non-Trump examples, so our docs should not treat `5.0` as a hard ceiling
 - Joe said the branch stack is getting hard to interpret directly and asked for a **single document** that summarizes findings and how to read the metrics, which reinforces keeping `FINDINGS.md` as the async review hub
 - Joe confirmed the current **12GB GPU machine is sufficient for these VAE experiments**, while larger cluster access may be possible later but should not be assumed for the next branch
-- **Planned next branch:** `research/combined-data-pseudolabel-mix`
+- **Completed branch from Joe's April 30 recommendation:** `research/combined-data-pseudolabel-mix`
+- **Planned next branch:** `research/mixed-data-pseudolabel-quality`
+- **Planned follow-up branch after that:** `research/nontrump-style-strength-sweep`
 
 ### 0.15 Mixed-Data Pseudolabel Mix Bootstrap Implementation (April 30, branch `research/combined-data-pseudolabel-mix`)
 

@@ -231,23 +231,35 @@ but we also should not pretend we have already tested the most important combine
 
 ## 11. Recommended next step
 
-### Best next branch
+### Completed after this meeting
 - `research/combined-data-pseudolabel-mix`
 
-### Why this is the best next move
-Joe's call changed the next-step priority.
+That branch has now been run and it answered the schedule question narrowly:
+- WER improved,
+- novelty improved modestly,
+- recall stayed fixed at `16.7%`,
+- and better schedule choice alone did not escape the conservative
+  CommonVoice-like basin.
 
-The latest evidence suggests:
-- CommonVoice-only refinement is informative, but not enough,
+### Current best next branch
+- `research/mixed-data-pseudolabel-quality`
+
+### Why this is the best current next move
+The latest checked-in evidence now suggests:
+- CommonVoice-only refinement was informative but not enough,
+- the first sampled mixed-data run was worth doing but not sufficient,
 - pseudo-labeled CommonVoice still looks like the best bootstrap path,
-- and the most important missing experiment is the first **sampled mixed-data** run.
+- and the highest-value remaining data-side intervention is now better
+  pseudo-label filtering plus stronger labeled-data protection.
 
 So the next branch should focus on:
-- building a sampled CommonVoice + CREMA-D + Expresso training set,
-- prioritizing speaker breadth in CommonVoice,
-- protecting the smaller labeled datasets from being drowned out,
-- trying at least a few mixture schedules,
-- and improving pseudo-label quality/calibration as part of that combined-data setup.
+- building an improved mixed-data artifact with per-class pseudo-label
+  thresholds/caps,
+- preserving explicit artifact-level reporting of accepted vs rejected pseudo
+  labels,
+- protecting CREMA-D and Expresso more aggressively in the dataset masses,
+- rerunning the mixed-data matrix against the current mixed-data baseline,
+- and selecting the best checkpoint for the pending non-Trump strength sweep.
 
 ## 12. Decisions / questions to discuss with Joe next
 
