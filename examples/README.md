@@ -893,6 +893,30 @@ Interpretation:
 - that gain is still narrow: it gives back WER versus `mixed_labeled_finish` and novelty versus `mixed_static_balanced`
 - `mixed_quality_labeled_guarded` is the current best mixed-data checkpoint to use for the pending non-Trump strength sweep, because it is the most control-capable mixed-data model so far
 
+Non-Trump style-strength sweep:
+
+```bash
+python examples/openvoice_infer_controllable.py \
+    --source-dir examples/nontrump_strength_panel/ \
+    --out output/nontrump_strength_7p5_eval/ \
+    --vae-checkpoint embeddings/openvoice_vae_mixed_quality_labeled_guarded.pt \
+    --all-styles \
+    --style-strength 7.5 \
+    --noise-level 0.0 \
+    --seed 42
+```
+
+Current checked-in sweep guidance:
+
+- `5.0` is still the safest overall default on the 4-speaker non-Trump panel
+- `7.5` is the best stronger-than-default compromise:
+  - overall novelty rises from `0.0789` to `0.1246`
+  - overall WER rises modestly from `0.1472` to `0.1681`
+  - overall MOS delta worsens from `-0.1312` to `-0.1701`
+- `whisper` benefits the most from higher strength:
+  - novelty gain rises from `0.3651` at `5.0` to `0.5123` at `7.5`, `0.6042` at `10.0`, and `0.6521` at `12.5`
+- `10.0-12.5` are better treated as high-novelty, style-specific settings than new global defaults
+
 ### 5. Run Controllable Inference
 
 Single style:
@@ -930,9 +954,11 @@ python examples/openvoice_infer_controllable.py \
 Key parameters:
 - `--style-strength` (default 5.0): How hard to push the style. Higher = more
   pronounced but risks output collapse on some speakers. Try 3.0 for safer
-  results, but do **not** treat `5.0` as a hard ceiling: Joe's April 30
-  qualitative tests found that higher values can still work well on some
-  speaker/style pairs, especially whisper on non-Trump sources.
+  results. `5.0` is still the safest general default, but do **not** treat it
+  as a hard ceiling: the checked-in non-Trump sweep shows that `7.5` is a
+  useful stronger setting for styles like `whisper` and `confused`, while
+  `10.0-12.5` act more like high-novelty, higher-risk settings than new global
+  defaults.
 - `--noise-level` (default 0.0): DP noise. 0.1 = light privacy with good style
   preservation. 0.5+ degrades style and can make baseline unintelligible.
 - `--seed` (default 42): For reproducible outputs. Use -1 for random.

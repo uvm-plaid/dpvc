@@ -134,6 +134,24 @@ Mixed-data pseudolabel quality follow-up from 2026-05-03:
   - the gain is not a clean win, because it gives back WER versus `mixed_labeled_finish` and novelty versus `mixed_static_balanced`
   - `mixed_quality_labeled_guarded` is still the right checkpoint to carry into the pending non-Trump style-strength sweep
 
+Non-Trump style-strength sweep from 2026-05-03:
+
+- The full strength-sweep result bundle is now checked in for:
+  - `5p0`
+  - `7p5`
+  - `10p0`
+  - `12p5`
+- Top-line overall matrix:
+  - `5.0`: recall `20.8%`, novelty `0.0789`, mean WER `0.1472`, MOS delta `-0.1312`
+  - `7.5`: recall `16.7%`, novelty `0.1246`, mean WER `0.1681`, MOS delta `-0.1701`
+  - `10.0`: recall `16.7%`, novelty `0.1570`, mean WER `0.2028`, MOS delta `-0.2287`
+  - `12.5`: recall `16.7%`, novelty `0.1761`, mean WER `0.2444`, MOS delta `-0.2119`
+- Focus conclusion:
+  - `5.0` remains the safest default
+  - `7.5` is the best stronger-than-default compromise on the checked-in non-Trump panel
+  - `whisper` and `confused` gain the most novelty from higher strength
+  - `10.0-12.5` are better treated as higher-risk, higher-novelty style-specific settings than as new defaults
+
 ## Schema
 
 ### `eval_emotion_full.csv`

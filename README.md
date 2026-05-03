@@ -6,10 +6,10 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current implementation branch: **`research/mixed-data-pseudolabel-quality`**. The current paper-strengthening baseline still comes from the evaluation ablation matrix and the CommonVoice follow-up branches, while this branch captures the first mixed-data follow-up that tightens pseudo-label filtering and labeled-data protection for the sampled **CommonVoice + CREMA-D + Expresso** training line Joe prioritized on April 30. The planned follow-up branch is **`research/nontrump-style-strength-sweep`**, which will test style strengths above `5.0` on a documented non-Trump speaker panel using the best control-capable mixed-data checkpoint. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current implementation branch: **`research/nontrump-style-strength-sweep`**. The current paper-strengthening baseline still comes from the evaluation ablation matrix and the CommonVoice follow-up branches, while this branch captures the first documented non-Trump strength sweep on top of the best current mixed-data checkpoint. The planned follow-up branch is **`research/mixed-data-pseudolabel-teacher`**, which will return to the mixed-data training problem with a stronger pseudo-label teacher and more class-balanced acceptance logic. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
-- **[`FINDINGS.md`](FINDINGS.md)** — 18 paper-facing findings with methodology and per-row takeaways.
+- **[`FINDINGS.md`](FINDINGS.md)** — 19 paper-facing findings with methodology and per-row takeaways.
 - **[`WORKLOG.md`](WORKLOG.md)** — roadmap and progress tracking.
 - **[`results/`](results/)** — raw evaluation CSVs (emotion2vec Recall/emo_sim, WER, predicted MOS) backing the findings.
 
@@ -27,7 +27,10 @@ weak-label CommonVoice pretraining recover the combined model's tradeoff. The
 mixed-data schedule branch and mixed-data pseudo-label quality follow-up then
 showed that combined-data training can improve WER and move recall slightly,
 but still does not match the `combined` model's control/novelty balance. The
-main summary artifacts are:
+new non-Trump strength sweep adds a narrower inference-side result: `5.0`
+remains the safest default, `7.5` is a useful stronger option for styles like
+`whisper` and `confused`, and `10.0-12.5` look more like high-novelty
+specialized settings than new defaults. The main summary artifacts are:
 
 - [`results/eval_ablation_summary_pass4.csv`](results/eval_ablation_summary_pass4.csv)
 - [`results/eval_commonvoice_finetune_summary_pass5.csv`](results/eval_commonvoice_finetune_summary_pass5.csv)
@@ -36,6 +39,8 @@ main summary artifacts are:
 - [`results/eval_commonvoice_partial_label_summary_pass8.csv`](results/eval_commonvoice_partial_label_summary_pass8.csv)
 - [`results/eval_mixed_data_summary_pass9.csv`](results/eval_mixed_data_summary_pass9.csv)
 - [`results/eval_mixed_quality_summary.csv`](results/eval_mixed_quality_summary.csv)
+- [`results/eval_nontrump_strength_sweep.csv`](results/eval_nontrump_strength_sweep.csv)
+- [`results/eval_nontrump_strength_sweep_summary.md`](results/eval_nontrump_strength_sweep_summary.md)
 
 ## Installation
 

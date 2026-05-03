@@ -249,8 +249,16 @@ the mixed-data line. It produced the first mixed-data recall bump (`18.2%` in
 `mixed_quality_labeled_guarded`), but not a clean overall win because WER and
 novelty still regressed versus the best earlier mixed schedules.
 
-### Current best next branch
+### Completed inference follow-up branch
 - `research/nontrump-style-strength-sweep`
+
+That sweep confirmed that `5.0` is not a hard ceiling on non-Trump examples:
+- `7.5` is a reasonable stronger setting for styles like `whisper` and
+  `confused`
+- `10.0-12.5` buy more novelty, but with clearly worse overall WER/MOS
+
+### Current best next branch
+- `research/mixed-data-pseudolabel-teacher`
 
 ### Why this is the best current next move
 The latest checked-in evidence now suggests:
@@ -261,12 +269,13 @@ The latest checked-in evidence now suggests:
   pseudo-label filtering plus stronger labeled-data protection.
 
 So the next branch should focus on:
-- using `mixed_quality_labeled_guarded` as the current best mixed-data
-  checkpoint,
-- sweeping style strengths above `5.0` on a documented non-Trump source panel,
-- checking whether Joe's qualitative impression about higher strengths,
-  especially for whisper, is supported by metrics,
-- and updating usage guidance only if the sweep holds up.
+- improving the mixed-data pseudo-label teacher itself,
+- tightening class-balanced pseudo-label acceptance beyond the first threshold
+  and cap pass,
+- protecting the labeled datasets while trying to beat the current mixed-data
+  recall ceiling,
+- and keeping the new strength guidance as a separate inference-side finding,
+  not a substitute for better supervision.
 
 ## 12. Decisions / questions to discuss with Joe next
 

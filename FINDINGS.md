@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-05-03 (Finding 18 from the mixed-data pseudolabel quality follow-up added; descriptive experiment titles now replace internal pass numbering)
+**Last updated:** 2026-05-03 (Finding 19 from the non-Trump style-strength sweep added; descriptive experiment titles now replace internal pass numbering)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -1082,6 +1082,91 @@ dead, but also not solved. We now know that:
 
 ---
 
+## Finding 19: Style Strength Above `5.0` Is Useful for Some Non-Trump Styles, But Not as a New Global Default
+
+### Methodology
+
+This sweep tested Joe's qualitative claim directly: can style strengths above
+`5.0` still be useful on non-Trump examples?
+
+We fixed:
+
+- checkpoint: `mixed_quality_labeled_guarded`
+- panel: four checked-in non-Trump speakers
+  - `female_1_cremad_1002`
+  - `female_2_cremad_1012`
+  - `male_1_cremad_1003`
+  - `male_2_cremad_1051`
+- noise level: `0.0`
+- seed: `42`
+- generation mode: `--all-styles`
+
+We swept:
+
+- `5.0`
+- `7.5`
+- `10.0`
+- `12.5`
+
+and scored each strength with the same four metrics:
+
+- emotion recall / emo_sim
+- novelty gain
+- WER
+- MOS
+
+### Results
+
+| Strength | Recall | Mean emo_sim | Mean novelty gain | Mean WER | Mean MOS delta | Takeaway |
+|----------|--------|--------------|-------------------|----------|----------------|----------|
+| `5.0` | 20.8% | 0.9874 | 0.0789 | 0.1472 | -0.1312 | Safest overall setting on this panel |
+| `7.5` | 16.7% | 0.9773 | 0.1246 | 0.1681 | -0.1701 | Best stronger-than-default compromise |
+| `10.0` | 16.7% | 0.9726 | 0.1570 | 0.2028 | -0.2287 | Higher novelty, noticeably worse overall quality |
+| `12.5` | 16.7% | 0.9728 | 0.1761 | 0.2444 | -0.2119 | Highest novelty, but clearly not a balanced default |
+
+Focus-style behavior:
+
+| Strength | Style | Recall | emo_sim | Novelty gain | WER | MOS delta |
+|----------|-------|--------|---------|--------------|-----|-----------|
+| `5.0` | `confused` | - | 0.9796 | 0.2871 | 0.1125 | -0.5253 |
+| `5.0` | `happy` | 0.0000 | 0.9951 | -0.0325 | 0.0625 | -0.0182 |
+| `5.0` | `sad` | 0.2500 | 0.9845 | 0.0338 | 0.0625 | -0.0166 |
+| `5.0` | `whisper` | - | 0.9617 | 0.3651 | 0.3000 | -0.6416 |
+| `7.5` | `confused` | - | 0.9625 | 0.4549 | 0.1125 | -0.6577 |
+| `7.5` | `happy` | 0.0000 | 0.9897 | -0.0239 | 0.1875 | -0.0211 |
+| `7.5` | `sad` | 0.0000 | 0.9887 | 0.0367 | 0.0625 | -0.0182 |
+| `7.5` | `whisper` | - | 0.8953 | 0.5123 | 0.3000 | -0.7248 |
+| `10.0` | `confused` | - | 0.9691 | 0.5341 | 0.1125 | -0.9787 |
+| `10.0` | `happy` | 0.0000 | 0.9902 | -0.0326 | 0.2500 | -0.0233 |
+| `10.0` | `sad` | 0.0000 | 0.9857 | 0.0437 | 0.0625 | -0.0179 |
+| `10.0` | `whisper` | - | 0.8750 | 0.6042 | 0.3000 | -0.7918 |
+| `12.5` | `confused` | - | 0.9600 | 0.5694 | 0.1125 | -1.0095 |
+| `12.5` | `happy` | 0.0000 | 0.9895 | -0.0332 | 0.2500 | -0.0208 |
+| `12.5` | `sad` | 0.0000 | 0.9866 | 0.0649 | 0.0625 | -0.0175 |
+| `12.5` | `whisper` | - | 0.8867 | 0.6521 | 0.3000 | -0.7141 |
+
+### Interpretation
+
+This sweep answers Joe's question more precisely:
+
+1. **`5.0` is not a hard ceiling.** Higher strengths clearly increase novelty for `whisper` and `confused` on this non-Trump panel.
+2. **Higher strength is a tradeoff knob, not a free upgrade.** As strength rises, novelty improves, but overall recall, WER, and MOS all worsen.
+3. **`7.5` is the best stronger-than-default compromise on this panel.** It gives a substantial novelty boost over `5.0` (`0.1246` vs. `0.0789` overall, `0.5123` vs. `0.3651` for `whisper`) without the steeper WER/MOS penalties seen by `10.0` and `12.5`.
+4. **`whisper` benefits most from higher strength.** Its novelty rises monotonically from `0.3651` to `0.6521`, while WER stays flat at `0.3000`. The cost is naturalness, not content preservation.
+5. **Not all styles benefit.** `happy` stays negative on novelty gain at every strength, and `sad` only has non-zero recall at `5.0`.
+
+### Implication
+
+The repo guidance should change, but only narrowly:
+
+- keep `5.0` as the safest general default
+- treat `7.5` as a documented stronger option for styles like `whisper` and
+  `confused` on non-Trump inputs
+- treat `10.0-12.5` as higher-risk, higher-novelty settings better suited to
+  demos or targeted style-specific use, not new defaults
+
+---
+
 ## April 30 Meeting Alignment with Joe
 
 The April 30 call with Joe did **not** change the scientific findings above,
@@ -1135,12 +1220,12 @@ to:
 - "**run the first sampled mixed-data experiment with pseudo-labeled CommonVoice
   plus explicit mixture/schedule control**."
 
-That experiment and its first quality follow-up are now complete, so the
-current follow-up framing is:
+That experiment, its first quality follow-up, and the first non-Trump
+style-strength sweep are now complete, so the current follow-up framing is:
 
-- "**use the best mixed-data checkpoint from the quality follow-up for the
-  pending non-Trump style-strength sweep, while leaving deeper pseudo-label and
-  supervision upgrades as the next mixed-data research problem**."
+- "**return to the mixed-data supervision problem with a better pseudo-label
+  teacher or class-balanced acceptance strategy, while keeping the new
+  style-strength guidance as a documented inference-side finding**."
 
 ---
 
@@ -1158,7 +1243,7 @@ current follow-up framing is:
 10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. CommonVoice finetune ablation shows that coarse whole-module freezing is not enough, CommonVoice objective ablation shows that simple scalar loss-weight schedules are not enough, CommonVoice rich-objective ablation shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and CommonVoice partial-label pretraining shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** evaluation ablation matrix used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
 12. **What stronger mixed-data intervention, beyond schedule choice and first-pass pseudo-label filtering, can recover recall?** The first mixed-data pseudolabel mix experiment compared a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish. None improved recall beyond `16.7%`. The mixed-data pseudo-label quality follow-up then added per-class thresholds/caps and stronger labeled-data protection. That finally moved the best mixed-data condition to `18.2%` recall (`mixed_quality_labeled_guarded`), but at the cost of worse WER (`0.0978`) and weaker novelty (`0.0764`) than the best original mixed schedules. The next open question is whether stronger pseudo-label teachers, class-balanced acceptance, richer style supervision, or architecture changes can move recall without giving back the mixed-data intelligibility gains.
-13. **How high can style strength go before useful control turns into collapse?** Joe's qualitative tests suggest that values above `5.0` can still work well, especially for whisper on non-Trump examples. We need a broader non-Trump sweep before treating `5.0` as a practical default ceiling.
+13. **How high can style strength go before useful control turns into collapse?** The first non-Trump sweep (Finding 19) shows that `5.0` is not a hard ceiling: `7.5` is a reasonable stronger setting for `whisper` and `confused` on the current 4-speaker panel, while `10.0-12.5` push novelty higher at a clear WER/MOS cost. The open question is whether that pattern holds on a broader source panel and on the `combined` checkpoint, not just `mixed_quality_labeled_guarded`.
 
 ---
 

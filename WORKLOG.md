@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
 **Last updated:** 2026-05-03
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`, `research/mixed-data-pseudolabel-quality`
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`, `research/mixed-data-pseudolabel-quality`, `research/nontrump-style-strength-sweep`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -61,8 +61,11 @@ Priority tags:
 - [ ] `[SOON]` Tighten the mixed-data pseudo-label teacher and per-class acceptance rules further, because the first quality branch only produced a narrow recall bump (`18.2%`) and still left identity collapse high (`69`)
 - [x] `[DONE]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder; the quality artifact now records thresholds, threshold-rejected counts, cap-skipped counts, and final CommonVoice pseudo-style counts in `mixture_report`
 - [x] `[DONE]` Save one artifact-level `mixture_report` snapshot per mixed-data pseudolabel mix condition alongside the result bundle; the quality artifact now preserves threshold and row-weight config directly inside `embeddings/openvoice_mixed_quality_base.pt`
-- [ ] `[SOON]` Run style-strength sweeps above `5.0` on representative non-Trump speakers on a dedicated follow-up branch `research/nontrump-style-strength-sweep`, because Joe qualitatively found that higher strengths can work well, especially for whisper, so `5.0` should not be treated as a hard ceiling
+- [x] `[DONE]` Run style-strength sweeps above `5.0` on representative non-Trump speakers on a dedicated follow-up branch `research/nontrump-style-strength-sweep`; result: `5.0` remains the safest default, `7.5` is a defensible stronger setting for whisper/confused when higher novelty matters, and `10.0-12.5` behave more like high-novelty demo settings with clearly worse overall WER/MOS
 - [ ] `[SOON]` Add a concise "how to read the metrics" guide for Joe covering emotion recall / emo_sim, novelty, WER, and MOS, because he explicitly said the branch and metric layout is hard to interpret quickly
+- [ ] `[SOON]` Extend the non-Trump strength sweep to a larger panel and compare `combined` against `mixed_quality_labeled_guarded`, because the first 4-speaker sweep shows that higher strengths are usable for whisper/confused but not yet broad enough to freeze a universal style-strength policy
+- [ ] `[SOON]` Add style-specific inference guidance or presets (`default`, `strong-whisper`, `strong-confused`), because the non-Trump sweep shows that a single global `style_strength` default hides meaningful style-dependent tradeoffs
+- [ ] `[SOON]` Start `research/mixed-data-pseudolabel-teacher`: improve the mixed-data pseudo-label teacher and class-balanced acceptance rules, because the mixed-data quality branch only recovered recall to `18.2%` and the sweep branch confirmed that inference-time strength changes cannot substitute for better training supervision
 
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
 - [x] **Research TTS controllability evaluation metrics** — settled on EmoVoice pipeline (arxiv 2504.12867, Joe's suggestion): emotion2vec Recall Rate + emo_sim (primary), UTMOS (naturalness), WER (intelligibility)
@@ -607,7 +610,8 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 - Joe confirmed the current **12GB GPU machine is sufficient for these VAE experiments**, while larger cluster access may be possible later but should not be assumed for the next branch
 - **Completed branch from Joe's April 30 recommendation:** `research/combined-data-pseudolabel-mix`
 - **Completed follow-up branch:** `research/mixed-data-pseudolabel-quality`
-- **Planned next branch:** `research/nontrump-style-strength-sweep`
+- **Completed follow-up branch:** `research/nontrump-style-strength-sweep`
+- **Planned next branch:** `research/mixed-data-pseudolabel-teacher`
 
 ### 0.15 Mixed-Data Pseudolabel Mix Bootstrap Implementation (April 30, branch `research/combined-data-pseudolabel-mix`)
 
@@ -785,6 +789,69 @@ Interpretation:
 - That gain is narrow and costly: the best new condition still loses to `mixed_labeled_finish` on WER and to `mixed_static_balanced` on novelty
 - The branch therefore does **not** overturn Finding 17; it narrows it by showing that better mixed-data supervision can move recall a little, but not yet enough to beat the `combined` model or produce a clean mixed-data win
 - `mixed_quality_labeled_guarded` is still the right checkpoint to carry into the non-Trump style-strength sweep, because it is the most control-capable mixed-data condition so far
+
+### 0.18 Non-Trump Style-Strength Sweep Closeout (May 3, branch `research/nontrump-style-strength-sweep`)
+
+What we changed:
+- Added a fixed non-Trump panel at `examples/nontrump_strength_panel/`
+- Added `IMPLEMENTATION_PLAN_nontrump-style-strength-sweep.md`
+- Added `scripts/summarize_nontrump_strength_sweep.py`
+- Generated four full evaluation corpora from `embeddings/openvoice_vae_mixed_quality_labeled_guarded.pt` at strengths:
+  - `5.0`
+  - `7.5`
+  - `10.0`
+  - `12.5`
+
+Fixed panel:
+- `examples/nontrump_strength_panel/female_1_cremad_1002.wav`
+- `examples/nontrump_strength_panel/female_2_cremad_1012.wav`
+- `examples/nontrump_strength_panel/male_1_cremad_1003.wav`
+- `examples/nontrump_strength_panel/male_2_cremad_1051.wav`
+
+Validation:
+- `Validation`: The sweep uses a fixed non-Trump source panel checked into the repo
+- `Validation`: The results compare `5.0`, `7.5`, `10.0`, and `12.5` on the same checkpoint and panel
+- `Validation`: Any updated strength guidance is backed by checked-in metrics and an explicit panel definition
+
+Result artifacts:
+- `results/eval_nontrump_strength_5p0_emotion.csv`
+- `results/eval_nontrump_strength_5p0_novelty.csv`
+- `results/eval_nontrump_strength_5p0_wer.csv`
+- `results/eval_nontrump_strength_5p0_mos.csv`
+- same four metric CSVs for `7p5`, `10p0`, and `12p5`
+- `results/eval_nontrump_strength_sweep.csv`
+- `results/eval_nontrump_strength_sweep_summary.md`
+
+Top-line overall sweep:
+
+| Strength | Recall | Mean emo_sim | Mean novelty gain | Mean WER | Mean MOS delta | Takeaway |
+|----------|--------|--------------|-------------------|----------|----------------|----------|
+| `5.0` | `20.8%` | `0.9874` | `0.0789` | `0.1472` | `-0.1312` | Safest overall setting on this panel |
+| `7.5` | `16.7%` | `0.9773` | `0.1246` | `0.1681` | `-0.1701` | Best stronger-than-default compromise |
+| `10.0` | `16.7%` | `0.9726` | `0.1570` | `0.2028` | `-0.2287` | Higher novelty, noticeably worse overall quality |
+| `12.5` | `16.7%` | `0.9728` | `0.1761` | `0.2444` | `-0.2119` | Highest novelty, but clearly no longer a balanced default |
+
+Focus-style takeaways:
+- `whisper` novelty gain rises steadily:
+  - `0.3651` at `5.0`
+  - `0.5123` at `7.5`
+  - `0.6042` at `10.0`
+  - `0.6521` at `12.5`
+- `whisper` WER stays flat at `0.3000`, while MOS delta worsens from `-0.6416` at `5.0` to `-0.7248` at `7.5`, `-0.7918` at `10.0`, then partially recovers to `-0.7141` at `12.5`
+- `confused` also becomes much more novel:
+  - `0.2871` at `5.0`
+  - `0.4549` at `7.5`
+  - `0.5341` at `10.0`
+  - `0.5694` at `12.5`
+- But `confused` pays a steep naturalness cost: MOS delta drops from `-0.5253` at `5.0` to `-1.0095` at `12.5`
+- `sad` is the opposite pattern: `5.0` is the only setting with non-zero recall (`25%`), while higher strengths increase novelty slightly but do not recover emotional classification
+- `happy` does not benefit from higher strength on this panel: novelty gain stays negative and WER worsens above `5.0`
+
+Interpretation:
+- Joe was right that `5.0` is **not** a hard ceiling
+- Higher strengths are useful for **specific styles**, especially `whisper` and `confused`, when novelty is more important than overall quality
+- `7.5` is the best stronger-than-default compromise on this panel
+- `10.0-12.5` are better treated as style-specific or demo-specific settings, not as new global defaults
 
 ---
 
