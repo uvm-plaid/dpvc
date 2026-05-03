@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-04-30
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`
+**Last updated:** 2026-05-03
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`, `research/mixed-data-pseudolabel-quality`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -53,13 +53,14 @@ Priority tags:
 - [x] `[DONE]` Build the mixed-data corpus around **speaker breadth first**, not raw CommonVoice clip count; completed in `embeddings/openvoice_mixed_base.pt`, which keeps `500` CommonVoice speakers with one clip per speaker
 - [x] `[DONE]` Compare at least three mixture schedules for the first mixed-data run; completed with `mixed_static_balanced`, `mixed_cv_warmup`, and `mixed_labeled_finish`
 - [x] `[DONE]` Protect the small labeled datasets inside the first mixed-data run; completed with schedule-aware dataset masses, but the result still suggests stronger labeled-data protection is the next higher-value change
-- [ ] `[NOW]` Start `research/mixed-data-pseudolabel-quality`: improve CommonVoice pseudo-label filtering inside the mixed-data builder with per-class thresholds/caps and accepted-vs-rejected reporting, because the first mixed artifact still leans heavily toward `neutral` / `sad` and likely teaches an over-conservative basin
-- [ ] `[NOW]` Add configurable dataset-mass controls and test a more aggressively labeled-protected mixed schedule, because the first mixed-data branch showed that schedule choice alone does not recover recall and Joe specifically warned that the smaller labeled datasets could still be washed out
-- [ ] `[NOW]` Re-run the mixed-data evaluation matrix on the improved artifact and compare it against the original mixed schedules, because the next concrete question is whether better pseudo-label quality plus stronger labeled-data protection can recover recall without giving back the mixed-data WER gains
+- [x] `[DONE]` Start `research/mixed-data-pseudolabel-quality`: improved CommonVoice pseudo-label filtering inside the mixed-data builder with per-class thresholds/caps, accepted-vs-rejected reporting, and cap-aware fallback selection; the improved artifact keeps `500` CommonVoice speakers but reduces pseudo-labeled CommonVoice rows from `462` to `300`
+- [x] `[DONE]` Add configurable dataset-mass controls and test a more aggressively labeled-protected mixed schedule; completed with `mixed_quality_static_balanced`, `mixed_quality_labeled_finish`, and `mixed_quality_labeled_guarded`
+- [x] `[DONE]` Re-run the mixed-data evaluation matrix on the improved artifact and compare it against the original mixed schedules; result: `mixed_quality_labeled_guarded` becomes the first mixed-data condition to move recall above `16.7%`, reaching `18.2%`, but the gain comes with worse WER (`0.0978`) and weaker novelty (`0.0764`) than the best original mixed schedules
 - [ ] `[SOON]` Clean up and enrich the Expresso label mapping inside the mixed-data follow-up, because Joe agreed the richer Expresso label space is still one of the best ways to inject emotion structure into the broader CommonVoice speaker prior
 - [ ] `[SOON]` Compare one-clip-per-speaker versus two-clips-per-speaker CommonVoice sampling inside the mixed-data setup, because the current real `openvoice_mixed_base.pt` artifact uses one clip per speaker and Joe's speaker-breadth heuristic still needs a direct empirical check
-- [ ] `[SOON]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder, because the first real mixed artifact still accepts a heavily skewed pseudo-label mix (`neutral=207`, `sad=170`, `happy=37`, `disgust=34`, `anger=10`, `fear=4`) and we do not want the mixed-data follow-up to silently inherit that imbalance
-- [ ] `[SOON]` Save one artifact-level `mixture_report` snapshot per mixed-data pseudolabel mix condition alongside the result bundle, so later mixed-data reruns can be compared without reconstructing builder arguments from memory
+- [ ] `[SOON]` Tighten the mixed-data pseudo-label teacher and per-class acceptance rules further, because the first quality branch only produced a narrow recall bump (`18.2%`) and still left identity collapse high (`69`)
+- [x] `[DONE]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder; the quality artifact now records thresholds, threshold-rejected counts, cap-skipped counts, and final CommonVoice pseudo-style counts in `mixture_report`
+- [x] `[DONE]` Save one artifact-level `mixture_report` snapshot per mixed-data pseudolabel mix condition alongside the result bundle; the quality artifact now preserves threshold and row-weight config directly inside `embeddings/openvoice_mixed_quality_base.pt`
 - [ ] `[SOON]` Run style-strength sweeps above `5.0` on representative non-Trump speakers on a dedicated follow-up branch `research/nontrump-style-strength-sweep`, because Joe qualitatively found that higher strengths can work well, especially for whisper, so `5.0` should not be treated as a hard ceiling
 - [ ] `[SOON]` Add a concise "how to read the metrics" guide for Joe covering emotion recall / emo_sim, novelty, WER, and MOS, because he explicitly said the branch and metric layout is hard to interpret quickly
 
@@ -605,8 +606,8 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 - Joe said the branch stack is getting hard to interpret directly and asked for a **single document** that summarizes findings and how to read the metrics, which reinforces keeping `FINDINGS.md` as the async review hub
 - Joe confirmed the current **12GB GPU machine is sufficient for these VAE experiments**, while larger cluster access may be possible later but should not be assumed for the next branch
 - **Completed branch from Joe's April 30 recommendation:** `research/combined-data-pseudolabel-mix`
-- **Planned next branch:** `research/mixed-data-pseudolabel-quality`
-- **Planned follow-up branch after that:** `research/nontrump-style-strength-sweep`
+- **Completed follow-up branch:** `research/mixed-data-pseudolabel-quality`
+- **Planned next branch:** `research/nontrump-style-strength-sweep`
 
 ### 0.15 Mixed-Data Pseudolabel Mix Bootstrap Implementation (April 30, branch `research/combined-data-pseudolabel-mix`)
 
@@ -703,6 +704,87 @@ The paper contribution is **controllable speaker profile synthesis with formal p
 
 **Finding update**
 - Updated after the mixed-data pseudolabel mix result with a new paper-facing result: the first real CommonVoice + CREMA-D + Expresso run improves WER more than it improves control. None of the three schedule variants recovers recall above `16.7%`, although `mixed_labeled_finish` yields the best WER and `mixed_static_balanced` yields the best novelty among the mixed schedules.
+
+### 0.17 Mixed-Data Pseudolabel Quality Closeout (May 3, branch `research/mixed-data-pseudolabel-quality`)
+
+What we changed:
+- Added per-class CommonVoice pseudo-label thresholds to `scripts/build_mixed_training_set.py`
+- Added threshold-rejected, cap-skipped, and final accepted pseudo-label counts to `mixture_report`
+- Fixed fallback selection so class caps stay enforced even when preserving speaker breadth
+- Added explicit dataset-mass controls to `examples/openvoice_train_vae_mixed.py` and `dpvc.utils.train_mixed_autoencoder()`
+- Added three new mixed-data conditions to `scripts/run_ablation_inference.py`:
+  - `mixed_quality_static_balanced`
+  - `mixed_quality_labeled_finish`
+  - `mixed_quality_labeled_guarded`
+- Generalized `scripts/summarize_mixed_data_results.py` so it can summarize arbitrary tagged mixed-data result families
+
+Improved artifact recipe:
+- `embeddings/openvoice_mixed_quality_base.pt`
+- `500` CommonVoice speakers, one clip per speaker
+- CommonVoice pseudo-label thresholds:
+  - `neutral=0.995`
+  - `sad=0.98`
+  - `happy=0.92`
+  - `disgust=0.92`
+  - `anger=0.90`
+  - `fear=0.90`
+- CommonVoice pseudo-style caps:
+  - `neutral=120`
+  - `sad=110`
+  - `happy=60`
+  - `disgust=50`
+  - `anger=20`
+  - `fear=20`
+- Row weighting:
+  - `pseudo_row_weight=0.75`
+  - `true_row_weight=1.25`
+
+Improved artifact composition:
+- total rows: `1325`
+- `CommonVoice=500`, `CREMA-D=546`, `Expresso=279`
+- labeled CommonVoice rows: `300`
+- unlabeled CommonVoice fallback rows: `200`
+- final selected CommonVoice pseudo-style counts:
+  - `neutral=120`
+  - `sad=110`
+  - `happy=32`
+  - `disgust=29`
+  - `anger=5`
+  - `fear=4`
+
+Validation:
+- `Validation`: The mixed-data quality branch preserves a reproducible artifact-level `mixture_report` with per-style pseudo-label acceptance and rejection counts
+- `Validation`: The branch makes labeled-data protection explicit in the training interface rather than leaving it hard-coded
+- `Validation`: Every new condition has a named checkpoint and matched evaluation corpus
+- `Validation`: The comparison explicitly answers whether better pseudo-label filtering plus stronger labeled-data protection improve recall beyond the original mixed-data line
+
+New checkpoints:
+- `embeddings/openvoice_vae_mixed_quality_static_balanced.pt`
+- `embeddings/openvoice_vae_mixed_quality_labeled_finish.pt`
+- `embeddings/openvoice_vae_mixed_quality_labeled_guarded.pt`
+
+New corpora:
+- `output/mixed_quality_static_balanced_eval/`
+- `output/mixed_quality_labeled_finish_eval/`
+- `output/mixed_quality_labeled_guarded_eval/`
+
+Result artifacts:
+- `results/eval_mixed_quality_summary.csv`
+- `results/eval_mixed_quality_collapse.csv`
+
+Top-line comparison:
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Identity collapse | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|-------------------|----------|
+| `mixed_quality_static_balanced` | `16.7%` | `0.0770` | `0.0911` | `-0.1130` | `64` | Better reporting and cleaner class balance, but no control gain |
+| `mixed_quality_labeled_finish` | `16.7%` | `0.0763` | `0.0649` | `-0.1232` | `65` | Keeps most of the mixed-data WER story, but no recall gain |
+| `mixed_quality_labeled_guarded` | `18.2%` | `0.0764` | `0.0978` | `-0.1234` | `69` | First mixed-data recall bump, but not a clean overall win |
+
+Interpretation:
+- Better pseudo-label filtering plus stronger labeled-data protection produced a **small but real recall gain** in `mixed_quality_labeled_guarded`
+- That gain is narrow and costly: the best new condition still loses to `mixed_labeled_finish` on WER and to `mixed_static_balanced` on novelty
+- The branch therefore does **not** overturn Finding 17; it narrows it by showing that better mixed-data supervision can move recall a little, but not yet enough to beat the `combined` model or produce a clean mixed-data win
+- `mixed_quality_labeled_guarded` is still the right checkpoint to carry into the non-Trump style-strength sweep, because it is the most control-capable mixed-data condition so far
 
 ---
 

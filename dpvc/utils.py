@@ -221,10 +221,12 @@ def _normalize_dataset_masses(raw_masses, present_datasets):
     return {dataset: value / total for dataset, value in filtered.items()}
 
 
-def _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets):
+def _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets,
+                          static_masses=None, schedule_start_masses=None,
+                          schedule_end_masses=None):
     if schedule == "static_balanced":
         return _normalize_dataset_masses(
-            {"CommonVoice": 1.0, "CREMA-D": 1.0, "Expresso": 1.0},
+            static_masses or {"CommonVoice": 1.0, "CREMA-D": 1.0, "Expresso": 1.0},
             present_datasets,
         )
 
@@ -240,6 +242,10 @@ def _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets):
         end = {"CommonVoice": 0.20, "CREMA-D": 0.40, "Expresso": 0.40}
     else:
         raise ValueError(f"Unsupported mixed-data schedule: {schedule}")
+    if schedule_start_masses is not None:
+        start = schedule_start_masses
+    if schedule_end_masses is not None:
+        end = schedule_end_masses
 
     raw = {
         dataset: start.get(dataset, 0.0) + (end.get(dataset, 0.0) - start.get(dataset, 0.0)) * progress
@@ -252,7 +258,9 @@ def train_mixed_autoencoder(model, embeddings, style_targets, style_label_mask,
                             source_datasets, epochs=1000, lr=1e-5,
                             recon_weight=1.0, kl_weight=1.0,
                             label_weight=1.0, schedule="static_balanced",
-                            schedule_epochs=0, style_label_row_weights=None):
+                            schedule_epochs=0, style_label_row_weights=None,
+                            static_masses=None, schedule_start_masses=None,
+                            schedule_end_masses=None):
     BATCH_SIZE = min(256, len(embeddings))
     trainable_params = [param for param in model.parameters() if param.requires_grad]
     if not trainable_params:
@@ -275,6 +283,12 @@ def train_mixed_autoencoder(model, embeddings, style_targets, style_label_mask,
     print(f"  schedule     : {schedule}")
     if schedule != "static_balanced":
         print(f"  schedule epochs: {schedule_epochs}")
+    if static_masses is not None:
+        print(f"  static masses : {static_masses}")
+    if schedule_start_masses is not None:
+        print(f"  start masses  : {schedule_start_masses}")
+    if schedule_end_masses is not None:
+        print(f"  end masses    : {schedule_end_masses}")
     print(f"  styles       : {style_targets.shape[1]}")
     for dataset in present_datasets:
         print(f"  dataset rows {dataset:11s}: {dataset_counts[dataset]}")
@@ -283,7 +297,15 @@ def train_mixed_autoencoder(model, embeddings, style_targets, style_label_mask,
 
     print(f"Training mixed-data autoencoder for {epochs} epochs...")
     for epoch in tqdm(range(epochs)):
-        dataset_masses = _dataset_epoch_masses(schedule, epoch, schedule_epochs, present_datasets)
+        dataset_masses = _dataset_epoch_masses(
+            schedule,
+            epoch,
+            schedule_epochs,
+            present_datasets,
+            static_masses=static_masses,
+            schedule_start_masses=schedule_start_masses,
+            schedule_end_masses=schedule_end_masses,
+        )
         per_row_probs = torch.tensor(
             [dataset_masses[dataset] / dataset_counts[dataset] for dataset in source_datasets],
             dtype=torch.float32,

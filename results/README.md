@@ -109,6 +109,31 @@ Mixed-data pseudolabel mix schedule matrix from 2026-04-30:
   - none of the three schedules improves recall beyond `16.7%`
   - mixed-data training helps the CommonVoice line more on intelligibility than on controllability
 
+Mixed-data pseudolabel quality follow-up from 2026-05-03:
+
+- The full quality-follow-up result bundle is now checked in for:
+  - `mixed_quality_static_balanced`
+  - `mixed_quality_labeled_finish`
+  - `mixed_quality_labeled_guarded`
+- The quality summary also reuses copied reference CSVs for:
+  - `combined`
+  - `commonvoice_cv500_init`
+  - `cv500_ft_short_low_lr`
+  - `cv500_rich_free_anchor`
+  - `cv500_pl_meta`
+  - `mixed_static_balanced`
+  - `mixed_cv_warmup`
+  - `mixed_labeled_finish`
+- Top-line matrix:
+  - `mixed_quality_static_balanced`: recall `16.7%`, novelty `0.0770`, mean WER `0.0911`, MOS delta `-0.1130`
+  - `mixed_quality_labeled_finish`: recall `16.7%`, novelty `0.0763`, mean WER `0.0649`, MOS delta `-0.1232`
+  - `mixed_quality_labeled_guarded`: recall `18.2%`, novelty `0.0764`, mean WER `0.0978`, MOS delta `-0.1234`
+- Current conclusion:
+  - stricter pseudo-label filtering plus stronger labeled-data protection can move recall a little
+  - `mixed_quality_labeled_guarded` is the first mixed-data condition to improve recall above `16.7%`
+  - the gain is not a clean win, because it gives back WER versus `mixed_labeled_finish` and novelty versus `mixed_static_balanced`
+  - `mixed_quality_labeled_guarded` is still the right checkpoint to carry into the pending non-Trump style-strength sweep
+
 ## Schema
 
 ### `eval_emotion_full.csv`

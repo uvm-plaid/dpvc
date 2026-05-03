@@ -128,6 +128,14 @@ def parse_args():
         help="Confidence threshold for treating CommonVoice pseudo styles as labeled (default: 0.60)",
     )
     ap.add_argument(
+        "--pseudo-style-thresholds",
+        default="",
+        help=(
+            "Optional per-style pseudo-label thresholds, e.g. "
+            "neutral=0.995,sad=0.98,happy=0.92"
+        ),
+    )
+    ap.add_argument(
         "--commonvoice-style-caps",
         default="",
         help="Optional per-style cap for selected CommonVoice pseudo labels, e.g. neutral=150,sad=120",
@@ -183,6 +191,24 @@ def parse_style_caps(raw: str) -> Dict[str, int]:
             raise ValueError(f"Unknown style in --commonvoice-style-caps: {style}")
         caps[style] = int(value.strip())
     return caps
+
+
+def parse_style_thresholds(raw: str, default: float) -> Dict[str, float]:
+    thresholds = {style: float(default) for style in UNIFIED_STYLES}
+    if not raw.strip():
+        return thresholds
+    for item in raw.split(','):
+        item = item.strip()
+        if not item:
+            continue
+        if '=' not in item:
+            raise ValueError(f"Expected pseudo threshold in name=value form, got: {item}")
+        name, value = item.split('=', 1)
+        style = name.strip()
+        if style not in UNIFIED_STYLES:
+            raise ValueError(f"Unknown style in --pseudo-style-thresholds: {style}")
+        thresholds[style] = float(value.strip())
+    return thresholds
 
 
 def resolve_expresso_parquet_dir(parquet_dir: Optional[str]) -> Path:
@@ -314,7 +340,7 @@ def resolve_expresso_rows(expresso_data, parquet_df, cap, seed):
     return rows
 
 
-def accepted_commonvoice_style(cv_data, row_idx: int, threshold: float):
+def accepted_commonvoice_style(cv_data, row_idx: int, threshold_map: Dict[str, float]):
     style = cv_data.get('pseudo_style', [None])[row_idx]
     confidence = cv_data.get('pseudo_style_confidence', [None])[row_idx]
     if style is None or confidence is None:
@@ -323,14 +349,14 @@ def accepted_commonvoice_style(cv_data, row_idx: int, threshold: float):
         confidence = float(confidence)
     except (TypeError, ValueError):
         return None, None
-    if confidence < threshold:
-        return None, confidence
     if style not in UNIFIED_STYLES:
+        return None, confidence
+    if confidence < threshold_map.get(style, 0.0):
         return None, confidence
     return style, confidence
 
 
-def select_commonvoice_rows(cv_data, args, style_caps):
+def select_commonvoice_rows(cv_data, args, style_caps, threshold_map):
     speaker_to_rows = defaultdict(list)
     for row_idx, speaker_id in enumerate(cv_data['speaker_ids']):
         speaker_to_rows[str(speaker_id)].append(row_idx)
@@ -343,13 +369,14 @@ def select_commonvoice_rows(cv_data, args, style_caps):
     rng = random.Random(args.seed)
     selected = []
     selected_style_counts = Counter()
+    skipped_by_cap_counts = Counter()
 
     for speaker_id in speakers:
         candidates = speaker_to_rows[speaker_id][:]
         rng.shuffle(candidates)
 
         def sort_key(row_idx):
-            style, conf = accepted_commonvoice_style(cv_data, row_idx, args.pseudo_style_threshold)
+            style, conf = accepted_commonvoice_style(cv_data, row_idx, threshold_map)
             has_label = style is not None
             is_neutral = style == 'neutral'
             priority = 0
@@ -374,8 +401,9 @@ def select_commonvoice_rows(cv_data, args, style_caps):
         for row_idx in ordered:
             if len(chosen) >= target_count:
                 break
-            style, confidence = accepted_commonvoice_style(cv_data, row_idx, args.pseudo_style_threshold)
+            style, confidence = accepted_commonvoice_style(cv_data, row_idx, threshold_map)
             if style is not None and style in style_caps and selected_style_counts[style] >= style_caps[style]:
+                skipped_by_cap_counts[style] += 1
                 continue
             chosen.append((row_idx, style, confidence))
             used.add(row_idx)
@@ -386,7 +414,10 @@ def select_commonvoice_rows(cv_data, args, style_caps):
             for row_idx in ordered:
                 if row_idx in used:
                     continue
-                style, confidence = accepted_commonvoice_style(cv_data, row_idx, args.pseudo_style_threshold)
+                style, confidence = accepted_commonvoice_style(cv_data, row_idx, threshold_map)
+                if style is not None and style in style_caps and selected_style_counts[style] >= style_caps[style]:
+                    skipped_by_cap_counts[style] += 1
+                    style, confidence = None, None
                 chosen.append((row_idx, style, confidence))
                 used.add(row_idx)
                 if style is not None:
@@ -405,7 +436,10 @@ def select_commonvoice_rows(cv_data, args, style_caps):
                 'label_confidence': float(confidence) if confidence is not None else 0.0,
             })
 
-    return selected
+    selection_report = {
+        'skipped_by_cap_counts': dict(skipped_by_cap_counts),
+    }
+    return selected, selection_report
 
 
 def build_rows(args):
@@ -416,7 +450,16 @@ def build_rows(args):
     expresso_df = load_expresso_metadata(expresso_data, parquet_dir)
 
     style_caps = parse_style_caps(args.commonvoice_style_caps)
-    commonvoice_rows = select_commonvoice_rows(cv_data, args, style_caps)
+    threshold_map = parse_style_thresholds(
+        args.pseudo_style_thresholds,
+        args.pseudo_style_threshold,
+    )
+    commonvoice_rows, commonvoice_selection_report = select_commonvoice_rows(
+        cv_data,
+        args,
+        style_caps,
+        threshold_map,
+    )
     cremad_rows = resolve_cremad_rows(cremad_data)
     expresso_rows = resolve_expresso_rows(expresso_data, expresso_df, args.expresso_only_cap, args.seed)
 
@@ -426,7 +469,7 @@ def build_rows(args):
         'CREMA-D': cremad_data,
         'Expresso': expresso_data,
     }
-    return rows, payloads, parquet_dir
+    return rows, payloads, parquet_dir, threshold_map, commonvoice_selection_report
 
 
 def compute_style_row_weights(rows, args):
@@ -447,7 +490,7 @@ def compute_style_row_weights(rows, args):
         row['style_row_weight'] = float(base)
 
 
-def build_save_dict(rows, payloads, args, parquet_dir):
+def build_save_dict(rows, payloads, args, parquet_dir, threshold_map, commonvoice_selection_report):
     compute_style_row_weights(rows, args)
 
     embeddings = []
@@ -506,6 +549,24 @@ def build_save_dict(rows, payloads, args, parquet_dir):
         for dataset in DATASETS
         if dataset_counts.get(dataset)
     }
+    raw_pseudo_counts = Counter(
+        style
+        for style in payloads['CommonVoice'].get('pseudo_style', [])
+        if style in UNIFIED_STYLES
+    )
+    threshold_accepted_counts = Counter()
+    threshold_rejected_counts = Counter()
+    for style, confidence in zip(
+        payloads['CommonVoice'].get('pseudo_style', []),
+        payloads['CommonVoice'].get('pseudo_style_confidence', []),
+    ):
+        if style not in UNIFIED_STYLES or confidence is None:
+            continue
+        confidence = float(confidence)
+        if confidence >= threshold_map.get(style, 0.0):
+            threshold_accepted_counts[style] += 1
+        else:
+            threshold_rejected_counts[style] += 1
     selected_pseudo_counts = Counter(
         row['style'] for row in rows if row['dataset'] == 'CommonVoice' and row['style'] is not None
     )
@@ -516,6 +577,7 @@ def build_save_dict(rows, payloads, args, parquet_dir):
         'cremad_source_artifact': args.cremad,
         'expresso_source_artifact': args.expresso,
         'pseudo_style_threshold': args.pseudo_style_threshold,
+        'pseudo_style_thresholds': dict(threshold_map),
         'commonvoice_style_caps': parse_style_caps(args.commonvoice_style_caps),
         'commonvoice_selection': {
             'max_speakers': args.commonvoice_max_speakers,
@@ -523,10 +585,21 @@ def build_save_dict(rows, payloads, args, parquet_dir):
             'max_clips_per_speaker': args.commonvoice_max_clips_per_speaker,
             'prefer_pseudo': args.commonvoice_prefer_pseudo,
         },
+        'row_weight_config': {
+            'pseudo_confidence_scale': bool(args.pseudo_confidence_scale),
+            'pseudo_row_weight': float(args.pseudo_row_weight),
+            'true_row_weight': float(args.true_row_weight),
+        },
         'dataset_counts': dict(dataset_counts),
         'dataset_labeled_counts': dict(dataset_labeled_counts),
         'dataset_unique_speakers': dataset_unique_speakers,
+        'commonvoice_raw_pseudo_style_counts': dict(raw_pseudo_counts),
+        'commonvoice_threshold_accepted_style_counts': dict(threshold_accepted_counts),
+        'commonvoice_threshold_rejected_style_counts': dict(threshold_rejected_counts),
         'commonvoice_selected_pseudo_style_counts': dict(selected_pseudo_counts),
+        'commonvoice_skipped_by_cap_counts': dict(
+            commonvoice_selection_report.get('skipped_by_cap_counts', {})
+        ),
         'style_counts_all_labeled_rows': dict(Counter(row['style'] for row in rows if row['style'] is not None)),
         'label_source_counts': dict(Counter(style_sources)),
     }
@@ -561,14 +634,35 @@ def print_report(save_dict):
             count = pseudo_counts.get(style, 0)
             if count:
                 print(f"    {style:11s} {count:4d}")
+    rejected_counts = report.get('commonvoice_threshold_rejected_style_counts', {})
+    if rejected_counts:
+        print('  threshold-rejected CommonVoice pseudo-style counts:')
+        for style in UNIFIED_STYLES:
+            count = rejected_counts.get(style, 0)
+            if count:
+                print(f"    {style:11s} {count:4d}")
+    skipped_by_cap = report.get('commonvoice_skipped_by_cap_counts', {})
+    if skipped_by_cap:
+        print('  cap-skipped CommonVoice pseudo-style counts:')
+        for style in UNIFIED_STYLES:
+            count = skipped_by_cap.get(style, 0)
+            if count:
+                print(f"    {style:11s} {count:4d}")
 
 
 def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-    rows, payloads, parquet_dir = build_rows(args)
-    save_dict = build_save_dict(rows, payloads, args, parquet_dir)
+    rows, payloads, parquet_dir, threshold_map, commonvoice_selection_report = build_rows(args)
+    save_dict = build_save_dict(
+        rows,
+        payloads,
+        args,
+        parquet_dir,
+        threshold_map,
+        commonvoice_selection_report,
+    )
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

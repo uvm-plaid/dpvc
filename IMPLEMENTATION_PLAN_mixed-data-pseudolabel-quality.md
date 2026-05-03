@@ -406,3 +406,51 @@ This next branch exists to answer the sharper question:
 **If we improve CommonVoice pseudo-label quality and protect the labeled
 datasets more aggressively, can the mixed-data line finally recover recall
 without giving back the WER gains that made it promising?**
+
+## 10. Current implementation status
+
+This branch has now been implemented and validated on the validation-scale
+mixed-data setup.
+
+Implemented artifact:
+
+- `embeddings/openvoice_mixed_quality_base.pt`
+
+Implemented conditions:
+
+- `mixed_quality_static_balanced`
+- `mixed_quality_labeled_finish`
+- `mixed_quality_labeled_guarded`
+
+Checked-in result artifacts:
+
+- `results/eval_mixed_quality_summary.csv`
+- `results/eval_mixed_quality_collapse.csv`
+
+Top-line outcome:
+
+- `mixed_quality_static_balanced`: recall `16.7%`, novelty `0.0770`, WER `0.0911`, MOS delta `-0.1130`
+- `mixed_quality_labeled_finish`: recall `16.7%`, novelty `0.0763`, WER `0.0649`, MOS delta `-0.1232`
+- `mixed_quality_labeled_guarded`: recall `18.2%`, novelty `0.0764`, WER `0.0978`, MOS delta `-0.1234`
+
+Interpretation:
+
+- better pseudo-label filtering plus stronger labeled-data protection finally
+  moves mixed-data recall above `16.7%`
+- the best new control-capable condition is `mixed_quality_labeled_guarded`
+- the gain is still narrow and costly, because that condition gives back WER
+  versus `mixed_labeled_finish` and gives back novelty versus
+  `mixed_static_balanced`
+- this branch does not replace the `combined` model as the best overall result
+
+## 11. Confirmed next branch
+
+- **Branch:** `research/nontrump-style-strength-sweep`
+
+Why this follows naturally:
+
+- Joe explicitly said higher strengths than `5.0` can still work well on
+  non-Trump examples, especially whisper
+- `mixed_quality_labeled_guarded` is now the most control-capable mixed-data
+  checkpoint, so it is the right model to stress-test next on a documented
+  non-Trump speaker panel

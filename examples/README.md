@@ -855,6 +855,44 @@ Interpretation:
 - none of the schedules improves recall beyond `16.7%`, so schedule choice
   alone does not escape the CommonVoice conservative basin
 
+Mixed-data pseudo-label quality follow-up:
+
+```bash
+python scripts/build_mixed_training_set.py \
+    --commonvoice embeddings/openvoice_commonvoice_cv500_pseudo.pt \
+    --cremad embeddings/openvoice_cremad_emb.pt \
+    --expresso embeddings/openvoice_expresso_emb.pt \
+    --output embeddings/openvoice_mixed_quality_base.pt \
+    --commonvoice-max-speakers 500 \
+    --commonvoice-max-clips-per-speaker 1 \
+    --commonvoice-prefer-pseudo \
+    --pseudo-style-thresholds neutral=0.995,sad=0.98,happy=0.92,disgust=0.92,anger=0.90,fear=0.90 \
+    --commonvoice-style-caps neutral=120,sad=110,happy=60,disgust=50,anger=20,fear=20 \
+    --pseudo-confidence-scale \
+    --pseudo-row-weight 0.75 \
+    --true-row-weight 1.25
+
+python examples/openvoice_train_vae_mixed.py \
+    --embeddings embeddings/openvoice_mixed_quality_base.pt \
+    --output embeddings/openvoice_vae_mixed_quality_labeled_guarded.pt \
+    --schedule labeled_finish \
+    --schedule-epochs 1000 \
+    --schedule-end-masses CommonVoice=0.10,CREMA-D=0.45,Expresso=0.45
+```
+
+Current checked-in result summary for the quality follow-up:
+
+- `mixed_quality_static_balanced`: recall `16.7%`, novelty `0.0770`, mean WER `0.0911`, MOS delta `-0.1130`
+- `mixed_quality_labeled_finish`: recall `16.7%`, novelty `0.0763`, mean WER `0.0649`, MOS delta `-0.1232`
+- `mixed_quality_labeled_guarded`: recall `18.2%`, novelty `0.0764`, mean WER `0.0978`, MOS delta `-0.1234`
+
+Interpretation:
+
+- stricter pseudo-label filtering plus stronger labeled-data protection finally moves mixed-data recall above `16.7%`
+- the best new condition is `mixed_quality_labeled_guarded`, because it reaches `18.2%` recall
+- that gain is still narrow: it gives back WER versus `mixed_labeled_finish` and novelty versus `mixed_static_balanced`
+- `mixed_quality_labeled_guarded` is the current best mixed-data checkpoint to use for the pending non-Trump strength sweep, because it is the most control-capable mixed-data model so far
+
 ### 5. Run Controllable Inference
 
 Single style:

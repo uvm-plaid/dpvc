@@ -1,6 +1,6 @@
 # Key Findings — Controllable DP Voice Conversion
 
-**Last updated:** 2026-04-30 (Finding 17 from the mixed-data pseudolabel mix experiment added; descriptive experiment titles now replace internal pass numbering)
+**Last updated:** 2026-05-03 (Finding 18 from the mixed-data pseudolabel quality follow-up added; descriptive experiment titles now replace internal pass numbering)
 **Authors:** Stephen Oladele, Joe Near
 
 ---
@@ -971,6 +971,117 @@ That is still a useful paper result because it tells us that:
 
 ---
 
+## Finding 18: Better Mixed-Data Pseudo-Label Filtering Produces Only a Narrow Recall Gain
+
+### Methodology
+
+The mixed-data pseudolabel quality follow-up kept the same overall mixed-data
+goal as Finding 17, but tightened the CommonVoice side of the training line in
+two ways:
+
+1. **Better pseudo-label filtering and balancing inside the artifact builder**
+2. **Stronger explicit labeled-data protection during mixed training**
+
+The new artifact still preserved Joe's speaker-breadth-first heuristic:
+
+- `500` CommonVoice speakers
+- `1` clip per speaker
+- `546` CREMA-D rows
+- `279` Expresso rows
+- `1,325` total rows
+
+But the CommonVoice pseudo-label acceptance logic became much stricter. The
+improved artifact:
+
+- lowered labeled CommonVoice rows from `462` to `300`
+- kept `200` CommonVoice rows as unlabeled fallback rows
+- enforced per-style thresholds:
+  - `neutral=0.995`
+  - `sad=0.98`
+  - `happy=0.92`
+  - `disgust=0.92`
+  - `anger=0.90`
+  - `fear=0.90`
+- enforced CommonVoice pseudo-style caps:
+  - `neutral=120`
+  - `sad=110`
+  - `happy=60`
+  - `disgust=50`
+  - `anger=20`
+  - `fear=20`
+
+The resulting selected CommonVoice pseudo-style mix became:
+
+- `neutral = 120`
+- `sad = 110`
+- `happy = 32`
+- `disgust = 29`
+- `anger = 5`
+- `fear = 4`
+
+We then trained three new mixed-data conditions:
+
+1. **`mixed_quality_static_balanced`** — improved artifact, equal dataset mass
+2. **`mixed_quality_labeled_finish`** — improved artifact, labeled-heavy finish
+3. **`mixed_quality_labeled_guarded`** — improved artifact, stronger labeled-data protection with end masses `CommonVoice=0.10`, `CREMA-D=0.45`, `Expresso=0.45`
+
+Everything else stayed fixed:
+
+- same 11-speaker evaluation corpus
+- same four-metric stack: emotion, novelty, WER, MOS
+- same inference style strength (`5.0`) and noise level (`0.0`)
+
+### Results
+
+| Condition | Recall | Novelty gain vs baseline | Mean WER | Mean MOS delta | Identity collapse | Takeaway |
+|-----------|--------|--------------------------|----------|----------------|-------------------|----------|
+| `combined` | 25.8% | 0.2599 | 0.2353 | -0.0792 | 7 | Still the only condition with clearly stronger control and novelty together |
+| `mixed_static_balanced` | 16.7% | 0.0865 | 0.0825 | -0.1316 | 58 | Best novelty of the original mixed schedules |
+| `mixed_labeled_finish` | 16.7% | 0.0828 | 0.0606 | -0.1425 | 64 | Best WER of the original mixed schedules |
+| `mixed_quality_static_balanced` | 16.7% | 0.0770 | 0.0911 | -0.1130 | 64 | Cleaner pseudo-label mix, but no control gain |
+| `mixed_quality_labeled_finish` | 16.7% | 0.0763 | 0.0649 | -0.1232 | 65 | Keeps most of the earlier WER story, but no recall gain |
+| `mixed_quality_labeled_guarded` | 18.2% | 0.0764 | 0.0978 | -0.1234 | 69 | First mixed-data recall bump, but not a clean overall win |
+
+### Collapse behavior
+
+The quality follow-up is useful because it finally moves recall, but it still
+does so inside the same broad collapse regime:
+
+| Condition | Style collapse to neutral | Identity collapse to baseline | Mixed collapse | Files with any collapse |
+|-----------|---------------------------|-------------------------------|----------------|-------------------------|
+| `mixed_quality_static_balanced` | 54 | 64 | 47 | 68 |
+| `mixed_quality_labeled_finish` | 55 | 65 | 48 | 69 |
+| `mixed_quality_labeled_guarded` | 53 | 69 | 48 | 69 |
+
+### Interpretation
+
+The mixed-data pseudolabel quality follow-up sharpens Finding 17 rather than
+replacing it:
+
+1. **Better pseudo-label filtering plus stronger labeled-data protection can move recall a little.** `mixed_quality_labeled_guarded` becomes the first mixed-data condition to improve recall above `16.7%`, reaching `18.2%`.
+2. **The gain is narrow and costly.** The best new recall condition gives back WER versus `mixed_labeled_finish` (`0.0978` vs. `0.0606`) and gives back novelty versus `mixed_static_balanced` (`0.0764` vs. `0.0865`).
+3. **Better class balance is not enough by itself to escape the conservative basin.** Identity collapse stays high (`64-69`), style collapse stays high (`53-55`), and none of the new conditions approaches the `combined` model's novelty or recall.
+4. **The branch still produces a useful checkpoint choice.** `mixed_quality_labeled_guarded` is the most control-capable mixed-data checkpoint so far, even though it is not a clean overall winner.
+5. **The mixed-data bottleneck is now more specific.** The next improvement likely needs a stronger pseudo-label teacher, better class-balanced pseudo-label acceptance, or stronger style supervision, not just stricter filtering and dataset-mass protection.
+
+### Implication
+
+This branch gives us a more precise mixed-data claim:
+
+- the first mixed-data schedules improved WER more than recall (Finding 17)
+- the first pseudo-label-quality follow-up can recover a **small** amount of recall
+- but the mixed-data line still does not achieve a convincing control/intelligibility balance
+
+That is useful for the paper because it shows the mixed-data direction is not
+dead, but also not solved. We now know that:
+
+- mixed-data schedule choice alone is too weak
+- stricter pseudo-label filtering and labeled-data protection help only a little
+- the next mixed-data gains probably require stronger supervision quality, not
+  just more careful bookkeeping
+
+---
+
 ## April 30 Meeting Alignment with Joe
 
 The April 30 call with Joe did **not** change the scientific findings above,
@@ -1024,10 +1135,12 @@ to:
 - "**run the first sampled mixed-data experiment with pseudo-labeled CommonVoice
   plus explicit mixture/schedule control**."
 
-That experiment is now complete, so the current follow-up framing is:
+That experiment and its first quality follow-up are now complete, so the
+current follow-up framing is:
 
-- "**improve mixed-data pseudo-label quality and labeled-data protection, then
-  run the pending non-Trump style-strength sweep**."
+- "**use the best mixed-data checkpoint from the quality follow-up for the
+  pending non-Trump style-strength sweep, while leaving deeper pseudo-label and
+  supervision upgrades as the next mixed-data research problem**."
 
 ---
 
@@ -1036,7 +1149,7 @@ That experiment is now complete, so the current follow-up framing is:
 1. **What are the formal privacy guarantees?** We need to compute epsilon for each noise level and report privacy-utility curves.
 2. ~~**Does style control generalize across source speakers?**~~ → **Answered in Finding 6.** Brightness generalizes (7/9 styles); F0 does not. Some speaker-style combinations collapse.
 3. ~~**How do we evaluate emotion controllability?**~~ → **Answered in Finding 7.** emotion2vec Recall Rate + emo_sim (per EmoVoice) is the primary metric. Recall is 20% — training gap identified.
-4. **Can CommonVoice-style broad speaker coverage improve recall once we mix the datasets together more carefully?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. CommonVoice finetune ablation showed that simple gentler finetuning is not enough to fix that on its own, CommonVoice objective ablation showed that simple scalar loss reweighting is not enough either, CommonVoice rich-objective ablation showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, CommonVoice partial-label pretraining showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat, and the first mixed-data run (Finding 17) showed that simply combining CommonVoice + CREMA-D + Expresso under three schedule variants still leaves recall fixed at `16.7%`. The open question is now whether better pseudo-label quality, stronger labeled-data protection, per-class pseudo-label caps, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the intelligibility gain without washing out the style axes.
+4. **Can CommonVoice-style broad speaker coverage improve recall once we mix the datasets together more carefully?** The first validation-scale `cv500` run (Finding 10) improved WER but collapsed style toward neutral. CommonVoice finetune ablation showed that simple gentler finetuning is not enough to fix that on its own, CommonVoice objective ablation showed that simple scalar loss reweighting is not enough either, CommonVoice rich-objective ablation showed that teacher-style distillation plus free-dim anchoring during combined finetuning still leaves recall flat, CommonVoice partial-label pretraining showed that weak metadata / pseudo-label supervision during CommonVoice pretraining itself still leaves recall flat, the first mixed-data run (Finding 17) showed that simply combining CommonVoice + CREMA-D + Expresso under three schedule variants still leaves recall fixed at `16.7%`, and the mixed-data pseudo-label quality follow-up (Finding 18) only nudged the best mixed condition to `18.2%` while giving back WER and novelty. The open question is now whether better pseudo-label quality, stronger labeled-data protection, per-class pseudo-label caps, prototype- or teacher-space pretraining targets, stronger curricula, or larger-scale training can preserve the intelligibility gain without washing out the style axes.
 5. **Can we train age/gender and emotion knobs simultaneously?** CommonVoice has age/gender, CREMA-D has emotion. Can a single VAE learn all at once when each training stage only labels a subset? Unknown — Joe flagged this as an open research question.
 6. **Can an independent speaker verifier confirm the novelty signal?** Finding 11 uses OpenVoice's native embedding space. The next step is an external speaker encoder / EER-style check.
 7. **Can an adversary re-identify speakers from F0 alone?** If so, embedding-only DP is insufficient — motivates joint protection.
@@ -1044,7 +1157,7 @@ That experiment is now complete, so the current follow-up framing is:
 9. **Can we interpolate between styles?** E.g., 50% happy + 50% sad — does the output sound bittersweet?
 10. **How to prevent collapses?** 9% of speaker-style combinations produce unintelligible output in the combined-only model, and the `cv500` CommonVoice run adds a second collapse mode: style washing back to neutral. CommonVoice finetune ablation shows that coarse whole-module freezing is not enough, CommonVoice objective ablation shows that simple scalar loss-weight schedules are not enough, CommonVoice rich-objective ablation shows that the first teacher/anchor supervision family still does not fix the neutral-collapse pattern, and CommonVoice partial-label pretraining shows that weak metadata / pseudo-label supervision mostly trades controllability for stronger intelligibility instead of escaping the collapse basin. Can we use better pseudo labels, stronger pretraining objectives, prototype/teacher-space targets, or detect/reject bad combinations?
 11. **How stable are the ablation conclusions across seeds?** evaluation ablation matrix used a single deterministic seed and one validation corpus. We should add repeated-seed confidence intervals before freezing paper tables.
-12. **What stronger mixed-data intervention, beyond schedule choice, can recover recall?** The first mixed-data pseudolabel mix experiment compared a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish. None improved recall beyond `16.7%`. `mixed_labeled_finish` gave the best WER (`0.0606`), `mixed_static_balanced` gave the best novelty (`0.0865`), and all three retained heavy style/identity collapse. The next open question is whether better pseudo-label quality, per-class pseudo-label caps, stronger labeled-data protection, or architecture changes can move recall without giving back the mixed-data intelligibility gains.
+12. **What stronger mixed-data intervention, beyond schedule choice and first-pass pseudo-label filtering, can recover recall?** The first mixed-data pseudolabel mix experiment compared a static balanced mix, a CommonVoice-heavy warmup, and a labeled-data-heavy finish. None improved recall beyond `16.7%`. The mixed-data pseudo-label quality follow-up then added per-class thresholds/caps and stronger labeled-data protection. That finally moved the best mixed-data condition to `18.2%` recall (`mixed_quality_labeled_guarded`), but at the cost of worse WER (`0.0978`) and weaker novelty (`0.0764`) than the best original mixed schedules. The next open question is whether stronger pseudo-label teachers, class-balanced acceptance, richer style supervision, or architecture changes can move recall without giving back the mixed-data intelligibility gains.
 13. **How high can style strength go before useful control turns into collapse?** Joe's qualitative tests suggest that values above `5.0` can still work well, especially for whisper on non-Trump examples. We need a broader non-Trump sweep before treating `5.0` as a practical default ceiling.
 
 ---

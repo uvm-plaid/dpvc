@@ -1,25 +1,23 @@
 """
-Summarize Pass 9 mixed-data training results and collapse modes.
+Summarize mixed-data training results and collapse modes.
 
 Expected input naming convention:
-  results/eval_<metric>_pass9_<condition>.csv
+  results/eval_<metric>_<tag>_<condition>.csv
 
-Outputs:
-  - results/eval_mixed_data_summary_pass9.csv
-  - results/eval_mixed_data_collapse_pass9.csv
+Examples:
+  - results/eval_emotion_pass9_mixed_static_balanced.csv
+  - results/eval_emotion_mixed_quality_mixed_quality_labeled_guarded.csv
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import re
 import statistics
 from collections import defaultdict
 from pathlib import Path
 
 
-FILENAME_RE = re.compile(r"eval_(emotion|wer|mos|novelty)_pass9_(.+)\.csv$")
 CONTENT_COLLAPSE_WER = 0.8
 IDENTITY_COLLAPSE_GAIN = 0.05
 SUMMARY_ORDER = [
@@ -38,26 +36,37 @@ def parse_args():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--results-dir", default="results")
     ap.add_argument(
+        "--input-tag",
+        default="pass9",
+        help="Result tag used in the CSV filenames, e.g. pass9 or mixed_quality",
+    )
+    ap.add_argument(
         "--summary-out",
-        default="results/eval_mixed_data_summary_pass9.csv",
+        default=None,
     )
     ap.add_argument(
         "--collapse-out",
-        default="results/eval_mixed_data_collapse_pass9.csv",
+        default=None,
     )
     return ap.parse_args()
 
 
-def discover_metric_files(results_dir):
+def discover_metric_files(results_dir, input_tag):
     grouped = defaultdict(dict)
-    for path in sorted(Path(results_dir).glob("eval_*_pass9_*.csv")):
-        match = FILENAME_RE.match(path.name)
-        if not match:
+    prefix = f"eval_"
+    infix = f"_{input_tag}_"
+    suffix = ".csv"
+    for path in sorted(Path(results_dir).glob(f"eval_*_{input_tag}_*.csv")):
+        name = path.name
+        if not (name.startswith(prefix) and infix in name and name.endswith(suffix)):
             continue
-        metric, condition = match.groups()
+        metric_condition = name[len(prefix):-len(suffix)]
+        metric, condition = metric_condition.split(infix, 1)
+        if metric not in {"emotion", "wer", "mos", "novelty"}:
+            continue
         grouped[condition][metric] = path
     if not grouped:
-        raise SystemExit(f"No Pass 9 result CSVs found under {results_dir}")
+        raise SystemExit(f"No mixed-data result CSVs found under {results_dir} for tag {input_tag}")
     return grouped
 
 
@@ -253,7 +262,12 @@ def write_csv(path, fieldnames, rows):
 
 def main():
     args = parse_args()
-    grouped = discover_metric_files(args.results_dir)
+    if args.summary_out is None:
+        args.summary_out = f"results/eval_{args.input_tag}_summary.csv"
+    if args.collapse_out is None:
+        args.collapse_out = f"results/eval_{args.input_tag}_collapse.csv"
+
+    grouped = discover_metric_files(args.results_dir, args.input_tag)
 
     summary_rows = []
     collapse_rows = []

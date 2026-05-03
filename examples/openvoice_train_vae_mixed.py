@@ -33,6 +33,7 @@ import dpvc
 
 
 DEFAULT_SCHEDULES = ["static_balanced", "cv_warmup", "labeled_finish"]
+DATASET_NAMES = ["CommonVoice", "CREMA-D", "Expresso"]
 
 
 def resolve_device():
@@ -52,6 +53,27 @@ def format_param_count(model):
     trainable = sum(param.numel() for param in model.parameters() if param.requires_grad)
     total = sum(param.numel() for param in model.parameters())
     return trainable, total
+
+
+def parse_dataset_masses(raw):
+    if raw is None:
+        return None
+    raw = raw.strip()
+    if not raw:
+        return None
+    masses = {}
+    for item in raw.split(','):
+        item = item.strip()
+        if not item:
+            continue
+        if '=' not in item:
+            raise ValueError(f"Expected dataset mass in name=value form, got: {item}")
+        name, value = item.split('=', 1)
+        dataset = name.strip()
+        if dataset not in DATASET_NAMES:
+            raise ValueError(f"Unknown dataset in mass config: {dataset}")
+        masses[dataset] = float(value.strip())
+    return masses
 
 
 def main():
@@ -135,6 +157,21 @@ def main():
         default=0,
         help="Epochs over which a non-static schedule interpolates (default: full run)",
     )
+    ap.add_argument(
+        "--static-masses",
+        default="",
+        help="Optional dataset masses for static schedule, e.g. CommonVoice=0.2,CREMA-D=0.4,Expresso=0.4",
+    )
+    ap.add_argument(
+        "--schedule-start-masses",
+        default="",
+        help="Optional dataset masses at the start of a non-static schedule",
+    )
+    ap.add_argument(
+        "--schedule-end-masses",
+        default="",
+        help="Optional dataset masses at the end of a non-static schedule",
+    )
     args = ap.parse_args()
 
     if args.freeze_encoder and args.freeze_decoder:
@@ -142,6 +179,9 @@ def main():
 
     dpvc.utils.set_seed(args.seed)
     device = resolve_device()
+    static_masses = parse_dataset_masses(args.static_masses)
+    schedule_start_masses = parse_dataset_masses(args.schedule_start_masses)
+    schedule_end_masses = parse_dataset_masses(args.schedule_end_masses)
 
     data = torch.load(args.embeddings, weights_only=False)
     embeddings = data['data'].to(device).squeeze()
@@ -201,6 +241,12 @@ def main():
         print(
             f"Schedule epochs: {args.schedule_epochs if args.schedule_epochs > 0 else args.epochs}"
         )
+    if static_masses:
+        print(f"Static masses: {static_masses}")
+    if schedule_start_masses:
+        print(f"Schedule start masses: {schedule_start_masses}")
+    if schedule_end_masses:
+        print(f"Schedule end masses: {schedule_end_masses}")
 
     dpvc.utils.train_mixed_autoencoder(
         model,
@@ -216,6 +262,9 @@ def main():
         schedule=args.schedule,
         schedule_epochs=args.schedule_epochs,
         style_label_row_weights=style_label_row_weights,
+        static_masses=static_masses,
+        schedule_start_masses=schedule_start_masses,
+        schedule_end_masses=schedule_end_masses,
     )
 
     torch.save(model.state_dict(), args.output)

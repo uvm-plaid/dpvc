@@ -241,8 +241,16 @@ That branch has now been run and it answered the schedule question narrowly:
 - and better schedule choice alone did not escape the conservative
   CommonVoice-like basin.
 
-### Current best next branch
+### Completed follow-up branch
 - `research/mixed-data-pseudolabel-quality`
+
+That follow-up tightened pseudo-label filtering and labeled-data protection in
+the mixed-data line. It produced the first mixed-data recall bump (`18.2%` in
+`mixed_quality_labeled_guarded`), but not a clean overall win because WER and
+novelty still regressed versus the best earlier mixed schedules.
+
+### Current best next branch
+- `research/nontrump-style-strength-sweep`
 
 ### Why this is the best current next move
 The latest checked-in evidence now suggests:
@@ -253,13 +261,12 @@ The latest checked-in evidence now suggests:
   pseudo-label filtering plus stronger labeled-data protection.
 
 So the next branch should focus on:
-- building an improved mixed-data artifact with per-class pseudo-label
-  thresholds/caps,
-- preserving explicit artifact-level reporting of accepted vs rejected pseudo
-  labels,
-- protecting CREMA-D and Expresso more aggressively in the dataset masses,
-- rerunning the mixed-data matrix against the current mixed-data baseline,
-- and selecting the best checkpoint for the pending non-Trump strength sweep.
+- using `mixed_quality_labeled_guarded` as the current best mixed-data
+  checkpoint,
+- sweeping style strengths above `5.0` on a documented non-Trump source panel,
+- checking whether Joe's qualitative impression about higher strengths,
+  especially for whisper, is supported by metrics,
+- and updating usage guidance only if the sweep holds up.
 
 ## 12. Decisions / questions to discuss with Joe next
 
