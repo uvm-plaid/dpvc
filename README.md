@@ -6,7 +6,19 @@ This repository provides a library for defining differentially private speaker a
 
 ## Current work — controllable DP voice conversion
 
-Current implementation branch: **`research/nontrump-style-strength-sweep`**. The current paper-strengthening baseline still comes from the evaluation ablation matrix and the CommonVoice follow-up branches, while this branch captures the first documented non-Trump strength sweep on top of the best current mixed-data checkpoint. The planned follow-up branch is **`research/mixed-data-pseudolabel-teacher`**, which will return to the mixed-data training problem with a stronger pseudo-label teacher and more class-balanced acceptance logic. We've extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
+Current integration branch: **`integration/research-rollup`**. That branch now carries the accepted sequential research line in one PR to `main`, so collaborators do not have to review the project branch by branch anymore. The immediate next queue is:
+
+1. merge PR `#3` from `integration/research-rollup` into `main`
+2. prune the merged sequential research branches from remote
+3. start **`research/mixed-data-pseudolabel-teacher`** from post-rollup `main`
+4. add the Joe-facing metric guide, broaden the non-Trump sweep, and finish the reproducibility checklist / dependency pinning work
+
+The dedicated next-step plans live in:
+
+- **[`IMPLEMENTATION_PLAN_post-consolidation-next-queue.md`](IMPLEMENTATION_PLAN_post-consolidation-next-queue.md)** — overall order of work after the consolidation PR
+- **[`IMPLEMENTATION_PLAN_mixed-data-pseudolabel-teacher.md`](IMPLEMENTATION_PLAN_mixed-data-pseudolabel-teacher.md)** — the technical plan for the next research branch
+
+We’ve extended the library with a **controllable** VAE that exposes 9 style knobs (anger, confused, disgust, enunciated, fear, happy, neutral, sad, whisper) on top of the DP anonymization pipeline. Primary entry points:
 
 - **[`examples/README.md`](examples/README.md)** — end-to-end reproduction guide (extraction → training → controllable inference → evaluation).
 - **[`FINDINGS.md`](FINDINGS.md)** — 19 paper-facing findings with methodology and per-row takeaways.

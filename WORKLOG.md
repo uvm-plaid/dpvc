@@ -1,7 +1,7 @@
 # Controllable DP Voice Conversion — Work Log
 
-**Last updated:** 2026-05-03
-**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`, `research/mixed-data-pseudolabel-quality`, `research/nontrump-style-strength-sweep`
+**Last updated:** 2026-05-04
+**Branches:** `feat/controlvc`, `feat/openvoice-expresso`, `feat/f0-style-control`, `feat/cremad-experiments`, `feat/openvoice-pipeline-stabilization`, `feat/commonvoice-pretrain`, `feat/speaker-novelty-metric`, `research/eval-ablations`, `research/commonvoice-finetune-ablation`, `research/commonvoice-objective-ablation`, `research/commonvoice-rich-objectives`, `research/commonvoice-partial-label-pretrain`, `research/combined-data-pseudolabel-mix`, `research/mixed-data-pseudolabel-quality`, `research/nontrump-style-strength-sweep`, `integration/research-rollup`
 **Author:** Stephen Oladele (with Claude, and Joe Near's upstream work)
 
 ---
@@ -15,6 +15,11 @@ Priority tags:
 
 ### Phase 0.5: Consolidate Active Path
 - [x] `[NOW]` Consolidate the active controllable pipeline around OpenVoice; treat ControlVC as a useful DP baseline and negative result for style control
+
+### Phase 0.6: Repository Consolidation
+- [ ] `[NOW]` Merge `integration/research-rollup` PR `#3` into `main`, because Joe explicitly said the branch sprawl was becoming hard to follow and the rollup PR is now the single accepted review surface
+- [ ] `[NOW]` Delete the merged sequential research branches from the remote after PR `#3` lands, while intentionally keeping unmerged side branches like `feat/controlvc`, `feat/openvoice-expresso`, and `feat/f0-style-control` until we decide separately whether any of their commits still belong in `main`
+- [ ] `[NOW]` Refresh local `main` from the merged remote and cut all future research branches from post-rollup `main`, so we do not immediately recreate the same branch-fragmentation problem after consolidating it
 
 ### Phase 1: Core Controllability (prove it works)
 - [x] End-to-end pipeline: extract → train VAE → infer → intelligible speech
@@ -58,14 +63,15 @@ Priority tags:
 - [x] `[DONE]` Re-run the mixed-data evaluation matrix on the improved artifact and compare it against the original mixed schedules; result: `mixed_quality_labeled_guarded` becomes the first mixed-data condition to move recall above `16.7%`, reaching `18.2%`, but the gain comes with worse WER (`0.0978`) and weaker novelty (`0.0764`) than the best original mixed schedules
 - [ ] `[SOON]` Clean up and enrich the Expresso label mapping inside the mixed-data follow-up, because Joe agreed the richer Expresso label space is still one of the best ways to inject emotion structure into the broader CommonVoice speaker prior
 - [ ] `[SOON]` Compare one-clip-per-speaker versus two-clips-per-speaker CommonVoice sampling inside the mixed-data setup, because the current real `openvoice_mixed_base.pt` artifact uses one clip per speaker and Joe's speaker-breadth heuristic still needs a direct empirical check
-- [ ] `[SOON]` Tighten the mixed-data pseudo-label teacher and per-class acceptance rules further, because the first quality branch only produced a narrow recall bump (`18.2%`) and still left identity collapse high (`69`)
+- [ ] `[NOW]` Tighten the mixed-data pseudo-label teacher and per-class acceptance rules further, because the first quality branch only produced a narrow recall bump (`18.2%`) and still left identity collapse high (`69`)
 - [x] `[DONE]` Add per-class CommonVoice pseudo-label thresholds or caps to the mixed-data builder; the quality artifact now records thresholds, threshold-rejected counts, cap-skipped counts, and final CommonVoice pseudo-style counts in `mixture_report`
 - [x] `[DONE]` Save one artifact-level `mixture_report` snapshot per mixed-data pseudolabel mix condition alongside the result bundle; the quality artifact now preserves threshold and row-weight config directly inside `embeddings/openvoice_mixed_quality_base.pt`
 - [x] `[DONE]` Run style-strength sweeps above `5.0` on representative non-Trump speakers on a dedicated follow-up branch `research/nontrump-style-strength-sweep`; result: `5.0` remains the safest default, `7.5` is a defensible stronger setting for whisper/confused when higher novelty matters, and `10.0-12.5` behave more like high-novelty demo settings with clearly worse overall WER/MOS
 - [ ] `[SOON]` Add a concise "how to read the metrics" guide for Joe covering emotion recall / emo_sim, novelty, WER, and MOS, because he explicitly said the branch and metric layout is hard to interpret quickly
 - [ ] `[SOON]` Extend the non-Trump strength sweep to a larger panel and compare `combined` against `mixed_quality_labeled_guarded`, because the first 4-speaker sweep shows that higher strengths are usable for whisper/confused but not yet broad enough to freeze a universal style-strength policy
 - [ ] `[SOON]` Add style-specific inference guidance or presets (`default`, `strong-whisper`, `strong-confused`), because the non-Trump sweep shows that a single global `style_strength` default hides meaningful style-dependent tradeoffs
-- [ ] `[SOON]` Start `research/mixed-data-pseudolabel-teacher`: improve the mixed-data pseudo-label teacher and class-balanced acceptance rules, because the mixed-data quality branch only recovered recall to `18.2%` and the sweep branch confirmed that inference-time strength changes cannot substitute for better training supervision
+- [ ] `[NOW]` Start `research/mixed-data-pseudolabel-teacher`: improve the mixed-data pseudo-label teacher and class-balanced acceptance rules, because the mixed-data quality branch only recovered recall to `18.2%` and the sweep branch confirmed that inference-time strength changes cannot substitute for better training supervision
+- [ ] `[SOON]` Add stronger teacher diagnostics to the mixed-data artifact flow (teacher id, saved probabilities/logits, per-style accepted/rejected counts, fallback-selected counts), because the next teacher branch should be auditable without later branch archaeology
 
 ### Phase 2: Evaluation (Joe: emotion eval is #1 priority)
 - [x] **Research TTS controllability evaluation metrics** — settled on EmoVoice pipeline (arxiv 2504.12867, Joe's suggestion): emotion2vec Recall Rate + emo_sim (primary), UTMOS (naturalness), WER (intelligibility)
@@ -107,6 +113,7 @@ Joe clarified that our problem is **controllable speaker generation for voice-to
 - [ ] `[NOW]` Ensure Joe can run extraction + training + inference from scratch
 - [ ] `[NOW]` Pin dependencies (fairseq compat, OpenVoice install steps)
 - [ ] `[NOW]` Keep `FINDINGS.md` as the single async review document for Joe and point branch-heavy result dumps back to it, because the April 30 meeting confirmed that direct branch-by-branch review is slowing interpretation
+- [ ] `[SOON]` Add a short reproducibility checklist for Joe (install -> dataset prep -> extraction -> train -> inference -> eval), because the rollup PR solves branch sprawl but Joe still needs one minimal checklist he can follow without reading the full branch history
 - [ ] `[SOON]` Add a manifest-driven multi-metric eval helper so emotion, WER, novelty, and future privacy metrics can be rerun together on the same corpus without ad hoc command reconstruction
 - [ ] `[SOON]` Add a reusable experiment runner that records checkpoint -> corpus -> metrics -> summary for CommonVoice follow-up experiments, so future finetune and objective sweeps are less manual than the finetune, objective, and rich-objective ablations
 - [ ] `[SOON]` Add a checked-in OpenVoice constraints file or lockfile matching the tested `.venv` stack, so setup is copy-paste reproducible beyond the README version notes
@@ -1504,3 +1511,29 @@ python examples/controlvc_infer_controllable.py \
   --out output/trump_happy.wav \
   --style happy --noise-level 0.5
 ```
+
+### 0.19 Repository Consolidation Planning Closeout (May 4, branch `integration/research-rollup`)
+
+- Opened the consolidation PR from `integration/research-rollup` into `main`:
+  - `https://github.com/uvm-plaid/dpvc/pull/3`
+- The accepted sequential research line is now represented as one reviewable PR
+  instead of many branches.
+- The PR intentionally **excludes** the older side branches:
+  - `feat/controlvc`
+  - `feat/openvoice-expresso`
+  - `feat/f0-style-control`
+- Those branches remain historical / review-later branches rather than being
+  silently folded into the accepted line.
+
+**Immediate post-rollup order**
+- Merge PR `#3`
+- Delete the merged sequential research branches from the remote
+- Refresh local `main`
+- Start `research/mixed-data-pseudolabel-teacher`
+- Add the short Joe-facing metric guide
+- Extend the non-Trump sweep to a larger panel
+- Finish the reproducibility checklist / dependency pinning work
+
+**Checked-in plan files**
+- `IMPLEMENTATION_PLAN_post-consolidation-next-queue.md`
+- `IMPLEMENTATION_PLAN_mixed-data-pseudolabel-teacher.md`
