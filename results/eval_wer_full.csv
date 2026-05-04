@@ -1,0 +1,259 @@
+speaker,style,wer,ref_source,reference,hypothesis,file
+cremad_f1_1002,anger,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_f1_1002_anger.wav
+cremad_f1_1002,baseline,0.0000,self,Don't forget a jacket.,Don't forget a jacket.,cremad_f1_1002_baseline.wav
+cremad_f1_1002,confused,0.2500,baseline,Don't forget a jacket.,Don't forget the jacket.,cremad_f1_1002_confused.wav
+cremad_f1_1002,disgust,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_f1_1002_disgust.wav
+cremad_f1_1002,enunciated,0.2500,baseline,Don't forget a jacket.,Don't forget Jacket.,cremad_f1_1002_enunciated.wav
+cremad_f1_1002,fear,0.2500,baseline,Don't forget a jacket.,Don't forget the jacket.,cremad_f1_1002_fear.wav
+cremad_f1_1002,happy,0.2500,baseline,Don't forget a jacket.,Don't forget the jacket.,cremad_f1_1002_happy.wav
+cremad_f1_1002,neutral,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_f1_1002_neutral.wav
+cremad_f1_1002,sad,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,cremad_f1_1002_sad.wav
+cremad_f1_1002,whisper,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_f1_1002_whisper.wav
+cremad_f2_1012,anger,0.2000,baseline,Don't forget to jack it.,Don't forget to zap it.,cremad_f2_1012_anger.wav
+cremad_f2_1012,baseline,0.0000,self,Don't forget to jack it.,Don't forget to jack it.,cremad_f2_1012_baseline.wav
+cremad_f2_1012,confused,0.8000,baseline,Don't forget to jack it.,Go brigands and jam it.,cremad_f2_1012_confused.wav
+cremad_f2_1012,disgust,0.2000,baseline,Don't forget to jack it.,Don't forget to jam it.,cremad_f2_1012_disgust.wav
+cremad_f2_1012,enunciated,0.6000,baseline,Don't forget to jack it.,So forget to jump in.,cremad_f2_1012_enunciated.wav
+cremad_f2_1012,fear,0.2000,baseline,Don't forget to jack it.,Don't forget to check it.,cremad_f2_1012_fear.wav
+cremad_f2_1012,happy,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it!,cremad_f2_1012_happy.wav
+cremad_f2_1012,neutral,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it.,cremad_f2_1012_neutral.wav
+cremad_f2_1012,sad,0.2000,baseline,Don't forget to jack it.,Don't forget to tap it.,cremad_f2_1012_sad.wav
+cremad_f2_1012,whisper,0.2000,baseline,Don't forget to jack it.,Don't forget to chat it.,cremad_f2_1012_whisper.wav
+cremad_m1_1003,anger,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_anger.wav
+cremad_m1_1003,baseline,0.0000,self,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_baseline.wav
+cremad_m1_1003,confused,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_confused.wav
+cremad_m1_1003,disgust,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_disgust.wav
+cremad_m1_1003,enunciated,0.5000,baseline,Don't forget a jacket.,"Don't forget, Adjacent.",cremad_m1_1003_enunciated.wav
+cremad_m1_1003,fear,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_fear.wav
+cremad_m1_1003,happy,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_happy.wav
+cremad_m1_1003,neutral,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_neutral.wav
+cremad_m1_1003,sad,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m1_1003_sad.wav
+cremad_m1_1003,whisper,0.2500,baseline,Don't forget a jacket.,Don't forget the jacket.,cremad_m1_1003_whisper.wav
+cremad_m2_1051,anger,0.7500,baseline,Don't forget a jacket.,Don't forget to jack you,cremad_m2_1051_anger.wav
+cremad_m2_1051,baseline,0.0000,self,Don't forget a jacket.,Don't forget a jacket.,cremad_m2_1051_baseline.wav
+cremad_m2_1051,confused,1.0000,baseline,Don't forget a jacket.,Go forget to judge it.,cremad_m2_1051_confused.wav
+cremad_m2_1051,disgust,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,cremad_m2_1051_disgust.wav
+cremad_m2_1051,enunciated,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m2_1051_enunciated.wav
+cremad_m2_1051,fear,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,cremad_m2_1051_fear.wav
+cremad_m2_1051,happy,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,cremad_m2_1051_happy.wav
+cremad_m2_1051,neutral,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,cremad_m2_1051_neutral.wav
+cremad_m2_1051,sad,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,cremad_m2_1051_sad.wav
+cremad_m2_1051,whisper,1.0000,baseline,Don't forget a jacket.,I'm gonna track it.,cremad_m2_1051_whisper.wav
+spk1007,anger,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a Jacket. It's 11th law.,spk1007_anger.wav
+spk1007,baseline,0.0000,self,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_baseline.wav
+spk1007,confused,0.2500,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a limited room.,spk1007_confused.wav
+spk1007,disgust,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's eleven o'clock,spk1007_disgust.wav
+spk1007_dp01,anger,0.2500,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a Jacket. It's a level claw.,spk1007_dp01_anger.wav
+spk1007_dp01,baseline,0.0000,self,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_dp01_baseline.wav
+spk1007_dp01,confused,0.1250,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather quag.,spk1007_dp01_confused.wav
+spk1007_dp01,disgust,0.5000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a giant. It's 11 o'clock.,spk1007_dp01_disgust.wav
+spk1007_dp01,enunciated,0.0000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_dp01_enunciated.wav
+spk1007_dp01,fear,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's eleven o'clock.,spk1007_dp01_fear.wav
+spk1007_dp01,happy,0.0000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_dp01_happy.wav
+spk1007_dp01,neutral,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's eleven o'clock.,spk1007_dp01_neutral.wav
+spk1007_dp01,sad,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's eleven o'clock.,spk1007_dp01_sad.wav
+spk1007_dp01,whisper,0.6250,baseline,Don't forget a jacket. It's a leather cloth.,"Don't, but yet a jacket. It's eleven o'clock.",spk1007_dp01_whisper.wav
+spk1007,enunciated,0.5000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget the Jackie. It's a living dream.,spk1007_enunciated.wav
+spk1007,fear,0.0000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_fear.wav
+spk1007,happy,0.1250,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a lemon cloth.,spk1007_happy.wav
+spk1007,neutral,0.0000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's a leather cloth.,spk1007_neutral.wav
+spk1007_s2.0,anger,,no-baseline,,Don't forget a jacket. It's a leather cloth.,spk1007_s2.0_anger.wav
+spk1007_s2.0,confused,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1007_s2.0_confused.wav
+spk1007_s2.0,disgust,,no-baseline,,Don't forget a jacket. It's eleven o'clock.,spk1007_s2.0_disgust.wav
+spk1007_s2.0,enunciated,,no-baseline,,Don't forget a jacket. It's a living room.,spk1007_s2.0_enunciated.wav
+spk1007_s2.0,fear,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1007_s2.0_fear.wav
+spk1007_s2.0,happy,,no-baseline,,Don't forget a giant. It's a love and a heart.,spk1007_s2.0_happy.wav
+spk1007_s2.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1007_s2.0_neutral.wav
+spk1007_s2.0,sad,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1007_s2.0_sad.wav
+spk1007_s2.0,whisper,,no-baseline,,"No, but yet I'm yawning. It's 11 o'clock.",spk1007_s2.0_whisper.wav
+spk1007_s3.0,anger,,no-baseline,,Don't forget a jacket. It's a leather cloth.,spk1007_s3.0_anger.wav
+spk1007_s3.0,confused,,no-baseline,,Don't forget a jacket. It's a leather crown.,spk1007_s3.0_confused.wav
+spk1007_s3.0,disgust,,no-baseline,,Don't forget a jacket. It's eleven o'clock.,spk1007_s3.0_disgust.wav
+spk1007_s3.0,enunciated,,no-baseline,,Don't forget the jacket. It's 11 o'clock.,spk1007_s3.0_enunciated.wav
+spk1007_s3.0,fear,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1007_s3.0_fear.wav
+spk1007_s3.0,happy,,no-baseline,,Don't forget a giant. It's a little claw.,spk1007_s3.0_happy.wav
+spk1007_s3.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock,spk1007_s3.0_neutral.wav
+spk1007_s3.0,sad,,no-baseline,,Don't forget a jacket. It's eleven o'clock.,spk1007_s3.0_sad.wav
+spk1007_s3.0,whisper,,no-baseline,,Don't forget to add your name. It's 11 o'clock.,spk1007_s3.0_whisper.wav
+spk1007,sad,0.3750,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a jacket. It's eleven o'clock.,spk1007_sad.wav
+spk1007,whisper,0.5000,baseline,Don't forget a jacket. It's a leather cloth.,Don't forget a giant. It's eleven o'clock.,spk1007_whisper.wav
+spk1023,anger,0.2857,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's a lot of clock. I'm on my way to the meeting.,spk1023_anger.wav
+spk1023,baseline,0.0000,self,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_baseline.wav
+spk1023,confused,0.4286,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget to check it. Just another month. I'm on my way to the meeting.,spk1023_confused.wav
+spk1023,disgust,0.4286,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. Take a lot of the clock. I'm on my way to the meeting.,spk1023_disgust.wav
+spk1023_dp01,anger,0.1250,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. It's a lot of clock. I'm on my way to the meeting.,spk1023_dp01_anger.wav
+spk1023_dp01,baseline,0.0000,self,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,spk1023_dp01_baseline.wav
+spk1023_dp01,confused,0.1250,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket Take a lot of luck I'm on my way to the meeting,spk1023_dp01_confused.wav
+spk1023_dp01,disgust,0.3125,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_dp01_disgust.wav
+spk1023_dp01,enunciated,0.3750,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a gender It's 11 o'clock I'm on my way to the meeting,spk1023_dp01_enunciated.wav
+spk1023_dp01,fear,0.3125,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. Chitz'e'll at the clock. I'm on my way to the meeting.,spk1023_dp01_fear.wav
+spk1023_dp01,happy,0.3125,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_dp01_happy.wav
+spk1023_dp01,neutral,0.1875,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. Tastes a lot of the clock. I'm on my way to the meeting.,spk1023_dp01_neutral.wav
+spk1023_dp01,sad,0.1250,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. It's a lot of clock. I'm on my way to the meeting.,spk1023_dp01_sad.wav
+spk1023_dp01,whisper,0.5000,baseline,Don't forget a jacket. Takes a lot of time. I'm on my way to the meeting.,Don't forget a jacket. It's a lot of luck. I bought my late emitting.,spk1023_dp01_whisper.wav
+spk1023,enunciated,0.2143,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget to jagged. Take 11 o'clock. I'm on my way to the meeting.,spk1023_enunciated.wav
+spk1023,fear,0.2857,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. Title of the clock. I'm on my way to the meeting.,spk1023_fear.wav
+spk1023,happy,0.0000,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_happy.wav
+spk1023,neutral,0.4286,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. Tastes a lot of the clock. I'm on my way to the meeting.,spk1023_neutral.wav
+spk1023_s2.0,anger,,no-baseline,,Don't forget a jacket. It's a lot of the clock. I'm on my way to the meeting.,spk1023_s2.0_anger.wav
+spk1023_s2.0,confused,,no-baseline,,Don't forget the Janet Take the other car I'm on my way to the meeting,spk1023_s2.0_confused.wav
+spk1023_s2.0,disgust,,no-baseline,,Don't forget a jacket. Tits a lot of the clock. I'm on my way to the meeting.,spk1023_s2.0_disgust.wav
+spk1023_s2.0,enunciated,,no-baseline,,Don't forget to check it. It's 11 o'clock. I'm on my way to the meeting.,spk1023_s2.0_enunciated.wav
+spk1023_s2.0,fear,,no-baseline,,Don't forget a jacket. Tickle of the clock. I'm on my way to the meeting.,spk1023_s2.0_fear.wav
+spk1023_s2.0,happy,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_s2.0_happy.wav
+spk1023_s2.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_s2.0_neutral.wav
+spk1023_s2.0,sad,,no-baseline,,Don't forget a jacket. Tits a lot more clock. I'm on my way to the meeting.,spk1023_s2.0_sad.wav
+spk1023_s2.0,whisper,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm off my way to the meeting.,spk1023_s2.0_whisper.wav
+spk1023_s3.0,anger,,no-baseline,,Don't forget a jacket. It's a lot of clock. I'm on my way to the meeting.,spk1023_s3.0_anger.wav
+spk1023_s3.0,confused,,no-baseline,,Don't forget a jacket Take a lot of love I'm on my way to the meeting,spk1023_s3.0_confused.wav
+spk1023_s3.0,disgust,,no-baseline,,Don't forget a jacket. Tastes a lot of the clock. I'm on my way to the meeting.,spk1023_s3.0_disgust.wav
+spk1023_s3.0,enunciated,,no-baseline,,Don't forget the jamming takes 11 o'clock. I'm on my way to the meeting.,spk1023_s3.0_enunciated.wav
+spk1023_s3.0,fear,,no-baseline,,Don't forget a jacket. Table of a clock. I'm on my way to the meeting.,spk1023_s3.0_fear.wav
+spk1023_s3.0,happy,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1023_s3.0_happy.wav
+spk1023_s3.0,neutral,,no-baseline,,Don't forget a jacket. It's eleven o'clock. I'm on my way to the meeting.,spk1023_s3.0_neutral.wav
+spk1023_s3.0,sad,,no-baseline,,Don't forget a jacket. Tits 11 o'clock. I'm on my way to the meeting.,spk1023_s3.0_sad.wav
+spk1023_s3.0,whisper,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm off my way to the meeting.,spk1023_s3.0_whisper.wav
+spk1023,sad,0.4286,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. Tits a lot on the clock. I'm on my way to the meeting.,spk1023_sad.wav
+spk1023,whisper,0.6429,baseline,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget to put your jacket. It's a lot of luck. I'm off my way to the beach.,spk1023_whisper.wav
+spk1045,anger,0.1429,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the Meegee.,spk1045_anger.wav
+spk1045,baseline,0.0000,self,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_baseline.wav
+spk1045,confused,0.3571,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's a red milk cloth. I'm on my way to the meeting.,spk1045_confused.wav
+spk1045,disgust,0.2857,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget the jacket. It's a late night. I'm on my way to the knee.,spk1045_disgust.wav
+spk1045_dp01,anger,0.3571,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget a jacket. It's a Latin McLaughth. I'm on my way to the meaty.,spk1045_dp01_anger.wav
+spk1045_dp01,baseline,0.0000,self,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,spk1045_dp01_baseline.wav
+spk1045_dp01,confused,0.3571,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget a jacket. It's a Latin o'clock. I'm not my way to the meeting.,spk1045_dp01_confused.wav
+spk1045_dp01,disgust,0.1429,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the Jackets. It's 11 o'clock. I'm on my way to the Mehee.,spk1045_dp01_disgust.wav
+spk1045_dp01,enunciated,0.2143,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget a jacket. It's 11 o'clock. I'm on that way to the meeting,spk1045_dp01_enunciated.wav
+spk1045_dp01,fear,0.3571,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget a jacket. It's a LED McClub. I'm on my way to the meaty.,spk1045_dp01_fear.wav
+spk1045_dp01,happy,0.0714,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_dp01_happy.wav
+spk1045_dp01,neutral,0.0714,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_dp01_neutral.wav
+spk1045_dp01,sad,0.0000,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the Jacket. It's 11 o'clock. I'm on my way to the knee.,spk1045_dp01_sad.wav
+spk1045_dp01,whisper,0.5000,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the knee.,Don't forget the jacket. It's a leopard cloth. I bought that way to the meat.,spk1045_dp01_whisper.wav
+spk1045,enunciated,0.5714,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a German. Get to 11 o'clock. I got away to the meeting.,spk1045_enunciated.wav
+spk1045,fear,0.2857,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget the jacket. It's a LED McLaughlin. I'm on their way to the meeting.,spk1045_fear.wav
+spk1045,happy,0.1429,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on their way to the meeting.,spk1045_happy.wav
+spk1045,neutral,0.1429,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget a jacket. It's 11 o'clock. I'm on my way to the knee.,spk1045_neutral.wav
+spk1045_s2.0,anger,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on that way to the Mehe.,spk1045_s2.0_anger.wav
+spk1045_s2.0,confused,,no-baseline,,Don't forget Ajaka. It's 11 o'clock. I'm on their way to the meeting.,spk1045_s2.0_confused.wav
+spk1045_s2.0,disgust,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s2.0_disgust.wav
+spk1045_s2.0,enunciated,,no-baseline,,Don't forget that January. It's 11 o'clock. I'm on their way to the meeting.,spk1045_s2.0_enunciated.wav
+spk1045_s2.0,fear,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on their way to the meeting.,spk1045_s2.0_fear.wav
+spk1045_s2.0,happy,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on their way to the meeting.,spk1045_s2.0_happy.wav
+spk1045_s2.0,neutral,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s2.0_neutral.wav
+spk1045_s2.0,sad,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s2.0_sad.wav
+spk1045_s2.0,whisper,,no-baseline,,Don't forget the chat room. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s2.0_whisper.wav
+spk1045_s3.0,anger,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on that way to the me.,spk1045_s3.0_anger.wav
+spk1045_s3.0,confused,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s3.0_confused.wav
+spk1045_s3.0,disgust,,no-baseline,,Don't forget the jacket. It's the LED clock. I'm on my way to the meeting.,spk1045_s3.0_disgust.wav
+spk1045_s3.0,enunciated,,no-baseline,,Don't forget that January. It's 11 o'clock. I'm going away to the meeting.,spk1045_s3.0_enunciated.wav
+spk1045_s3.0,fear,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s3.0_fear.wav
+spk1045_s3.0,happy,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on their way to the meeting.,spk1045_s3.0_happy.wav
+spk1045_s3.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_s3.0_neutral.wav
+spk1045_s3.0,sad,,no-baseline,,Don't forget the jacket. It's 11 o'clock. I'm on that way to the meeting.,spk1045_s3.0_sad.wav
+spk1045_s3.0,whisper,,no-baseline,,Don't forget the Japanese. It's 11 o'clock. I'm on that way to the meeting.,spk1045_s3.0_whisper.wav
+spk1045,sad,0.0000,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,spk1045_sad.wav
+spk1045,whisper,0.2143,baseline,Don't forget the jacket. It's 11 o'clock. I'm on my way to the meeting.,Y'all forget the Japanese. It's 11 o'clock. I'm on that way to the meeting.,spk1045_whisper.wav
+spk1076,anger,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_anger.wav
+spk1076,baseline,0.0000,self,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_baseline.wav
+spk1076,confused,0.4286,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 in a clock.,spk1076_confused.wav
+spk1076,disgust,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_disgust.wav
+spk1076_dp01,anger,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_anger.wav
+spk1076_dp01,baseline,0.0000,self,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_baseline.wav
+spk1076_dp01,confused,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_confused.wav
+spk1076_dp01,disgust,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_disgust.wav
+spk1076_dp01,enunciated,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_enunciated.wav
+spk1076_dp01,fear,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_fear.wav
+spk1076_dp01,happy,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_happy.wav
+spk1076_dp01,neutral,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_neutral.wav
+spk1076_dp01,sad,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_dp01_sad.wav
+spk1076_dp01,whisper,0.2857,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget to add a jacket. It's 11 o'clock.,spk1076_dp01_whisper.wav
+spk1076,enunciated,0.4286,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget to check it. It's 11 o'clock.,spk1076_enunciated.wav
+spk1076,fear,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_fear.wav
+spk1076,happy,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_happy.wav
+spk1076,neutral,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_neutral.wav
+spk1076_s2.0,anger,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_anger.wav
+spk1076_s2.0,confused,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_confused.wav
+spk1076_s2.0,disgust,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_disgust.wav
+spk1076_s2.0,enunciated,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_enunciated.wav
+spk1076_s2.0,fear,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_fear.wav
+spk1076_s2.0,happy,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_happy.wav
+spk1076_s2.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_neutral.wav
+spk1076_s2.0,sad,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_sad.wav
+spk1076_s2.0,whisper,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s2.0_whisper.wav
+spk1076_s3.0,anger,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_anger.wav
+spk1076_s3.0,confused,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_confused.wav
+spk1076_s3.0,disgust,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_disgust.wav
+spk1076_s3.0,enunciated,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_enunciated.wav
+spk1076_s3.0,fear,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_fear.wav
+spk1076_s3.0,happy,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_happy.wav
+spk1076_s3.0,neutral,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_neutral.wav
+spk1076_s3.0,sad,,no-baseline,,Don't forget a jacket. It's 11 o'clock.,spk1076_s3.0_sad.wav
+spk1076_s3.0,whisper,,no-baseline,,Don't forget to check it. It's 11 o'clock.,spk1076_s3.0_whisper.wav
+spk1076,sad,0.0000,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget a jacket. It's 11 o'clock.,spk1076_sad.wav
+spk1076,whisper,0.4286,baseline,Don't forget a jacket. It's 11 o'clock.,Don't forget to attract it. It's 11 o'clock.,spk1076_whisper.wav
+trump,anger,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_anger.wav
+trump,baseline,0.0000,self,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_baseline.wav
+trump,confused,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_confused.wav
+trump,disgust,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_disgust.wav
+trump_dp01,anger,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_anger.wav
+trump_dp01,baseline,0.0000,self,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_baseline.wav
+trump_dp01,confused,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_confused.wav
+trump_dp01,disgust,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_disgust.wav
+trump_dp01,enunciated,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_enunciated.wav
+trump_dp01,fear,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_fear.wav
+trump_dp01,happy,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_happy.wav
+trump_dp01,neutral,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_neutral.wav
+trump_dp01,sad,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_dp01_sad.wav
+trump_dp01,whisper,0.2000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make a Mac again for all Macs.",trump_dp01_whisper.wav
+trump,enunciated,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_enunciated.wav
+trump,fear,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_fear.wav
+trump,happy,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_happy.wav
+trump_male,anger,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_anger.wav
+trump_male,baseline,0.0000,self,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_baseline.wav
+trump_male,confused,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_confused.wav
+trump_male,disgust,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_disgust.wav
+trump_male,enunciated,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_enunciated.wav
+trump_male,fear,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_fear.wav
+trump_male,happy,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_happy.wav
+trump_male,neutral,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_neutral.wav
+trump_male,sad,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_sad.wav
+trump_male,whisper,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_male_whisper.wav
+trump,neutral,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_neutral.wav
+trump_s10.0,anger,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_anger.wav
+trump_s10.0,confused,,no-baseline,,"In sugar, we embarked on a mission to make America great again, serve all Americans.",trump_s10.0_confused.wav
+trump_s10.0,disgust,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_disgust.wav
+trump_s10.0,enunciated,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_enunciated.wav
+trump_s10.0,fear,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_fear.wav
+trump_s10.0,happy,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_happy.wav
+trump_s10.0,neutral,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_neutral.wav
+trump_s10.0,sad,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s10.0_sad.wav
+trump_s10.0,whisper,,no-baseline,,"In short, we embarked on the mission to make America great again for all Americans.",trump_s10.0_whisper.wav
+trump_s2.0,anger,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_anger.wav
+trump_s2.0,confused,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_confused.wav
+trump_s2.0,disgust,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_disgust.wav
+trump_s2.0,enunciated,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_enunciated.wav
+trump_s2.0,fear,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_fear.wav
+trump_s2.0,happy,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_happy.wav
+trump_s2.0,neutral,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_neutral.wav
+trump_s2.0,sad,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_sad.wav
+trump_s2.0,whisper,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s2.0_whisper.wav
+trump_s20.0,anger,,no-baseline,,"In short, we embarked on a mission to make America great and for all Americans.",trump_s20.0_anger.wav
+trump_s20.0,confused,,no-baseline,,"In sugar, we embarked on a mission to make America great again, to all Americans.",trump_s20.0_confused.wav
+trump_s20.0,disgust,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_disgust.wav
+trump_s20.0,enunciated,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_enunciated.wav
+trump_s20.0,fear,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_fear.wav
+trump_s20.0,happy,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_happy.wav
+trump_s20.0,neutral,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_neutral.wav
+trump_s20.0,sad,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s20.0_sad.wav
+trump_s20.0,whisper,,no-baseline,,"In short, we're marked on a mission to make America great again for all Americans.",trump_s20.0_whisper.wav
+trump_s3.0,anger,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_anger.wav
+trump_s3.0,confused,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_confused.wav
+trump_s3.0,disgust,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_disgust.wav
+trump_s3.0,enunciated,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_enunciated.wav
+trump_s3.0,fear,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_fear.wav
+trump_s3.0,happy,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_happy.wav
+trump_s3.0,neutral,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_neutral.wav
+trump_s3.0,sad,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_sad.wav
+trump_s3.0,whisper,,no-baseline,,"In short, we embarked on a mission to make America great again for all Americans.",trump_s3.0_whisper.wav
+trump,sad,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_sad.wav
+trump,whisper,0.0000,baseline,"In short, we embarked on a mission to make America great again for all Americans.","In short, we embarked on a mission to make America great again for all Americans.",trump_whisper.wav

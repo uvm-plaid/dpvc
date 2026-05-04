@@ -10,7 +10,6 @@ import torch
 import torchaudio
 import librosa
 import soundfile as sf
-import os
 
 class ControlVCWrapper:
     """
@@ -30,22 +29,22 @@ class ControlVCWrapper:
         ├── hubert_base_ls960.pt    # HuBERT model (optional for content extraction)
         └── km.bin                  # K-means quantizer (optional)
     """
+
     def __init__(
         self,
-        device: str = "cuda",
+        repo_root: Path,
+        device: str = None,
         checkpoints_dir: Optional[Path] = None,
         config: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
     ):
-        repo_root = os.environ['CONTROLVC_PATH']
         self.repo_root = Path(repo_root).expanduser().resolve()
         self.verbose = verbose
 
-        # Set device
-        if device == "cpu" or not torch.cuda.is_available():
-            self.device = torch.device("cpu")
-        else:
-            self.device = torch.device(device)
+        # Set device: auto-detect if not specified
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device)
 
         self.checkpoints_dir = (Path(checkpoints_dir).resolve()
                                 if checkpoints_dir else (self.repo_root / "checkpoints"))
@@ -61,19 +60,6 @@ class ControlVCWrapper:
 
         # Load models
         self._load_models()
-
-    def get_vae_config(self):
-        local_path = os.path.dirname(os.path.abspath(__file__))
-        vae_path = f'{local_path}/controlvc_embedding_vae.pt'
-
-        config = {
-            'checkpoint_path': vae_path,
-            'latent_dim': 6,
-            'input_dim': 256,
-            'clip_threshold': 10.0,
-            'post_clip_threshold': 10.0
-        }
-        return config
 
     def _print(self, msg: str):
         """Print if verbose mode enabled."""
@@ -375,6 +361,16 @@ class ControlVCWrapper:
 
         audio_np = audio_out.cpu().squeeze().numpy()
         sf.write(output_file, audio_np, 16000)
+
+    def get_vae_config(self):
+        """Return default VAE configuration for ControlVC."""
+        return {
+            'checkpoint_path': None,  # must be provided by user
+            'latent_dim': 6,
+            'input_dim': 256,
+            'clip_threshold': 10.0,
+            'post_clip_threshold': 10.0,
+        }
 
     # ---------- Helper Methods ----------
     def _ensure_tensor(self, x: Any) -> torch.Tensor:

@@ -1,0 +1,41 @@
+speaker,style,wer,ref_source,reference,hypothesis,file
+female_1_cremad_1002,anger,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_anger.wav
+female_1_cremad_1002,baseline,0.0000,self,Don't forget the jacket.,Don't forget the jacket.,female_1_cremad_1002_baseline.wav
+female_1_cremad_1002,confused,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_confused.wav
+female_1_cremad_1002,disgust,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_disgust.wav
+female_1_cremad_1002,enunciated,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_enunciated.wav
+female_1_cremad_1002,fear,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_fear.wav
+female_1_cremad_1002,happy,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_happy.wav
+female_1_cremad_1002,neutral,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_neutral.wav
+female_1_cremad_1002,sad,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_sad.wav
+female_1_cremad_1002,whisper,0.2500,baseline,Don't forget the jacket.,Don't forget a jacket.,female_1_cremad_1002_whisper.wav
+female_2_cremad_1012,anger,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it!,female_2_cremad_1012_anger.wav
+female_2_cremad_1012,baseline,0.0000,self,Don't forget to jack it.,Don't forget to jack it.,female_2_cremad_1012_baseline.wav
+female_2_cremad_1012,confused,0.2000,baseline,Don't forget to jack it.,Don't forget to tap it.,female_2_cremad_1012_confused.wav
+female_2_cremad_1012,disgust,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it.,female_2_cremad_1012_disgust.wav
+female_2_cremad_1012,enunciated,0.2000,baseline,Don't forget to jack it.,Don't forget to jam it.,female_2_cremad_1012_enunciated.wav
+female_2_cremad_1012,fear,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it.,female_2_cremad_1012_fear.wav
+female_2_cremad_1012,happy,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it.,female_2_cremad_1012_happy.wav
+female_2_cremad_1012,neutral,0.2000,baseline,Don't forget to jack it.,Don't forget to jam it.,female_2_cremad_1012_neutral.wav
+female_2_cremad_1012,sad,0.0000,baseline,Don't forget to jack it.,Don't forget to jack it.,female_2_cremad_1012_sad.wav
+female_2_cremad_1012,whisper,0.2000,baseline,Don't forget to jack it.,Don't forget to tap it.,female_2_cremad_1012_whisper.wav
+male_1_cremad_1003,anger,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_anger.wav
+male_1_cremad_1003,baseline,0.0000,self,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_baseline.wav
+male_1_cremad_1003,confused,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_confused.wav
+male_1_cremad_1003,disgust,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_disgust.wav
+male_1_cremad_1003,enunciated,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_enunciated.wav
+male_1_cremad_1003,fear,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_fear.wav
+male_1_cremad_1003,happy,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_happy.wav
+male_1_cremad_1003,neutral,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_neutral.wav
+male_1_cremad_1003,sad,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_sad.wav
+male_1_cremad_1003,whisper,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_1_cremad_1003_whisper.wav
+male_2_cremad_1051,anger,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_anger.wav
+male_2_cremad_1051,baseline,0.0000,self,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_baseline.wav
+male_2_cremad_1051,confused,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_confused.wav
+male_2_cremad_1051,disgust,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_disgust.wav
+male_2_cremad_1051,enunciated,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,male_2_cremad_1051_enunciated.wav
+male_2_cremad_1051,fear,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it,male_2_cremad_1051_fear.wav
+male_2_cremad_1051,happy,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_happy.wav
+male_2_cremad_1051,neutral,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_neutral.wav
+male_2_cremad_1051,sad,0.0000,baseline,Don't forget a jacket.,Don't forget a jacket.,male_2_cremad_1051_sad.wav
+male_2_cremad_1051,whisper,0.7500,baseline,Don't forget a jacket.,Don't forget to jack it.,male_2_cremad_1051_whisper.wav

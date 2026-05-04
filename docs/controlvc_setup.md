@@ -1,5 +1,9 @@
 # ControlVC Wrapper Setup Guide
 
+ControlVC is preserved here as a **DP baseline and wrapper smoke-test path**.
+For the main controllable-style pipeline, use OpenVoice instead; see
+`examples/README.md`.
+
 ## Quick Setup (Recommended)
 
 Run the provided setup script — it handles everything automatically:
@@ -175,7 +179,9 @@ vc_wrapper = ControlVCWrapper(
 )
 
 # Pass the ControlVC-specific VAE checkpoint
-anonymizer = Anonymizer(vc_wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
+vae_config = vc_wrapper.get_vae_config()
+vae_config["checkpoint_path"] = "examples/controlvc_vae.pt"
+anonymizer = Anonymizer(vc_wrapper, vae_config=vae_config)
 
 anonymizer.anonymize(
     source_file="examples/trump_0.wav",

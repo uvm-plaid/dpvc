@@ -17,11 +17,25 @@ license = {file = "LICENSE"}
 requires-python = ">=3.9,<=3.12"
 dependencies = [
     "torch>=2.4.0",
-    "numpy>=1.22"
+    "numpy>=1.22",
+    "torchaudio",
+    "librosa",
+    "soundfile",
+    "tqdm",
+    "joblib",
+    "requests",
+    "amfm_decompy",
+    "omegaconf==2.0.6",
 ]
 
 [project.optional-dependencies]
 openvoice = ["MyShell-OpenVoice @ git+https://github.com/myshell-ai/OpenVoice.git"]
+expresso = ["datasets", "pandas"]
+eval = [
+    "funasr",           # emotion2vec_plus_large for eval_emotion.py
+    "openai-whisper",   # ASR for eval_wer.py
+    "jiwer",            # WER computation for eval_wer.py
+]
 
 [project.urls]
 Repository = "https://github.com/uvm-plaid/dpvc"
