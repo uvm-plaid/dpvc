@@ -1,8 +1,4 @@
-# ControlVC Baseline - Quick Reference
-
-ControlVC is kept in this repo as a **DP baseline and wrapper reference**.
-For controllable style work, use the OpenVoice pipeline in
-`examples/README.md`.
+# ControlVC Wrapper - Quick Reference
 
 ## Installation
 
@@ -48,9 +44,7 @@ wrapper = ControlVCWrapper(
     repo_root=Path("~/repos/control-vc").expanduser(),
     device="cpu"
 )
-vae_config = wrapper.get_vae_config()
-vae_config["checkpoint_path"] = "examples/controlvc_vae.pt"
-anonymizer = Anonymizer(wrapper, vae_config=vae_config)
+anonymizer = Anonymizer(wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 
 anonymizer.anonymize(
     "source.wav",

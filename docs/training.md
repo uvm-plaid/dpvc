@@ -46,15 +46,11 @@ torch.save(AE.state_dict(), 'example_openvoice_vae.pt')
 
 ## Using the new Autoencoder
 
-To use the trained VAE, start from the wrapper's config dict and
-override the checkpoint path before constructing the anonymizer:
+To use the trained VAE, pass the filename used when saving the model
+weights in the optional `vae_checkpoint_path` argument when
+constructing the anonymizer:
 
 ``` py
 # Construct the anonymizer, using the newly trained VAE
-vae_config = vc_wrapper.get_vae_config()
-vae_config["checkpoint_path"] = "example_openvoice_vae.pt"
-anonymizer = dpvc.Anonymizer(vc_wrapper, vae_config=vae_config)
+anonymizer = dpvc.Anonymizer(vc_wrapper, vae_checkpoint_path='example_openvoice_vae.pt')
 ```
-
-`vae_checkpoint_path=` is still supported as a temporary compatibility
-alias for older examples, but `vae_config` is the canonical interface.

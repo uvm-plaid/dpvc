@@ -31,18 +31,6 @@ anonymizer.anonymize(src_path, output_path, noise_level=1.0)
 Here, `src_path` should be an input .wav file name, and `output_path`
 should be the output .wav file name. The `noise_level` parameter
 controls how much noise is added in the differential privacy step. The
-`OpenVoiceWrapper` object encapsulates the OpenVoice models, and the
+`OpenVoiceDPWrapper` object encapsulates the OpenVoice models, and the
 `anonymize` method performs the anonymization via differential
 privacy.
-
-If you want to use a custom VAE checkpoint, the canonical interface is
-to start from the wrapper's config dict and override the checkpoint:
-
-``` py
-vae_config = vc_wrapper.get_vae_config()
-vae_config["checkpoint_path"] = "example_openvoice_vae.pt"
-anonymizer = dpvc.Anonymizer(vc_wrapper, vae_config=vae_config)
-```
-
-`vae_checkpoint_path=` is still accepted as a temporary compatibility
-alias for older scripts, but new code should use `vae_config`.

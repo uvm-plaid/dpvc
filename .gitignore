@@ -25,8 +25,3 @@ __pycache__/
 # Generated audio test outputs
 test_output*.wav
 test_cli_output*.wav
-
-# Generated data and outputs
-embeddings/
-output/
-processed/
