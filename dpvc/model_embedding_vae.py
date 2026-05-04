@@ -5,10 +5,9 @@ import random
 import numpy as np
 from . import utils
 
-INPUT_DIM = 256
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim=INPUT_DIM, latent_dim=6):
+    def __init__(self, input_dim=256, latent_dim=6):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 512),
@@ -53,7 +52,7 @@ class Decoder(nn.Module):
 
 
 class VariationalAutoencoder(nn.Module):
-    def __init__(self, input_dim=INPUT_DIM, latent_dims=6,
+    def __init__(self, input_dim=256, latent_dims=6,
                  clip_threshold=10.0,
                  post_clip_threshold=10.0):
         super().__init__()
@@ -76,33 +75,27 @@ class VariationalAutoencoder(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
-    def forward(self, x, seed=None):
+    def forward(self, x, seed=None, control_features=None):
         mu, logvar = self.encoder(x)
+        self.last_mu = mu
+        self.last_logvar = logvar
         z = self.reparameterize(mu, logvar)
+        self.last_z = z
 
         if self.noise_mult:
-            # print('******************* input max/min/norm:',
-            #       x.max().item(), x.min().item(), x.norm(p=2).item())
-            # print('******************* latent max/min/norm:',
-            #       z.max().item(), z.min().item(), z.norm(p=2).item())
-
             z = self.clip_by_l2norm(z, self.clip_threshold)
 
-            # print('******************* clipped max/min/norm:',
-            #       z.max().item(), z.min().item(), z.norm(p=2).item())
-
             utils.set_seed(seed)
-            z = z + self.clip_threshold*self.noise_mult*torch.randn(z.shape).to(z.device)
+            z = z + self.clip_threshold * self.noise_mult * torch.randn(z.shape).to(z.device)
 
-            # print('******************* noisy max/min/norm:',
-            #       z.max().item(), z.min().item(), z.norm(p=2).item())
-
-            z = self.clip_by_l2norm(z, 2*self.clip_threshold)
+            z = self.clip_by_l2norm(z, 2 * self.clip_threshold)
             z = torch.clamp(z, min=-self.post_clip_threshold, max=self.post_clip_threshold)
-            #z = self.clip_by_l2norm(z, 10*self.clip_threshold)
 
+        if control_features:
+            assert isinstance(control_features, dict)
+            for idx, val in control_features.items():
+                z[:, idx] = val
 
         recon = self.decoder(z)
         self.kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-        # return recon, mu, logvar, z
         return recon
