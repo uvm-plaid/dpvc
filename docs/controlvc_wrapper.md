@@ -1,9 +1,5 @@
 # ControlVC Wrapper Documentation
 
-ControlVC is preserved here as a **DP baseline and wrapper reference**. It is
-not the recommended path for controllable style work; the active style-control
-pipeline uses OpenVoice (see `examples/README.md`).
-
 ## Overview
 
 The `ControlVCWrapper` provides a clean, two-stage API for integrating the ControlVC voice conversion system into the differential privacy anonymization pipeline.
@@ -123,9 +119,7 @@ vc_wrapper = ControlVCWrapper(
 )
 
 # Pass the ControlVC-specific VAE checkpoint
-vae_config = vc_wrapper.get_vae_config()
-vae_config["checkpoint_path"] = "examples/controlvc_vae.pt"
-anonymizer = Anonymizer(vc_wrapper, vae_config=vae_config)
+anonymizer = Anonymizer(vc_wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 
 anonymizer.anonymize(
     source_file="source.wav",
@@ -235,9 +229,7 @@ The wrapper is designed to work seamlessly with the differential privacy pipelin
 embedding = wrapper.extract_embedding(source_wav)
 
 # 2. Apply DP noise (via VAE + Anonymizer)
-vae_config = wrapper.get_vae_config()
-vae_config["checkpoint_path"] = "examples/controlvc_vae.pt"
-anonymizer = Anonymizer(wrapper, vae_config=vae_config)
+anonymizer = Anonymizer(wrapper, vae_checkpoint_path="examples/controlvc_vae.pt")
 anonymizer.anonymize(source_wav, output_wav, noise_level=1.0)
 ```
 
