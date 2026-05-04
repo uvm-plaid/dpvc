@@ -22,36 +22,27 @@ class OpenVoiceWrapper(VoiceControlWrapper):
         tone_color_converter.load_ckpt(f'{ckpt_converter}/checkpoint.pth')
         self.tone_color_converter = tone_color_converter
 
-    def extract_embedding(self, source_file) -> torch.Tensor:
-        """Extract the speaker embedding from a source .wav file.
-
-        Calls extract_se directly on the audio file, bypassing OpenVoice's
-        VAD-based splitting which fails on short utterances (<10s).
-        """
-        return self.tone_color_converter.extract_se([source_file])
-
     def get_vae_config(self):
-        """Return default VAE configuration for OpenVoice."""
         local_path = os.path.dirname(os.path.abspath(__file__))
         vae_path = f'{local_path}/openvoice_embedding_vae.pt'
-        return {
+
+        config = {
             'checkpoint_path': vae_path,
             'latent_dim': 6,
             'input_dim': 256,
             'clip_threshold': 10.0,
-            'post_clip_threshold': 10.0,
+            'post_clip_threshold': 10.0
         }
+        return config
+
+    def extract_embedding(self, source_file) -> torch.Tensor:
+        source_se, _ = se_extractor.get_se(source_file, self.tone_color_converter,
+                                           target_dir='processed', vad=True)
+        return source_se
 
     def inference(self, source_file, output_file, source_embedding, target_embedding):
-        """Perform inference with a source file and target speaker embedding,
-        writing to the output file"""
-        # OpenVoice expects [1, 256, 1] shaped embeddings
-        if target_embedding.dim() == 2:
-            target_embedding = target_embedding.unsqueeze(-1)
-        if source_embedding.dim() == 2:
-            source_embedding = source_embedding.unsqueeze(-1)
         self.tone_color_converter.convert(
-            audio_src_path=source_file,
+            audio_src_path=source_file, 
             src_se=source_embedding,
-            tgt_se=target_embedding,
+            tgt_se=target_embedding.unsqueeze(-1),
             output_path=output_file)
